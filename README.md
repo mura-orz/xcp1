@@ -46,7 +46,7 @@
  -  -L:{Path}            Adds the linkage path {Path} to find.libraries.
  -  -l:{name}            Links the library {name}.
 
-## Implementation defineed
+## Implementation defined
 
  - List of implementation-defined 
 
