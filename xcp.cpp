@@ -1374,6 +1374,7 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 	} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, line); matched) {
 		// -------------------------------
 		// #include <...> or "..."
+		return {true, lines};
 	} else if (parse_preprocessing_error_line(line)) {
 		// -------------------------------
 		// #error ...
