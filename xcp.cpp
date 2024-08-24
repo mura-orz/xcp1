@@ -621,7 +621,7 @@ lines_t split_lines(tokens_t const& tokens) {
 	log::tracer_t tr{{}};
 
 	if (tokens.empty()) return lines_t{};
-	auto const newline = [](auto const& a) { return a.type() == lex::token_type_t::Newline; || a.type() == lex::token_type_t::Line_comment; };
+	auto const newline = [](auto const& a) { return a.type() == lex::token_type_t::Newline || a.type() == lex::token_type_t::Line_comment; };
 
 	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
 	lines_t lines;
