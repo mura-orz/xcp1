@@ -30,6 +30,14 @@
 #include <variant>
 #include <vector>
 
+#if !defined(xxx_posix) && ! defined(xxx_win32) && ! defined(xxx_xxx_andk)
+#if defined(_WIN32)
+#define xxx_win32
+#else
+#define xxx_posix	// Android NDK is not supported here
+#endif
+#endif
+
 namespace xxx {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
