@@ -7,6 +7,7 @@
 
 #include <source_location>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
 #include <chrono>
@@ -22,6 +23,7 @@
 #include <ranges>
 #include <regex>
 #include <sstream>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <tuple>
