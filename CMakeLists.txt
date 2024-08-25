@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
+
+project(xcp)
+
 enable_language(CXX)
 set(CMAKE_CXX_STANDARD 20)	# Currently ranges feature requires c++latest instead of c++20.
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,8 +10,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(POSIX	$<PLATFORM_ID:Linux>)
 set(WIN32	$<PLATFORM_ID:Windows>)
 set(ANDK	$<BOOL:${CMAKE_ANDROID_API}>)
-
-project(xcp)
 
 if(MSVC)
 	if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
