@@ -42,6 +42,8 @@ namespace xxx {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
+using svmatch	= std::match_results<std::string_view::const_iterator>;
+
 template<typename E = std::invalid_argument>
 inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location::current()) {
 	if (! result) throw E{sl.function_name() + std::to_string(sl.line()) + message};
@@ -107,7 +109,7 @@ inline std::string location(std::source_location const& sl) {
 	std::ostringstream oss;
 	oss << "[" << std::filesystem::path{sl.file_name()}.filename().string() << ":" << std::setfill('_') << std::setw(5) << sl.line() << ":" << std::setw(3) << sl.column() << "]";
 	std::string_view fn{sl.function_name()};
-	if (std::cmatch m; std::regex_match(fn.cbegin(), fn.cend(), m, function_name_re)) {
+	if (svmatch m; std::regex_match(fn.cbegin(), fn.cend(), m, function_name_re)) {
 		oss << m.str(1);
 	} else {
 		oss << sl.function_name();
