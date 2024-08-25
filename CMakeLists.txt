@@ -45,6 +45,8 @@ elseif(WIN32)
 elseif(ANDK)
 	message(TRACE "Android")
 	target_compile_definitions(xcp	PUBLIC	xxx_andk)
+else()
+	message(TRACE "Unknown")
 endif()
 target_link_libraries(xcp	${CMAKE_THREAD_LIBS_INIT})
 
