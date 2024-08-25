@@ -30,11 +30,11 @@
 #include <variant>
 #include <vector>
 
-#if !defined(xxx_posix) && ! defined(xxx_win32) && ! defined(xxx_andk)
+#if ! defined(xxx_posix) && ! defined(xxx_win32)
 #if defined(_WIN32)
 #define xxx_win32
 #else
-#define xxx_posix	// Android NDK is not supported here
+#define xxx_posix
 #endif
 #endif
 
