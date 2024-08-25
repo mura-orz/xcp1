@@ -357,8 +357,6 @@ std::string_view const basic_source_character_set{"ABCDEFGHIJKLMNOPQRSTUVWXYZabc
 
 }	 // namespace def
 
-using svmatch = std::match_results<std::string_view::const_iterator>;
-
 /// @brief	Lexical token type.
 enum class token_type_t {
 	Terminated,
