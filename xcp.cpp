@@ -30,7 +30,7 @@
 #include <variant>
 #include <vector>
 
-#if !defined(xxx_posix) && ! defined(xxx_win32) && ! defined(xxx_xxx_andk)
+#if !defined(xxx_posix) && ! defined(xxx_win32) && ! defined(xxx_andk)
 #if defined(_WIN32)
 #define xxx_win32
 #else
