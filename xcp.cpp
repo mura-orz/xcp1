@@ -94,14 +94,10 @@ std::regex const function_name_re{R"(^(?:.* )(?:`?[A-Za-z_{][-A-Za-z_0-9<>'}]*::
 inline std::tm local_tm(std::chrono::system_clock::time_point const& now) {
 	std::tm	   tm{};
 	auto const tt{std::chrono::system_clock::to_time_t(now)};
-#if defined(xxx_win32)
-	::localtime_s(&tm, &tt);
-#elif defined(xxx_posix)
-	::localtime_r(&tt, &tm);
-#else
-	// TODO: here would be locked here
+	// ::localtime_s(&tm, &tt);	for xxx_win32
+	// ::localtime_r(&tt, &tm);	for xxx_posix
+	// NOTE: It is always called with lock of mutex currently.
 	tm = *std::localtime(&tt);
-#endif
 	return tm;
 }
 
