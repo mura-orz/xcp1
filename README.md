@@ -5,7 +5,7 @@
  - It may become a simple and tiny C++ compiler in future.
  - It confirms to C++ of ISO/IEC 14882:2020 (C++20).
 
-## Notice
+##　Concepts & Notice of disclaimer
 
  - It is copyrighted by Mura. (c) 2023-, Mura. All rights reserved.
  - It is not Free Software.
