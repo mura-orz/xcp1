@@ -1,5 +1,5 @@
 ///	@file
-///	@brief		xcp - xxx c++  compiler.
+///	@brief		xcp - xxx c++ compiler.
 ///		It is a C++20 compiler written in C++20.
 ///		It s just for hobby and does not take care of performance.
 ///	@author		Mura
@@ -42,7 +42,7 @@ namespace xxx {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
-using svmatch	= std::match_results<std::string_view::const_iterator>;
+using svmatch = std::match_results<std::string_view::const_iterator>;
 
 template<typename E = std::invalid_argument>
 inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location::current()) {
