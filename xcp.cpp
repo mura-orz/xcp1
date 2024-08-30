@@ -16,8 +16,8 @@ struct source_location {
 	constexpr uint_least32_t column() const noexcept { return column_; }
 	constexpr char const* file_name() const noexcept { return file_name_; }
 	constexpr char const* function_name() const noexcept { return function_name_; }
-private:
 	constexpr source_location(char const* file_name, char const* function_name, uint_least32_t line, uint_least32_t column) noexcept		: line_{line}, column_{column}, file_name_{file_name}, function_name_{function_name} {}
+private:
 	uint_least32_t line_;
 	uint_least32_t column_;
 	const char*	   file_name_;
