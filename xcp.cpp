@@ -59,7 +59,7 @@ template<typename E = std::invalid_argument>
 #if defined(__cpp_lib_source_location)
 inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location::current()) {
 #else
-inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) {
+inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) {
 #endif
 	if (! result) throw E{sl.function_name() + std::to_string(sl.line()) + message};
 }
@@ -143,7 +143,7 @@ inline std::string datetime(std::chrono::system_clock::time_point const& dt) {
 #if defined(__cpp_lib_source_location)
 inline void log(level_t level, std::string_view const& message, std::source_location sl = std::source_location::current()) {
 #else
-inline void log(level_t level, std::string_view const& message, std::source_location sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) {
+inline void log(level_t level, std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) {
 #endif
 	if (level < level_s) return;
 	std::lock_guard lock{mutex_s};
@@ -154,9 +154,9 @@ inline void trace(std::string_view const& message, std::source_location sl = std
 inline void info(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Info, message, sl); }
 inline void err(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Error, message, sl); }
 #else
-inline void trace(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) { log(level_t::Trace, message, sl); }
-inline void info(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) { log(level_t::Info, message, sl); }
-inline void err(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) { log(level_t::Error, message, sl); }
+inline void trace(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) { log(level_t::Trace, message, sl); }
+inline void info(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) { log(level_t::Info, message, sl); }
+inline void err(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) { log(level_t::Error, message, sl); }
 #endif
 
 class tracer_t {
@@ -164,13 +164,13 @@ public:
 #if defined(__cpp_lib_source_location)
 	explicit tracer_t(std::vector<std::string_view> const& args, std::source_location sl = std::source_location::current()) :
 #else
-	explicit tracer_t(std::vector<std::string_view> const& args, std::source_location sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) :
+	explicit tracer_t(std::vector<std::string_view> const& args, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) :
 #endif
 		tracer_t(level_t::Trace, args, sl) {}
 #if defined(__cpp_lib_source_location)
 	tracer_t(level_t level, std::vector<std::string_view> const& args, std::source_location sl = std::source_location::current()) :
 #else
-	tracer_t(level_t level, std::vector<std::string_view> const& args, std::source_location sl = std::source_location{__FILE__, __func__, __LINE__, 0L}) :
+	tracer_t(level_t level, std::vector<std::string_view> const& args, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) :
 #endif
 		level_{level}, sl_{sl}, result_{} {
 		if (level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
