@@ -359,7 +359,7 @@ std::unordered_set<std::string_view> const keywords{
 // regex rules
 std::regex const newline_re{R"(^(\r?\n))"};
 std::regex const escaped_newline_re{R"(^(\\\r?\n))"};
-std::regex const line_comment_re{R"(^(//[^\r\n]*[\n]))"};
+std::regex const line_comment_re{R"(^(//[^\r\n]*(\r?\n)))"};
 std::regex const block_comment_re{R"(^(/[*](?:[^*]|[*][^/]|^|$|[\r\n])*[*]/))"};	// workaround for multiline regex
 std::regex const inline_whitespaces_re{R"(^([ \t\v\f]+))"};
 std::regex const identifier_re{R"(^([a-zA-Z_][a-zA-Z_0-9]*))"};
@@ -453,11 +453,10 @@ inline auto file(pos_t const& pos) { return std::get<2>(pos); }
 }	 // namespace impl
 
 template<typename I>
-inline I skip_ws(I pos, I end) {
-	log::tracer_t tr{{}};
+inline I skip_ws(I pos, I const& end) {
+	//-	log::tracer_t tr{{}};
 	using enum token_type_t;
 	for (; pos != end; ++pos) {
-		tr.trace(to_string(pos->type()));
 		switch (pos->type()) {
 		// -------------------------------
 		// Terminates this line.
@@ -565,37 +564,43 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 	return {Failure, str.substr(0, 0)};
 }
 
-inline token_t next_token(std::string_view const& str, pos_t const& pos, bool noheader = false) {
+inline std::tuple<token_t, pos_t> next_token(std::string_view const& str, pos_t const& pos, bool noheader = false) {
 	log::tracer_t tr{{to_string(pos), escape(str, 32)}};
 
 	using enum token_type_t;
 	switch (auto const [type, token]{next_token(str, noheader)}; type) {
 	case Failure: tr.set_result(to_string(Failure)); throw std::runtime_error{"Invalid token:" + to_string(pos)};
-	case Newline: tr.set_result(to_string(Newline)); return token_t{type, token, impl::moved(pos, token.length())};
-	case Line_comment: tr.set_result(to_string(Line_comment)); return token_t{type, token, impl::moved(pos, token.length())};
 	case Block_comment: [[fallthrough]];
 	case Raw_string:
 		tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
-		// TODO: Ths implementation does not take care of escaped new line in block comment.
-		if (auto const lf = std::ranges::count(token, '\n'); 0u < lf) return token_t{type, token, pos_t{impl::line(pos) + (lf + 1), token.length() - (token.find_last_of("\n") + 1), impl::file(pos)}};
-		return token_t{type, token, impl::moved(pos, token.length())};
+		// TODO: Ths implementation does not take care of escaped new line here.
+		if (auto const lf = std::ranges::count(token, '\n'); 0u < lf) {
+			return {token_t{type, token, pos}, pos_t{impl::line(pos) + lf, token.length() - token.find_last_of("\n"), impl::file(pos)}};
+		} else {
+			return {token_t{type, token, pos}, impl::moved(pos, token.length())};
+		}
+	case Line_comment: [[fallthrough]];
+	case Newline:
+		tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
+		return {token_t{type, token, pos}, pos_t{impl::line(pos) + 1u, 1u, impl::file(pos)}};
 	default:
 		tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
-		return token_t{type, token, impl::moved(pos, token.length())};
+		return {token_t{type, token, pos}, impl::moved(pos, token.length())};
 	}
 }
 
 std::vector<token_t> scan(std::string_view const& str, std::filesystem::path const& name) {
 	log::tracer_t tr{{name.string(), escape(str, 32)}};
 
+	using enum token_type_t;
 	pos_t pos{1u, 1u, std::make_shared<std::filesystem::path>(name)};
-
 	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
 	std::vector<token_t> tokens;
 	for (auto s = str; ! s.empty(); s = s.substr(tokens.back().token().length())) {
-		tokens.emplace_back(next_token(s, pos));
+		auto [token, next] = next_token(s, pos);
+		tokens.push_back(token);
 		switch (tokens.back().type()) {
-		case token_type_t::Header:
+		case Header:
 			// Correct header is following include directive only.
 			tr.trace("Header may appear.");
 			if (auto const ritr = skip_ws(++tokens.crbegin(), tokens.crend()); ritr == tokens.crend() || ! ritr->matched(lex::token_type_t::Identifier, "include")) {
@@ -603,18 +608,14 @@ std::vector<token_t> scan(std::string_view const& str, std::filesystem::path con
 				// It is not the correct header.For example, it might be just an arithmetic comparison expression. e.g., (a < 1 && b > 1)
 				// Drops it once and takes it again excluding header.
 				tokens.erase(tokens.rbegin().base());
-				tokens.emplace_back(next_token(s, pos, true));
+				auto [nonheader, n] = next_token(s, pos, true);
+				next = n;
+				tokens.push_back(nonheader);
 			}
-			pos = impl::moved(tokens.back().pos(), tokens.back().token().length());
 			break;
-
-		case token_type_t::Line_comment: [[fallthrough]];
-		case token_type_t::Newline:
-			pos = pos_t{impl::line(tokens.back().pos()) + 1u, 0u, impl::file(pos)};
-			break;
-
-		default: pos = impl::moved(pos, tokens.back().token().length()); break;
+		default: break;
 		}
+		pos = next;
 	}
 	return tokens;
 }
@@ -665,8 +666,7 @@ lines_t split_lines(tokens_t const& tokens) {
 	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
 	lines_t lines;
 	lines.reserve(tokens.back().line() + 1u);
-	for (auto itr = std::ranges::begin(tokens), end = std::ranges::end(tokens), next = std::find_if(itr, end, newline); itr != end; itr = next, next = std::find_if(itr + 1, end, newline)) {
-		//-		tr.trace(lex::to_string(itr->pos()));
+	for (auto itr = std::ranges::begin(tokens), end = std::ranges::end(tokens), next = itr; next = std::find_if(itr, end, newline), itr != end; itr = ++next) {
 		lines.emplace_back(std::make_pair(itr, next));
 	}
 
@@ -1443,8 +1443,10 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 
 	lines_t result;
 	for (auto line = std::ranges::begin(lines), end = std::ranges::end(lines); line != end; ++line) {
+		tr.trace(std::to_string(__LINE__)+lex::to_string(line->first->pos())+escape(line->first->token()));
+		tr.trace(std::to_string(__LINE__)+lex::to_string(line->second->pos())+escape(line->second->token()));
 		auto const token = lex::skip_ws(line->first, line->second);
-		tr.trace(std::to_string(__LINE__));
+		tr.trace(std::to_string(__LINE__)+lex::to_string(token->pos()));
 		if (token == line->second) continue;
 		tr.trace(escape(line->first->token()) + ":"s + escape(line->second->token()) + ":"s + escape(token->token()));
 
