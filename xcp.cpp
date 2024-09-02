@@ -6,25 +6,7 @@
 ///	@copyright	(c) 2023-, Mura.
 
 #include <version>
-#if defined(__cpp_lib_source_location)
 #include <source_location>
-#else	// It is just temporary workaround for implementations that have incompleted <source_location>.
-#include <cstdint>
-namespace std {
-struct source_location {
-	constexpr uint_least32_t line() const noexcept { return line_; }
-	constexpr uint_least32_t column() const noexcept { return column_; }
-	constexpr char const* file_name() const noexcept { return file_name_; }
-	constexpr char const* function_name() const noexcept { return function_name_; }
-	constexpr source_location(char const* file_name, char const* function_name, uint_least32_t line, uint_least32_t column) noexcept		: line_{line}, column_{column}, file_name_{file_name}, function_name_{function_name} {}
-private:
-	uint_least32_t line_;
-	uint_least32_t column_;
-	const char*	   file_name_;
-	const char*	   function_name_;
-};
-} // namespace std
-#endif
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -56,11 +38,7 @@ using namespace std::string_view_literals;
 using svmatch = std::match_results<std::string_view::const_iterator>;
 
 template<typename E = std::invalid_argument>
-#if defined(__cpp_lib_source_location)
 inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location::current()) {
-#else
-inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) {
-#endif
 	if (! result) throw E{sl.function_name() + std::to_string(sl.line()) + message};
 }
 
@@ -140,38 +118,20 @@ inline std::string datetime(std::chrono::system_clock::time_point const& dt) {
 
 }	 // namespace impl
 
-#if defined(__cpp_lib_source_location)
 inline void log(level_t level, std::string_view const& message, std::source_location sl = std::source_location::current()) {
-#else
-inline void log(level_t level, std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) {
-#endif
 	if (level < level_s) return;
 	std::lock_guard lock{mutex_s};
 	std::clog << impl::datetime(std::chrono::system_clock::now()) << impl::Lv[static_cast<int>(level)] << impl::location(sl) << std::string{message} << std::endl;
 }
-#if defined(__cpp_lib_source_location)
 inline void trace(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Trace, message, sl); }
 inline void info(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Info, message, sl); }
 inline void err(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Error, message, sl); }
-#else
-inline void trace(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) { log(level_t::Trace, message, sl); }
-inline void info(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) { log(level_t::Info, message, sl); }
-inline void err(std::string_view const& message, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) { log(level_t::Error, message, sl); }
-#endif
 
 class tracer_t {
 public:
-#if defined(__cpp_lib_source_location)
 	explicit tracer_t(std::vector<std::string_view> const& args, std::source_location sl = std::source_location::current()) :
-#else
-	explicit tracer_t(std::vector<std::string_view> const& args, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) :
-#endif
 		tracer_t(level_t::Trace, args, sl) {}
-#if defined(__cpp_lib_source_location)
 	tracer_t(level_t level, std::vector<std::string_view> const& args, std::source_location sl = std::source_location::current()) :
-#else
-	tracer_t(level_t level, std::vector<std::string_view> const& args, std::source_location sl = std::source_location{__FILE__, "{N/A}", __LINE__, 0L}) :
-#endif
 		level_{level}, sl_{sl}, result_{} {
 		if (level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
 	}
@@ -180,13 +140,13 @@ public:
 	}
 
 	template<typename T>
-	void trace(T const& v) {
+	void trace(T const& v, std::source_location sl = std::source_location::current()) {
 		if constexpr (std::is_integral_v<T>) {
-			log(level_, "----|" + std::to_string(v) + "|", sl_);
+			log(level_, "----" + std::to_string(sl.line()) + "|" + std::to_string(v) + "|", sl_);
 		} else {
 			std::ostringstream oss;
 			oss << v;
-			log(level_, "----|" + oss.str() + "|", sl_);
+			log(level_, "----" + std::to_string(sl.line()) + "|" + oss.str() + "|", sl_);
 		}
 	}
 
@@ -221,16 +181,17 @@ inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
 }
 
 template<>
-inline void tracer_t::trace(std::string const& v) {
-	log(level_, "----|" + v + "|", sl_);
+inline void tracer_t::trace(std::string const& v, std::source_location sl) {
+	log(level_, "----"+std::to_string(sl.line())+"|" + v + "|", sl_);
 }
 template<>
-inline void tracer_t::trace(std::string_view const& v) {
-	log(level_, "----|" + std::string{v} + "|", sl_);
+inline void tracer_t::trace(std::string_view const& v, std::source_location sl) {
+	log(level_, "----"+std::to_string(sl.line())+"|" + std::string{v} + "|", sl_);
 }
 template<>
-inline void tracer_t::trace(std::vector<std::string_view> const& v) {
-	result_ = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+inline void tracer_t::trace(std::vector<std::string_view> const& v, std::source_location sl) {
+	auto const vs = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+	log(level_, "----"+std::to_string(sl.line())+"|" + vs + "|", sl_);
 }
 
 }	 // namespace log
@@ -1009,6 +970,13 @@ inline T lexical_cast(std::string_view const& str) {
 
 using pp_value_t = std::variant<void const*, long long, long double>;
 
+inline std::string to_string(pp_value_t const& value) {
+	if (std::holds_alternative<void const*>(value)) {		return std::to_string(reinterpret_cast<unsigned long long>(std::get<void const*>(value)));
+	} else if (std::holds_alternative<long long>(value)) {		return std::to_string(std::get<long long>(value));
+	} else if (std::holds_alternative<long double>(value)) {	return std::to_string(std::get<long double>(value));
+	} else {		throw std::invalid_argument(__func__);	}
+}
+
 template<typename L, typename R>
 inline pp_value_t calculate_(std::string_view const o, L const lhs, R const rhs) {
 	if constexpr (! std::is_floating_point_v<L> && ! std::is_floating_point_v<R> && ! std::is_pointer_v<L> && ! std::is_pointer_v<R>) {
@@ -1075,7 +1043,9 @@ inline pp_value_t calculate_(std::string_view const o, L const lhs, R const rhs)
 
 inline pp_value_t calculate(std::string_view const& o, pp_value_t const& lhs, pp_value_t const& rhs) {
 	log::tracer_t tr{{std::string{o}}};
-	return std::visit([o, &rhs](auto const& l) { return std::visit([o, &l](auto const& r) { return calculate_(o, l, r); }, rhs); }, lhs);
+	auto const result = std::visit([o, &rhs](auto const& l) { return std::visit([o, &l](auto const& r) { return calculate_(o, l, r); }, rhs); }, lhs);
+	tr.set_result(to_string(result));
+	return result;
 }
 
 inline int op_priority(std::string_view const& op) {
@@ -1202,7 +1172,9 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	if (directive == line.second) return {false, false};
 	if (directive->matched(lex::token_type_t::Identifier, "if")) {
 		auto const conditions = impl::next_nonws(directive, line.second);
+		tr.trace(lex::to_string(conditions->pos()));
 		if (conditions == line.second) return {false, false};
+		tr.trace(lex::to_string(conditions->pos()));
 		std::stack<std::string_view> ops;
 		std::stack<pp_value_t>		 values;
 
