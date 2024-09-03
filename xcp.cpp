@@ -5,7 +5,6 @@
 ///	@author		Mura
 ///	@copyright	(c) 2023-, Mura.
 
-#include <version>
 #include <source_location>
 #include <string_view>
 #include <unordered_map>
@@ -182,16 +181,16 @@ inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
 
 template<>
 inline void tracer_t::trace(std::string const& v, std::source_location sl) {
-	log(level_, "----"+std::to_string(sl.line())+"|" + v + "|", sl_);
+	log(level_, "----" + std::to_string(sl.line()) + "|" + v + "|", sl_);
 }
 template<>
 inline void tracer_t::trace(std::string_view const& v, std::source_location sl) {
-	log(level_, "----"+std::to_string(sl.line())+"|" + std::string{v} + "|", sl_);
+	log(level_, "----" + std::to_string(sl.line()) + "|" + std::string{v} + "|", sl_);
 }
 template<>
 inline void tracer_t::trace(std::vector<std::string_view> const& v, std::source_location sl) {
 	auto const vs = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
-	log(level_, "----"+std::to_string(sl.line())+"|" + vs + "|", sl_);
+	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
 }
 
 }	 // namespace log
@@ -570,7 +569,7 @@ std::vector<token_t> scan(std::string_view const& str, std::filesystem::path con
 				// Drops it once and takes it again excluding header.
 				tokens.erase(tokens.rbegin().base());
 				auto [nonheader, n] = next_token(s, pos, true);
-				next = n;
+				next				= n;
 				tokens.push_back(nonheader);
 			}
 			break;
@@ -971,10 +970,15 @@ inline T lexical_cast(std::string_view const& str) {
 using pp_value_t = std::variant<void const*, long long, long double>;
 
 inline std::string to_string(pp_value_t const& value) {
-	if (std::holds_alternative<void const*>(value)) {		return std::to_string(reinterpret_cast<unsigned long long>(std::get<void const*>(value)));
-	} else if (std::holds_alternative<long long>(value)) {		return std::to_string(std::get<long long>(value));
-	} else if (std::holds_alternative<long double>(value)) {	return std::to_string(std::get<long double>(value));
-	} else {		throw std::invalid_argument(__func__);	}
+	if (std::holds_alternative<void const*>(value)) {
+		return std::to_string(reinterpret_cast<unsigned long long>(std::get<void const*>(value)));
+	} else if (std::holds_alternative<long long>(value)) {
+		return std::to_string(std::get<long long>(value));
+	} else if (std::holds_alternative<long double>(value)) {
+		return std::to_string(std::get<long double>(value));
+	} else {
+		throw std::invalid_argument(__func__);
+	}
 }
 
 template<typename L, typename R>
@@ -1043,7 +1047,7 @@ inline pp_value_t calculate_(std::string_view const o, L const lhs, R const rhs)
 
 inline pp_value_t calculate(std::string_view const& o, pp_value_t const& lhs, pp_value_t const& rhs) {
 	log::tracer_t tr{{std::string{o}}};
-	auto const result = std::visit([o, &rhs](auto const& l) { return std::visit([o, &l](auto const& r) { return calculate_(o, l, r); }, rhs); }, lhs);
+	auto const	  result = std::visit([o, &rhs](auto const& l) { return std::visit([o, &l](auto const& r) { return calculate_(o, l, r); }, rhs); }, lhs);
 	tr.set_result(to_string(result));
 	return result;
 }
