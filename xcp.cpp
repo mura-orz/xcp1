@@ -1174,7 +1174,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	tr.trace(lex::to_string(directive->pos()));
 
 	if (directive == line.second) return {false, false};
-	if (directive->matched(lex::token_type_t::Identifier, "if")) {
+	if (directive->matched(lex::token_type_t::Keyword, "if")) {
 		auto const conditions = impl::next_nonws(directive, line.second);
 		tr.trace(lex::to_string(conditions->pos()));
 		if (conditions == line.second) return {false, false};
@@ -1219,7 +1219,7 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "else")) return false;
+	if (directive == line.second || directive->matched(lex::token_type_t::Keyword, "else")) return false;
 	return lex::skip_ws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {

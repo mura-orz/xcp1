@@ -40,9 +40,8 @@ jobs:
         exclude:
           - os: windows-latest
             c_compiler: gcc
-        # TODO: Currently, clang++ & libc++ are unsupported because several standard fetures such as source_location have not been supported yet.
-        # - os: windows-latest
-        #   c_compiler: clang
+          - os: windows-latest
+            c_compiler: clang
           - os: ubuntu-latest
             c_compiler: cl
 
