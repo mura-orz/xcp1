@@ -1135,7 +1135,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 			if (itr->token() == "(") {
 				op.push(itr->token());
 			} else if (itr->token() == ")") {
-				while (op.top() != "(") {
+				while (! op.empty() && op.top() != "(") {
 					auto const lhs = value.top();
 					value.pop();
 					auto const rhs = value.top();
