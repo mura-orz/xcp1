@@ -348,6 +348,10 @@ std::regex const preprocessing_op_or_punc_re{
 // character set
 std::string_view const basic_source_character_set{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_{}[]#()<>%:;.?*+-/^&|~!=,\\\"’ \t\v\f\r\n"};
 
+std::unordered_set<std::string_view> const unary_op_set{"+", "-", "~", "*", "&", "#", "%:", "++", "--", "compl", "not"};
+std::unordered_set<std::string_view> const binary_op_set{"##", "%:%:", "&&", "&", "||", "|", "-", "+", "+=", "-=", ">>=", "<<=", ">>", "<<", "<=", ">=", ">", "<", "*=", "/=", "%=", "^=", "&=", "|=", "~=", "!=", "==", "*", "/", "%", "^", "&", "=", "and", "and_eq", "bitand", "bitor", "not_eq", "or", "or_eq", "xor", "xor_eq"};
+std::unordered_set<std::string_view> const trinary_op_set{"?", ":"};
+
 }	 // namespace def
 
 /// @brief	Lexical token type.
@@ -411,6 +415,28 @@ inline auto file(pos_t const& pos) { return std::get<2>(pos); }
 [[nodiscard]] inline pos_t moved(pos_t const& pos, std::size_t length) { return {impl::line(pos), impl::column(pos) + length, impl::file(pos)}; }
 
 }	 // namespace impl
+
+inline bool is_unary_op(std::string_view const& op) {
+	log::tracer_t tr{{std::string{op}}};
+
+	auto const result = def::unary_op_set.contains(op);
+	tr.set_result(result);
+	return result;
+}
+inline bool is_binary_op(std::string_view const& op) {
+	log::tracer_t tr{{std::string{op}}};
+
+	auto const result = def::binary_op_set.contains(op);
+	tr.set_result(result);
+	return result;
+}
+inline bool is_trinary_op(std::string_view const& op) {
+	log::tracer_t tr{{std::string{op}}};
+
+	auto const result = def::trinary_op_set.contains(op);
+	tr.set_result(result);
+	return result;
+}
 
 template<typename I>
 inline I skip_ws(I pos, I const& end) {
@@ -1020,7 +1046,7 @@ inline pp_value_t calculate_(std::string_view const o, L const lhs, R const rhs)
 			if (o == "!=") return l != r;
 			if (o == "&&") return l && r;
 			if (o == "||") return l || r;
-			if (o == "=") return rhs;
+			if (o == "=") return r;
 		} else if constexpr (std::is_integral_v<R>) {
 			if (o == "==") return l == rhs;
 			if (o == "!=") return l != rhs;
@@ -1045,9 +1071,46 @@ inline pp_value_t calculate_(std::string_view const o, L const lhs, R const rhs)
 	throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 }
 
+struct op_t {
+	op_t(std::string_view const& o) :
+		o_{o} {}
+
+	pp_value_t operator()(void const* const& v) {
+		if (o_ == "*") return 1;						// TODO:
+		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
+		throw std::invalid_argument(__func__);
+	}
+	pp_value_t operator()(long long v) {
+		if (o_ == "+") return v;
+		if (o_ == "-") return v * -1;
+		if (o_ == "&") return 1;	// TODO:
+		if (o_ == "~" || o_ == "compl") return ~v;
+		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
+		throw std::invalid_argument(__func__);
+	}
+	pp_value_t operator()(long double v) {
+		if (o_ == "+") return v;
+		if (o_ == "-") return v * -1;
+		if (o_ == "&") return 1;						// TODO:
+		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
+		throw std::invalid_argument(__func__);
+	}
+
+private:
+	std::string_view o_;
+};
+
 inline pp_value_t calculate(std::string_view const& o, pp_value_t const& lhs, pp_value_t const& rhs) {
 	log::tracer_t tr{{std::string{o}}};
-	auto const	  result = std::visit([o, &rhs](auto const& l) { return std::visit([o, &l](auto const& r) { return calculate_(o, l, r); }, rhs); }, lhs);
+
+	auto const result = std::visit([o, &rhs](auto const& l) { return std::visit([o, &l](auto const& r) { return calculate_(o, l, r); }, rhs); }, lhs);
+	tr.set_result(to_string(result));
+	return result;
+}
+inline pp_value_t calculate(std::string_view const& o, pp_value_t const& value) {
+	log::tracer_t tr{{std::string{o}}};
+
+	auto const result = std::visit(op_t{o}, value);
 	tr.set_result(to_string(result));
 	return result;
 }
@@ -1062,6 +1125,32 @@ inline int op_priority(std::string_view const& op) {
 	if (op == "*" || op == "/" || op == "%" || op == "*=" || op == "/=" || op == "%=") return 5;
 	if (op == "=") return 6;
 	return 0;
+}
+
+inline void evaluate_operator(std::stack<std::string_view>& op, std::stack<pp_value_t>& value) {
+	log::tracer_t tr{{}};
+	if (op.empty() || value.empty()) throw std::invalid_argument(__func__);
+
+	if (lex::is_binary_op(op.top())) {
+		auto const lhs = value.top();
+		value.pop();
+		if (value.empty()) {
+			if (! lex::is_unary_op(op.top())) throw std::invalid_argument(__func__);
+			value.push(calculate(op.top(), lhs));
+		} else {
+			auto const rhs = value.top();
+			value.pop();
+			value.push(calculate(op.top(), lhs, rhs));
+		}
+	} else if (lex::is_unary_op(op.top())) {
+		auto const v = value.top();
+		value.pop();
+		value.push(calculate(op.top(), v));
+	} else if (lex::is_trinary_op(op.top())) {
+		tr.trace("TODO:");	  // TODO:
+	} else
+		throw std::invalid_argument(__func__);
+	op.pop();
 }
 
 pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& value, mm::macro_manager_t& macros, line_tokens_t const& line) {
@@ -1121,12 +1210,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 		// -------------------------------
 		case Operator: {
 			while (! op.empty() && op_priority(op.top()) >= op_priority(itr->token())) {
-				auto const lhs = value.top();
-				value.pop();
-				auto const rhs = value.top();
-				value.pop();
-				value.push(calculate(op.top(), lhs, rhs));
-				op.pop();
+				evaluate_operator(op, value);
 			}
 			op.push(itr->token());
 		} break;
@@ -1136,14 +1220,8 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 				op.push(itr->token());
 			} else if (itr->token() == ")") {
 				while (! op.empty() && op.top() != "(") {
-					auto const lhs = value.top();
-					value.pop();
-					auto const rhs = value.top();
-					value.pop();
-					value.push(calculate(op.top(), lhs, rhs));
-					op.pop();
+					evaluate_operator(op, value);
 				}
-				op.pop();
 			} else {
 				;	 // TODO:
 			}
@@ -1202,9 +1280,9 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || !marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
 	auto const conditions = impl::next_nonws(directive, line.second);
 	if (conditions == line.second) return {false, false};
 	std::stack<std::string_view> ops;
@@ -1217,18 +1295,18 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || !marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Keyword, "else")) return false;
+	if (directive == line.second || !directive->matched(lex::token_type_t::Keyword, "else")) return false;
 	return lex::skip_ws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || !marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "endif")) return false;
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "endif")) return false;
 	return lex::skip_ws(directive, line.second) == line.second;
 }
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
