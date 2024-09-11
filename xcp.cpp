@@ -652,7 +652,8 @@ lines_t split_lines(tokens_t const& tokens) {
 	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
 	lines_t lines;
 	lines.reserve(tokens.back().line() + 1u);
-	for (auto itr = std::ranges::begin(tokens), end = std::ranges::end(tokens), next = itr; next = std::find_if(itr, end, newline), itr != end; itr = ++next) {
+	// Source is always terminated by the LF.
+	for (auto itr = std::ranges::begin(tokens), end = std::ranges::end(tokens), next = std::find_if(itr, end, newline); itr != end && next != end; itr = ++next, next = std::find_if(itr, end, newline)) {
 		lines.emplace_back(std::make_pair(itr, next));
 	}
 
@@ -660,7 +661,7 @@ lines_t split_lines(tokens_t const& tokens) {
 	return lines;
 }
 
-inline tokens_t::const_iterator next_nonws(tokens_t::const_iterator pos, tokens_t::const_iterator end) { return lex::skip_ws(++pos, end); }
+inline tokens_t::const_iterator next_nonws(tokens_t::const_iterator pos, tokens_t::const_iterator end) { return pos == end ? end : lex::skip_ws(++pos, end); }
 
 }	 // namespace impl
 
@@ -1280,9 +1281,9 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || !marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
+	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
 	auto const conditions = impl::next_nonws(directive, line.second);
 	if (conditions == line.second) return {false, false};
 	std::stack<std::string_view> ops;
@@ -1295,18 +1296,18 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || !marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || !directive->matched(lex::token_type_t::Keyword, "else")) return false;
+	if (directive == line.second || ! directive->matched(lex::token_type_t::Keyword, "else")) return false;
 	return lex::skip_ws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || !marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "endif")) return false;
+	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "endif")) return false;
 	return lex::skip_ws(directive, line.second) == line.second;
 }
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
@@ -1549,6 +1550,7 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 					if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 				}	 // else skips whole
 			}
+			break;
 		} else if (conditions.available()) {
 			// -------------------------------
 			// ...
