@@ -1244,20 +1244,17 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 }
 
 std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	tr.trace(lex::to_string(marker->pos()));
+
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
-	tr.trace(lex::to_string(directive->pos()));
 
 	if (directive == line.second) return {false, false};
 	if (directive->matched(lex::token_type_t::Keyword, "if")) {
 		auto const conditions = impl::next_nonws(directive, line.second);
-		tr.trace(lex::to_string(conditions->pos()));
 		if (conditions == line.second) return {false, false};
-		tr.trace(lex::to_string(conditions->pos()));
 		std::stack<std::string_view> ops;
 		std::stack<pp_value_t>		 values;
 
@@ -1278,7 +1275,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	}
 }
 std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
@@ -1293,22 +1290,22 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	return {true, std::visit([](auto const& a) { return a != 0; }, result) != 0};
 }
 bool parse_preprocessing_else_line(line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Keyword, "else")) return false;
-	return lex::skip_ws(directive, line.second) == line.second;
+	return next_nonws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "endif")) return false;
-	return lex::skip_ws(directive, line.second) == line.second;
+	return next_nonws(directive, line.second) == line.second;
 }
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
@@ -1509,44 +1506,54 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, std::make_pair(token, line->second)); matched) {
 			// -------------------------------
 			// #if ...
+			tr.trace(lex::to_string(token->pos()) + "#if");
 			conditions.push(condition);
 			while (++line != end) {
 				auto const token = lex::skip_ws(line->first, line->second);	   // hides it
 				if (token == line->second) continue;
+				tr.trace(lex::to_string(token->pos()));
 
 				if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) {
 					// -------------------------------
 					// #elif ...
+					tr.trace(lex::to_string(token->pos()) + "#elif");
 					conditions.pop();
 					conditions.push(condition);
 				} else if (impl::parse_preprocessing_else_line(std::make_pair(token, line->second))) {
 					// -------------------------------
 					// #else ...
+					tr.trace(lex::to_string(token->pos()) + "#else");
 					conditions.flip();
 					while (++line != end) {
 						auto const token = lex::skip_ws(line->first, line->second);	   // hides it
 						if (token == line->second) continue;
+						tr.trace(lex::to_string(token->pos()));
 						if (auto const [matched, _] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) throw std::runtime_error("#elif after #else");
 						if (impl::parse_preprocessing_else_line(std::make_pair(token, line->second))) throw std::runtime_error("#else after #else");
 						if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
 							// -------------------------------
 							// #endif
+							tr.trace(lex::to_string(token->pos()) + "#endif");
 							conditions.pop();
 							return result;
 						} else if (conditions.available()) {
 							// -------------------------------
 							// ...
+							tr.trace(lex::to_string(token->pos()) + "#");
 							if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 						}	 // else skips whole
 					}
+					break;
 				} else if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
 					// -------------------------------
 					// #endif
+					tr.trace(lex::to_string(token->pos()) + "#endif");
 					conditions.pop();
 					return result;
 				} else if (conditions.available()) {
 					// -------------------------------
 					// ...
+					tr.trace(lex::to_string(token->pos()) + "#");
 					if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 				}	 // else skips whole
 			}
