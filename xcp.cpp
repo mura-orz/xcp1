@@ -1356,7 +1356,7 @@ std::tuple<bool, bool> parse_preprocessing_undef_line(mm::macro_manager_t& macro
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "undef")) return {false, false};
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "undef")) return {false, false};
 	auto const macro = impl::next_nonws(directive, line.second);
 	if (macro == line.second) return {false, false};
 	auto const extra = impl::next_nonws(macro, line.second);
@@ -1373,7 +1373,7 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return {false, {}, {}};
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "include")) return {false, {}, {}};
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "include")) return {false, {}, {}};
 	auto const path_token = impl::next_nonws(directive, line.second);
 	if (path_token == line.second || (path_token->matched(lex::token_type_t::Header) && path_token->matched(lex::token_type_t::String))) return {false, {}, {}};
 	auto const extra = impl::next_nonws(path_token, line.second);
@@ -1407,8 +1407,8 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "line")) return {false, "", 0ull};
-	return {lex::skip_ws(directive, line.second) == line.second, "", 0ull};
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "line")) return {false, "", 0ull};
+	return {next_nonws(directive, line.second) == line.second, "", 0ull};
 }
 bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
@@ -1416,8 +1416,8 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "error")) return false;
-	auto const message = lex::skip_ws(directive, line.second);
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "error")) return false;
+	auto const message = next_nonws(directive, line.second);
 
 	std::ostringstream oss;
 	oss << "#error" << lex::to_string(*directive);
@@ -1436,7 +1436,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "pragma")) return false;
+	if (directive == line.second || !directive->matched(lex::token_type_t::Identifier, "pragma")) return false;
 	auto const message = lex::skip_ws(directive, line.second);
 
 	std::ostringstream oss;
