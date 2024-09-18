@@ -506,13 +506,7 @@ inline std::string to_string(pos_t const& pos) {
 
 inline std::string to_string(token_t const& token) {
 	std::ostringstream oss;
-	if (! token.file()) {
-		oss << "{no position}";
-	} else {
-		oss << "[" << token.file()->string() << "(l:" << std::to_string(token.line()) << " c:" << std::to_string(token.column()) << ")"
-			<< "]";
-	}
-	oss << token.type() << " (" << token.token().length() << ") =[" << xxx::escape(token.token()) << "]=";
+	oss << to_string(token.pos()) << token.type() << " (" << token.token().length() << ") =[" << xxx::escape(token.token()) << "]=";
 	return oss.str();
 }
 
