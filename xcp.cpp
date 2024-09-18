@@ -1529,7 +1529,7 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 							// #endif
 							tr.trace(lex::to_string(token->pos()) + "#endif");
 							conditions.pop();
-							return result;
+							break;
 						} else if (conditions.available()) {
 							// -------------------------------
 							// ...
@@ -1537,13 +1537,12 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 							if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 						}	 // else skips whole
 					}
-					break;
 				} else if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
 					// -------------------------------
 					// #endif
 					tr.trace(lex::to_string(token->pos()) + "#endif");
 					conditions.pop();
-					return result;
+					break;
 				} else if (conditions.available()) {
 					// -------------------------------
 					// ...
@@ -1551,7 +1550,6 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 					if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 				}	 // else skips whole
 			}
-			break;
 		} else if (conditions.available()) {
 			// -------------------------------
 			// ...
