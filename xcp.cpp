@@ -1234,6 +1234,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 		value.pop();
 		value.push(calculate(op.top(), lhs, rhs));
 	}
+	tr.set_result(to_string(value.top()));
 	return value.top();
 }
 
@@ -1362,7 +1363,7 @@ std::tuple<bool, bool> parse_preprocessing_undef_line(mm::macro_manager_t& macro
 	return {true, true};
 }
 std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return {false, {}, {}};
@@ -1378,7 +1379,7 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	auto const fullpath = paths.find(path, path_token->matched(lex::token_type_t::String));
 	if (! fullpath) return {false, path, {}};
 
-	tr.set_result(fullpath->string());
+	//-	tr.set_result(fullpath->string());
 
 	paths.push(*fullpath);
 	try {
@@ -1396,7 +1397,7 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	return {true, *fullpath, pp_tokens};
 }
 std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_line(mm::macro_manager_t&, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
@@ -1405,7 +1406,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	return {next_nonws(directive, line.second) == line.second, "", 0ull};
 }
 bool parse_preprocessing_error_line(line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1421,11 +1422,11 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
 	}
 	std::clog << oss.str() << std::endl;
-	tr.set_result(oss.str());
+	//-	tr.set_result(oss.str());
 	return true;
 }
 bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1441,7 +1442,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
 	}
 	std::clog << oss.str() << std::endl;
-	tr.set_result(oss.str());
+	//-	tr.set_result(oss.str());
 	return true;
 }
 
@@ -1537,6 +1538,7 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 							if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 						}	 // else skips whole
 					}
+					if (line == end) break;
 				} else if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
 					// -------------------------------
 					// #endif
@@ -1550,6 +1552,7 @@ lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_man
 					if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 				}	 // else skips whole
 			}
+			if (line == end) break;
 		} else if (conditions.available()) {
 			// -------------------------------
 			// ...
