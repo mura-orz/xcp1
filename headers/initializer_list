@@ -1,0 +1,31 @@
+///	@file
+///	@brief	ISO/IEC14882 C++ standard header <initializer_list>
+///	@author	Mura
+///	@copyright	(C) 2024-, Mura
+
+#ifndef __XXX_initializer_list
+#define __XXX_initializer_list
+
+namespace std {
+
+template<class _E>
+class initializer_list {
+public:
+	using value_type = _E;
+	using reference = _E const &;
+	using const_reference = _E const&;
+	using size_type = size_t;
+	using iterator = _E const*;
+	using const_iterator = _E const*;
+	constexpr initializer_list() noexcept {}	// TODO:
+	constexpr size_t size() const noexcept { return 0U; }	// TODO:
+	constexpr const _E* begin() const noexcept { return nullptr; }	// TODO:
+	constexpr const _E* end() const noexcept { return nullptr; }	// TODO:
+};
+
+template<class _E> inline constexpr const _E* begin(initializer_list<_E> _il) noexcept { return nullptr; }	// TODO:
+template<class _E> inline constexpr const _E* end(initializer_list<_E> _il) noexcept { return nullptr; }	// TODO:
+
+}	// namespace std
+
+#endif	// __XXX_initializer_list

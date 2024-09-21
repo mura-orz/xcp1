@@ -1,0 +1,64 @@
+///	@file
+///	@brief	ISO/IEC14882 C++ standard header <new>
+///	@author	Mura
+///	@copyright	(C) 2024-, Mura
+
+#ifndef __XXX_new
+#define __XXX_new
+
+#include "cstddef"
+
+namespace std {
+
+class bad_alloc;
+class bad_array_new_length;
+
+struct destroying_delete_t { explicit destroying_delete_t() = default; };
+constexpr destroying_delete_t destroying_delete{};
+
+enum class align_val_t : size_t {};
+
+struct nothrow_t { explicit nothrow_t() = default; };
+extern const nothrow_t nothrow;
+
+using new_handler = void(*)();
+new_handler get_new_handler() noexcept;
+new_handler set_new_handler(new_handler _new_p) noexcept;
+
+template<class _T>[[nodiscard]] inline constexpr _T* launder(_T* _p) noexcept { return nullptr; }	// TODO:
+inline constexpr size_t hardware_destructive_interference_size		= 4;	// TODO: implementation-defined
+inline constexpr size_t hardware_constructive_interference_size		= 4;	// TODO: implementation-defined
+
+}	// namespace std
+
+[[nodiscard]] inline void* operator new(std::size_t _size)																{ throw nullptr; }	// TODO:
+[[nodiscard]] inline void* operator new(std::size_t _size, std::align_val_t _alignment)									{ throw nullptr; }	// TODO:
+[[nodiscard]] inline void* operator new(std::size_t _size, std::nothrow_t const &) noexcept								{ return nullptr; }	// TODO:
+[[nodiscard]] inline void* operator new(std::size_t _size, std::align_val_t _alignment, std::nothrow_t const&) noexcept	{ return nullptr; }	// TODO:
+
+inline void operator delete(void* _ptr) noexcept														{}	// TODO:
+inline void operator delete(void* _ptr, std::size_t _size) noexcept										{}	// TODO:
+inline void operator delete(void* _ptr, std::align_val_t _alignment) noexcept							{}	// TODO:
+inline void operator delete(void* _ptr, std::size_t _size, std::align_val_t _alignment) noexcept		{}	// TODO:
+inline void operator delete(void* _ptr, std::nothrow_t const&) noexcept									{}	// TODO:
+inline void operator delete(void* _ptr, std::align_val_t _alignment, std::nothrow_t const&) noexcept	{}	// TODO:
+
+[[nodiscard]] inline void* operator new[](std::size_t _size)																{ throw nullptr; }		// TODO:
+[[nodiscard]] inline void* operator new[](std::size_t _size, std::align_val_t _alignment)									{ throw nullptr; }		// TODO:
+[[nodiscard]] inline void* operator new[](std::size_t _size, std::nothrow_t const&) noexcept								{ return nullptr; }		// TODO:
+[[nodiscard]] inline void* operator new[](std::size_t _size, std::align_val_t _alignment, std::nothrow_t const&) noexcept	{ return nullptr; }		// TODO:
+
+inline void operator delete[](void* _ptr) noexcept															{}	// TODO:
+inline void operator delete[](void* _ptr, std::size_t _size) noexcept										{}	// TODO:
+inline void operator delete[](void* _ptr, std::align_val_t _alignment) noexcept								{}	// TODO:
+inline void operator delete[](void* _ptr, std::size_t _size, std::align_val_t _alignment) noexcept			{}	// TODO:
+inline void operator delete[](void* _ptr, std::nothrow_t const&) noexcept									{}	// TODO:
+inline void operator delete[](void* _ptr, std::align_val_t _alignment, std::nothrow_t const&) noexcept		{}	// TODO:
+
+[[nodiscard]] inline void* operator new(std::size_t _size, void* _ptr) noexcept		{ return nullptr; }	// TODO:
+[[nodiscard]] inline void* operator new[](std::size_t _size, void* _ptr) noexcept	{ return nullptr; }	// TODO:
+
+inline void operator delete(void* ptr_, void*) noexcept								{}	// TODO:
+inline void operator delete[](void* _ptr, void*) noexcept							{}	// TODO:
+
+#endif	// __XXX_new

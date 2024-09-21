@@ -1,0 +1,14 @@
+///	@file
+///	@brief	ISO/IEC14882 C++ standard header <cstdlib> (minimal)
+///	@author	Mura
+///	@copyright	(C) 2024-, Mura
+
+#ifndef __XXX_cstdlib
+#define __XXX_cstdlib
+
+namespace std {
+
+
+}	// namespace std
+
+#endif	// __XXX_cstdlib

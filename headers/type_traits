@@ -1,0 +1,14 @@
+///	@file
+///	@brief	ISO/IEC14882 C++ standard header <type_traits>
+///	@author	Mura
+///	@copyright	(C) 2024-, Mura
+
+#ifndef __XXX_type_traits
+#define __XXX_type_traits
+
+namespace std {
+
+
+}	// namespace std
+
+#endif	// __XXX_type_traits

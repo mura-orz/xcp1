@@ -1,0 +1,17 @@
+///	@file
+///	@brief	ISO/IEC14882 C++ standard header <typeinfo>
+///	@author	Mura
+///	@copyright	(C) 2024-, Mura
+
+#ifndef __XXX_typeinfo
+#define __XXX_typeinfo
+
+namespace std {
+
+class type_info;
+class bad_cast;
+class bad_typeid;
+
+}	// namespace std
+
+#endif	// __XXX_typeinfo
