@@ -133,6 +133,7 @@
 	- new
 	- typeinfo
 	- typet_traits
+	- version (optional)
  - how random_device::operator() generates values: Defined by library
  - interactive device: TBD
  - interpretation of the path character sequence with format path::auto_format: Defined by library
@@ -322,3 +323,5 @@
  - which functions in the C++ standard library may be recursively reentered: Defined by library.
  - which scalar types have unique object representations: TBD
 
+ - hardware destructive interference size: 4
+ - hardware constructive interference size: 4
