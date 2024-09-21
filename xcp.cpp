@@ -1447,7 +1447,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 }
 
 std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line, std::filesystem::path const& source) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 	if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, line); matched) {
 		// -------------------------------
 		// #line number (filename)?
@@ -1491,79 +1491,55 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 
 ///	@brief	Proceeds conditions.
 ////		#if ... (#elif ...)* (#else ...)? #endif
-lines_t preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lines_t const& lines, std::filesystem::path const& source) {
-	log::tracer_t tr{{}};
+std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lines_t::const_iterator const& begin, lines_t::const_iterator const& end, std::filesystem::path const& source) {
+	//-	log::tracer_t tr{{}};
 
-	lines_t result;
-	for (auto line = std::ranges::begin(lines), end = std::ranges::end(lines); line != end; ++line) {
+	lines_t	result;
+
+	bool	elseif{true};
+	for (auto line = begin; line != end; ++line) {
 		auto const token = lex::skip_ws(line->first, line->second);
 		if (token == line->second) continue;
 		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, std::make_pair(token, line->second)); matched) {
 			// -------------------------------
 			// #if ...
-			tr.trace(lex::to_string(token->pos()) + "#if");
+			//-	tr.trace(lex::to_string(token->pos()) + "#if");
 			conditions.push(condition);
-			while (++line != end) {
-				auto const token = lex::skip_ws(line->first, line->second);	   // hides it
-				if (token == line->second) continue;
-				tr.trace(lex::to_string(token->pos()));
-
-				if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) {
-					// -------------------------------
-					// #elif ...
-					tr.trace(lex::to_string(token->pos()) + "#elif");
-					conditions.pop();
-					conditions.push(condition);
-				} else if (impl::parse_preprocessing_else_line(std::make_pair(token, line->second))) {
-					// -------------------------------
-					// #else ...
-					tr.trace(lex::to_string(token->pos()) + "#else");
-					conditions.flip();
-					while (++line != end) {
-						auto const token = lex::skip_ws(line->first, line->second);	   // hides it
-						if (token == line->second) continue;
-						tr.trace(lex::to_string(token->pos()));
-						if (auto const [matched, _] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) throw std::runtime_error("#elif after #else");
-						if (impl::parse_preprocessing_else_line(std::make_pair(token, line->second))) throw std::runtime_error("#else after #else");
-						if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
-							// -------------------------------
-							// #endif
-							tr.trace(lex::to_string(token->pos()) + "#endif");
-							conditions.pop();
-							break;
-						} else if (conditions.available()) {
-							// -------------------------------
-							// ...
-							tr.trace(lex::to_string(token->pos()) + "#");
-							if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
-						}	 // else skips whole
-					}
-					if (line == end) break;
-				} else if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
-					// -------------------------------
-					// #endif
-					tr.trace(lex::to_string(token->pos()) + "#endif");
-					conditions.pop();
-					break;
-				} else if (conditions.available()) {
-					// -------------------------------
-					// ...
-					tr.trace(lex::to_string(token->pos()) + "#");
-					if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
-				}	 // else skips whole
-			}
-			if (line == end) break;
+			auto const [r, itr] = preprocess_conditions(conditions, macros, paths, ++line, end, source);
+			if (!std::ranges::empty(r)) { result.assign(std::ranges::begin(r), std::ranges::end(r)); }
+			if (itr == end) break;
+			line = itr;
+		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) {
+			// -------------------------------
+			// #elif ...
+			//-	tr.trace(lex::to_string(token->pos()) + "#elif");
+			if (conditions.empty())	throw std::runtime_error("Invalid #elif");
+			if (!elseif) throw std::runtime_error("Invalid #elif - after #else");
+			conditions.pop();
+			conditions.push(condition);
+		} else if (impl::parse_preprocessing_else_line(std::make_pair(token, line->second))) {
+			// -------------------------------
+			// #else ...
+			//-	tr.trace(lex::to_string(token->pos()) + "#else");
+			if (conditions.empty())	throw std::runtime_error("Invalid #else");
+			if (!elseif) throw std::runtime_error("Invalid #else - after #else");
+			elseif = false;
+			conditions.flip();
+		} else if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) {
+			// -------------------------------
+			// #endif
+			//-	tr.trace(lex::to_string(token->pos()) + "#endif");
+			if (conditions.empty())	throw std::runtime_error("Invalid #endif");
+			conditions.pop();
+			return {result, line};
 		} else if (conditions.available()) {
 			// -------------------------------
 			// ...
-			tr.trace(lex::to_string(token->type()) + ":"s + escape(token->token()));
-			if (impl::parse_preprocessing_else_line(std::make_pair(token, line->second))) throw std::runtime_error("#else without #if");
-			if (impl::parse_preprocessing_endif_line(std::make_pair(token, line->second))) throw std::runtime_error("#endif without #if");
-			if (auto const [matched, _] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) throw std::runtime_error("#elif without #if");
+			//-	tr.trace(lex::to_string(token->pos()) + "#");
 			if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 		}	 // else skips whole
 	}
-	return result;
+	return {result, end};
 }
 
 }	 // namespace impl
@@ -1577,7 +1553,9 @@ lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& mac
 	// -------------------------------
 	// Proceeds line by line.
 	auto const lines = impl::split_lines(tokens);
-	return impl::preprocess_conditions(conditions, macros, paths, lines, source);
+	auto const [result, itr] = impl::preprocess_conditions(conditions, macros, paths, std::ranges::begin(lines), std::ranges::end(lines), source);
+	if (itr != std::ranges::end(lines)) throw std::runtime_error("unexpected line");
+	return result;
 }
 
 }	 // namespace pp
