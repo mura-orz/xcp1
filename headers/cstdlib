@@ -8,6 +8,90 @@
 
 namespace std {
 
+using size_t = unsigned long long;
+using div_t = int;  // TODO:
+using ldiv_t = long;  // TODO:
+using lldiv_t = long long;  // TODO:
+
+}   // namespace std
+
+#ifndef NULL
+#define NULL nullptr
+#endif
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE (-1)
+#endif
+#ifndef EXIT_SUCCESS
+#define EXIT_SUCCESS (0)
+#endif
+#ifndef RAND_MAX
+#define RAND_MAX (0xFFFF'FFFF'FFFF'FFFF)    // TODO:
+#endif
+#ifndef MB_CUR_MAX
+#define MB_CUR_MAX (0xFFFF'FFFF)    // TODO:
+#endif
+
+namespace std {
+
+extern "C"   using c_atexit_handler	= void(); // exposition only
+extern "C++" using atexit_handler	= void(); // exposition only
+extern "C"   using c_compare_pred	= int(void const*, void const*); // exposition only
+extern "C++" using compare_pred		= int(void const*, void const*); // exposition only
+
+[[noreturn]] inline void abort() noexcept												{ volatile int n=0; for (;;) { n += 1; } }   // TODO:
+inline int atexit(c_atexit_handler* _func) noexcept										{ return 0; }	// TODO:
+inline int atexit(atexit_handler* _func) noexcept										{ return 0; }	// TODO:
+inline int at_quick_exit(c_atexit_handler* _func) noexcept								{ return 0; }	// TODO:
+inline int at_quick_exit(atexit_handler* _func) noexcept								{ return 0; }	// TODO:
+[[noreturn]] inline void exit(int _status)												{ volatile int n=0; for (;;) { n += 1; } }   // TODO:
+[[noreturn]] inline void _Exit(int _status) noexcept									{ volatile int n=0; for (;;) { n += 1; } }   // TODO:
+[[noreturn]] inline void quick_exit(int _status) noexcept								{ volatile int n=0; for (;;) { n += 1; } }   // TODO:
+inline char* getenv(char const* _name)													{ return ""; }   // TODO:
+inline int system(char const* _string)													{ return 0; }   // TODO:
+inline void* aligned_alloc(size_t _alignment, size_t _size)								{ return nullptr; }	// TODO:
+inline void* calloc(size_t _nmemb, size_t _size)										{ return nullptr; }	// TODO:
+inline void free(void* _ptr)															{}	// TODO:
+inline void* malloc(size_t _size)														{ return nullptr; }	// TODO:
+inline void* realloc(void* _ptr, size_t _size)											{ return nullptr; }	// TODO:
+inline double atof(char const* _nptr)													{ return 0.0; }		// TODO:
+inline int atoi(char const* _nptr)														{ return 0; }		// TODO:
+inline long int atol(char const* _nptr)													{ return 0L; }		// TODO:
+inline long long int atoll(char const* _nptr)											{ return 0LL; }		// TODO:
+inline double strtod(char const* _nptr, char** _endptr)							       	{ return 0.0; }		// TODO:
+inline float strtof(char const* _nptr, char** _endptr)						    		{ return 0.0f; }	// TODO:
+inline long double strtold(char const* _nptr, char** _endptr)							{ return 0.0; }		// TODO:
+inline long int strtol(char const* _nptr, char** _endptr, int _base)					{ return 0; }		// TODO:
+inline long long int strtoll(char const* _nptr, char** _endptr, int _base)				{ return 0LL; }		// TODO:
+inline unsigned long int strtoul(char const* _nptr, char** _endptr, int _base)			{ return 0uL; }		// TODO:
+inline unsigned long long int strtoull(char const* _nptr, char** _endptr, int _base)	{ return 0uLL; }	// TODO:
+
+inline int mblen(char const* _s, size_t _n)							{ return 0; }	// TODO:
+inline int mbtowc(wchar_t* _pwc, char const* _s, size_t _n)			{ return 0; }	// TODO:
+inline int wctomb(char* _s, wchar_t _wchar)							{ return 0; }	// TODO:
+inline size_t mbstowcs(wchar_t* _pwcs, char const* _s, size_t _n)	{ return 0u; }	// TODO:	
+inline size_t wcstombs(char* _s, wchar_t const* _amd64, size_t _n)	{ return 0u; }	// TODO:
+
+inline void* bsearch(void const* _key, void const* _base, size_t _nmemb, size_t _size, c_compare_pred* _compar)	{ return nullptr; }	// TODO:
+//inline void* bsearch(void const* _key, void const* _base, size_t _nmemb, size_t _size, compare_pred* _compar)	{ return nullptr; }	// TODO:
+inline void qsort(void* _base, size_t _nmemb, size_t _size, c_compare_pred* _compar)	{}	// TODO:
+//inline void qsort(void* _base, size_t _nmemb, size_t _size, compare_pred* _compar)	{}	// TODO:
+
+inline int rand()							{ return 0; }	// TODO:
+inline void srand(unsigned int _seed)		{}				// TODO:
+
+inline int abs(int _j)												{ return 0; }	    // TODO:
+inline long int abs(long int _j)									{ return 0L; } 	    // TODO:
+inline long long int abs(long long int _j)							{ return 0LL; } 	// TODO:
+inline float abs(float _j)											{ return 0.0f; }	// TODO:
+inline double abs(double _j)										{ return 0.0; } 	// TODO:
+inline long double abs(long double _j)								{ return 0.0; } 	// TODO:
+inline long int labs(long int _j)									{ return 0L; }   	// TODO:
+inline long long int llabs(long long int _j)						{ return 0LL; }	    // TODO:
+inline div_t div(int _numer, int _denom)							{ return div_t{}; }	    // TODO:
+inline ldiv_t div(long int _numer, long int _denom)					{ return ldiv_t{}; }	// TODO:
+inline lldiv_t div(long long int _numer, long long int _denom)		{ return lldiv_t{}; }	// TODO:
+inline ldiv_t ldiv(long int _numer, long int _denom)				{ return ldiv_t{}; }	// TODO:
+inline lldiv_t lldiv(long long int _numer, long long int _denom)	{ return lldiv_t{}; }	// TODO:
 
 }	// namespace std
 

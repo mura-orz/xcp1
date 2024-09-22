@@ -4,8 +4,7 @@
 ///	@copyright	(C) 2024-, Mura
 
 #ifndef __XXX_cfloat
-
-#define  __XXX_cfloat
+#define __XXX_cfloat
 
 namespace std {
 

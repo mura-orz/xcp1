@@ -4,8 +4,7 @@
 ///	@copyright	(C) 2024-, Mura
 
 #ifndef __XXX_cstdarg
-
-#define  __XXX_cstdarg
+#define __XXX_cstdarg
 
 namespace std {
 
@@ -13,9 +12,17 @@ using va_list	= void;			/* TODO: */
 
 }	// namespace std
 
+#ifndef va_arg
 #define va_arg(_V, _P)			/* TODO: */
+#endif
+#ifndef va_copy
 #define va_copy(_VDST, _VSRC)	/* TODO: */
+#endif
+#ifndef va_end
 #define va_end(V)				/* TODO: */
+#endif
+#ifndef va_start
 #define va_start(_V, _P)		/* TODO: */
+#endif
 
 #endif	// __XXX_cstdarg

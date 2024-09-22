@@ -1,0 +1,29 @@
+///	@file
+///	@brief	ISO/IEC14882 C++ standard header <source_location>
+///	@author	Mura
+///	@copyright	(C) 2024-, Mura
+
+#ifndef __XXX_source_location
+#define __XXX_source_location
+
+#include "cstdint"
+
+namespace std {
+
+struct source_location {
+	static consteval source_location current() noexcept	 	{ return source_location{}; }	// TODO:
+	constexpr source_location() noexcept					= default;
+	constexpr uint_least32_t line() const noexcept			{ return line_; }
+	constexpr uint_least32_t column() const noexcept		{ return column_; }
+	constexpr char const* file_name() const noexcept 		{ return file_name_; }
+	constexpr char const* function_name() const noexcept	{ return function_name_; }
+private:
+	uint_least32_t	line_;			// exposition only
+	uint_least32_t	column_;		// exposition only
+	char const*		file_name_;		// exposition only
+	char const*		function_name_;	// exposition only
+};
+
+}	// namespace std
+
+#endif	// __XXX_source_location
