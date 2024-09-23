@@ -8,7 +8,7 @@
 
 namespace std{
 using ptrdiff_t = signed long long;
-using size_t = unsigned long;	// TODO: it have to the same as compilers currently.
+using size_t = unsigned long long;	// TODO: it have to the same as compilers currently.
 using max_align_t = size_t;
 using nullptr_t = decltype(nullptr);
 
