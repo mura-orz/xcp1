@@ -8,252 +8,252 @@
 
 namespace std {
 
-using int8_t			= signed char;			// optional
-using int16_t			= signed short;			// optional
-using int32_t			= signed long;			// optional
-using int64_t			= signed long long;		// optional
-using int_fast8_t		= int8_t;
-using int_fast16_t		= int16_t;
-using int_fast32_t		= int32_t;
-using int_fast64_t		= int64_t;
-using int_least8_t		= int8_t;
-using int_least16_t		= int16_t;
-using int_least32_t		= int32_t;
-using int_least64_t		= int64_t;
-using intmax_t			= int64_t;
-using intptr_t			= int64_t;				//optional
-using uint8_t			= unsigned char;		//optional
-using uint16_t			= unsigned short;		//optional
-using uint32_t			= unsigned long;		//optional
-using uint64_t			= unsigned long long;	//optional
-using uint_fast8_t		= uint8_t;
-using uint_fast16_t		= uint16_t;
-using uint_fast32_t		= uint32_t;
-using uint_fast64_t		= uint64_t;
-using uint_least8_t		= uint8_t;
-using uint_least16_t	= uint16_t;
-using uint_least32_t	= uint32_t;
-using uint_least64_t	= uint64_t;
-using uintmax_t			= uint64_t;
-using uintptr_t			= uint64_t;				//optional}
+using int8_t		 = signed char;			// optional
+using int16_t		 = signed short;		// optional
+using int32_t		 = signed long;			// optional
+using int64_t		 = signed long long;	// optional
+using int_fast8_t	 = int8_t;
+using int_fast16_t	 = int16_t;
+using int_fast32_t	 = int32_t;
+using int_fast64_t	 = int64_t;
+using int_least8_t	 = int8_t;
+using int_least16_t	 = int16_t;
+using int_least32_t	 = int32_t;
+using int_least64_t	 = int64_t;
+using intmax_t		 = int64_t;
+using intptr_t		 = int64_t;				  // optional
+using uint8_t		 = unsigned char;		  // optional
+using uint16_t		 = unsigned short;		  // optional
+using uint32_t		 = unsigned long;		  // optional
+using uint64_t		 = unsigned long long;	  // optional
+using uint_fast8_t	 = uint8_t;
+using uint_fast16_t	 = uint16_t;
+using uint_fast32_t	 = uint32_t;
+using uint_fast64_t	 = uint64_t;
+using uint_least8_t	 = uint8_t;
+using uint_least16_t = uint16_t;
+using uint_least32_t = uint32_t;
+using uint_least64_t = uint64_t;
+using uintmax_t		 = uint64_t;
+using uintptr_t		 = uint64_t;	// optional}
 
 #ifndef INT_MIN
-#define INT_MIN		(0xFFFF'FFFe)
+#define INT_MIN (0xFFFF'FFFe)
 #endif
 #ifndef INT8_MIN
-#define INT8_MIN	static_cast<int8_t>(0xFe)
+#define INT8_MIN static_cast<int8_t>(0xFe)
 #endif
 #ifndef INT16_MIN
-#define INT16_MIN	static_cast<int16_t>(0xFFFe)
+#define INT16_MIN static_cast<int16_t>(0xFFFe)
 #endif
 #ifndef INT32_MIN
-#define INT32_MIN	(0xFFFF'FFFF'FFFF'FFFeL)
+#define INT32_MIN (0xFFFF'FFFF'FFFF'FFFeL)
 #endif
 #ifndef INT64_MIN
-#define INT64_MIN	(0xFFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFeLL)
+#define INT64_MIN (0xFFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFeLL)
 #endif
 #ifndef INT_FAST8_MIN
-#define INT_FAST8_MIN	static_cast<int_fast8_t>(INT8_MIN)
+#define INT_FAST8_MIN static_cast<int_fast8_t>(INT8_MIN)
 #endif
 #ifndef INT_FAST16_MIN
-#define INT_FAST16_MIN	static_cast<int_fast16_t>(INT8_MIN)
+#define INT_FAST16_MIN static_cast<int_fast16_t>(INT8_MIN)
 #endif
 #ifndef INT_FAST32_MIN
-#define INT_FAST32_MIN	static_cast<int_fast32_t>(INT32_MIN)
+#define INT_FAST32_MIN static_cast<int_fast32_t>(INT32_MIN)
 #endif
 #ifndef INT_FAST64_MIN
-#define INT_FAST64_MIN	static_cast<int_fast64_t>(INT64_MIN)
+#define INT_FAST64_MIN static_cast<int_fast64_t>(INT64_MIN)
 #endif
 #ifndef INT_LEAST8_MIN
-#define INT_LEAST8_MIN	static_cast<int_least8_t>(INT8_MIN)
+#define INT_LEAST8_MIN static_cast<int_least8_t>(INT8_MIN)
 #endif
 #ifndef INT_LEAST16_MIN
-#define INT_LEAST16_MIN	static_cast<int_least16_t>(INT16_MIN)
+#define INT_LEAST16_MIN static_cast<int_least16_t>(INT16_MIN)
 #endif
 #ifndef INT_LEAST32_MIN
-#define INT_LEAST32_MIN	static_cast<int_least32_t>(INT32_MIN)
+#define INT_LEAST32_MIN static_cast<int_least32_t>(INT32_MIN)
 #endif
 #ifndef INT_LEAST64_MIN
-#define INT_LEAST64_MIN	static_cast<int_least64_t>(INT64_MIN)
+#define INT_LEAST64_MIN static_cast<int_least64_t>(INT64_MIN)
 #endif
 
 #ifndef INT_MAX
-#define INT_MAX		(0x7FFF'FFFF)
+#define INT_MAX (0x7FFF'FFFF)
 #endif
 #ifndef INT8_MAX
-#define INT8_MAX	static_cast<int8_t>(0x7F)
+#define INT8_MAX static_cast<int8_t>(0x7F)
 #endif
 #ifndef INT16_MAX
-#define INT16_MAX	static_cast<int16_t>(0x7FFF)
+#define INT16_MAX static_cast<int16_t>(0x7FFF)
 #endif
 #ifndef INT32_MAX
-#define INT32_MAX	(0x7FFF'FFFF'FFFF'FFFFL)
+#define INT32_MAX (0x7FFF'FFFF'FFFF'FFFFL)
 #endif
 #ifndef INT64_MAX
-#define INT64_MAX	(0x7FFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFFLL)
+#define INT64_MAX (0x7FFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFFLL)
 #endif
 #ifndef INT_FAST8_MAX
-#define INT_FAST8_MAX	static_cast<int_fast8_t>(INT8_MAX)
+#define INT_FAST8_MAX static_cast<int_fast8_t>(INT8_MAX)
 #endif
 #ifndef INT_FAST16_MAX
-#define INT_FAST16_MAX	static_cast<int_fast16_t>(INT16_MAX)
+#define INT_FAST16_MAX static_cast<int_fast16_t>(INT16_MAX)
 #endif
 #ifndef INT_FAST32_MAX
-#define INT_FAST32_MAX	static_cast<int_fast32_t>(INT32_MAX)
+#define INT_FAST32_MAX static_cast<int_fast32_t>(INT32_MAX)
 #endif
 #ifndef INT_FAST64_MAX
-#define INT_FAST64_MAX	static_cast<int_fast64_t>(INT64_MAX)
+#define INT_FAST64_MAX static_cast<int_fast64_t>(INT64_MAX)
 #endif
 #ifndef INT_LEAST8_MAX
-#define INT_LEAST8_MAX	static_cast<int_least8_t>(INT8_MAX)
+#define INT_LEAST8_MAX static_cast<int_least8_t>(INT8_MAX)
 #endif
 #ifndef INT_LEAST16_MAX
-#define INT_LEAST16_MAX	static_cast<int_least16_t>(INT16_MAX)
+#define INT_LEAST16_MAX static_cast<int_least16_t>(INT16_MAX)
 #endif
 #ifndef INT_LEAST32_MAX
-#define INT_LEAST32_MAX	static_cast<int_least32_t>(INT32_MAX)
+#define INT_LEAST32_MAX static_cast<int_least32_t>(INT32_MAX)
 #endif
 #ifndef INT_LEAST64_MAX
-#define INT_LEAST64_MAX	static_cast<int_least64_t>(INT64_MAX)
+#define INT_LEAST64_MAX static_cast<int_least64_t>(INT64_MAX)
 #endif
 
 #ifndef UINT_MIN
-#define UINT_MIN	(0UL)
+#define UINT_MIN (0UL)
 #endif
 #ifndef UINT8_MIN
-#define UINT8_MIN	static_cast<int8_t>(0)
+#define UINT8_MIN static_cast<int8_t>(0)
 #endif
 #ifndef UINT16_MIN
-#define UINT16_MIN	static_cast<int16_t>(0)
+#define UINT16_MIN static_cast<int16_t>(0)
 #endif
 #ifndef UINT32_MIN
-#define UINT32_MIN	(0UL)
+#define UINT32_MIN (0UL)
 #endif
 #ifndef UINT64_MIN
-#define UINT64_MIN	(0ULL)
+#define UINT64_MIN (0ULL)
 #endif
 #ifndef UINT_FAST8_MIN
-#define UINT_FAST8_MIN		static_cast<int_fast8_t>(UINT8_MIN)
+#define UINT_FAST8_MIN static_cast<int_fast8_t>(UINT8_MIN)
 #endif
 #ifndef UINT_FAST16_MIN
-#define UINT_FAST16_MIN		static_cast<int_fast16_t>(UINT8_MIN)
+#define UINT_FAST16_MIN static_cast<int_fast16_t>(UINT8_MIN)
 #endif
 #ifndef UINT_FAST32_MIN
-#define UINT_FAST32_MIN		static_cast<int_fast32_t>(UINT32_MIN)
+#define UINT_FAST32_MIN static_cast<int_fast32_t>(UINT32_MIN)
 #endif
 #ifndef UINT_FAST64_MIN
-#define UINT_FAST64_MIN		static_cast<int_fast64_t>(UINT64_MIN)
+#define UINT_FAST64_MIN static_cast<int_fast64_t>(UINT64_MIN)
 #endif
 #ifndef UINT_LEAST8_MIN
-#define UINT_LEAST8_MIN		static_cast<int_least8_t>(UINT8_MIN)
+#define UINT_LEAST8_MIN static_cast<int_least8_t>(UINT8_MIN)
 #endif
 #ifndef UINT_LEAST16_MIN
-#define UINT_LEAST16_MIN	static_cast<int_least16_t>(UINT16_MIN)
+#define UINT_LEAST16_MIN static_cast<int_least16_t>(UINT16_MIN)
 #endif
 #ifndef UINT_LEAST32_MIN
-#define UINT_LEAST32_MIN	static_cast<int_least32_t>(UINT32_MIN)
+#define UINT_LEAST32_MIN static_cast<int_least32_t>(UINT32_MIN)
 #endif
 #ifndef UINT_LEAST64_MIN
-#define UINT_LEAST64_MIN	static_cast<int_least64_t>(UINT64_MIN)
+#define UINT_LEAST64_MIN static_cast<int_least64_t>(UINT64_MIN)
 #endif
 
 #ifndef UINT_MAX
-#define UINT_MAX	(0xFFFF'FFFFU)
+#define UINT_MAX (0xFFFF'FFFFU)
 #endif
 #ifndef UINT8_MAX
-#define UINT8_MAX	static_cast<int8_t>(0xFF)
+#define UINT8_MAX static_cast<int8_t>(0xFF)
 #endif
 #ifndef UINT16_MAX
-#define UINT16_MAX	static_cast<int16_t>(0xFFFF)
+#define UINT16_MAX static_cast<int16_t>(0xFFFF)
 #endif
 #ifndef UINT32_MAX
-#define UINT32_MAX	(0xFFFF'FFFF'FFFF'FFFFUL)
+#define UINT32_MAX (0xFFFF'FFFF'FFFF'FFFFUL)
 #endif
 #ifndef UINT64_MAX
-#define UINT64_MAX	(0xFFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFFULL)
+#define UINT64_MAX (0xFFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFF'FFFFULL)
 #endif
 #ifndef UINT_FAST8_MAX
-#define UINT_FAST8_MAX		static_cast<int_fast8_t>(UINT8_MAX)
+#define UINT_FAST8_MAX static_cast<int_fast8_t>(UINT8_MAX)
 #endif
 #ifndef UINT_FAST16_MAX
-#define UINT_FAST16_MAX		static_cast<int_fast16_t>(UINT16_MAX)
+#define UINT_FAST16_MAX static_cast<int_fast16_t>(UINT16_MAX)
 #endif
 #ifndef UINT_FAST32_MAX
-#define UINT_FAST32_MAX		static_cast<int_fast32_t>(UINT32_MAX)
+#define UINT_FAST32_MAX static_cast<int_fast32_t>(UINT32_MAX)
 #endif
 #ifndef UINT_FAST64_MAX
-#define UINT_FAST64_MAX		static_cast<int_fast64_t>(UINT64_MAX)
+#define UINT_FAST64_MAX static_cast<int_fast64_t>(UINT64_MAX)
 #endif
 #ifndef UINT_LEAST8_MAX
-#define UINT_LEAST8_MAX		static_cast<int_least8_t>(UINT8_MAX)
+#define UINT_LEAST8_MAX static_cast<int_least8_t>(UINT8_MAX)
 #endif
 #ifndef UINT_LEAST16_MAX
-#define UINT_LEAST16_MAX	static_cast<int_least16_t>(UINT16_MAX)
+#define UINT_LEAST16_MAX static_cast<int_least16_t>(UINT16_MAX)
 #endif
 #ifndef UINT_LEAST32_MAX
-#define UINT_LEAST32_MAX	static_cast<int_least32_t>(UINT32_MAX)
+#define UINT_LEAST32_MAX static_cast<int_least32_t>(UINT32_MAX)
 #endif
 #ifndef UINT_LEAST64_MAX
-#define UINT_LEAST64_MAX	static_cast<int_least64_t>(UINT64_MAX)
+#define UINT_LEAST64_MAX static_cast<int_least64_t>(UINT64_MAX)
 #endif
 
 #ifndef INTMAX_MIN
-#define INTMAX_MIN		static_cast<intmax_t>(0xFFFF'FFFe)
+#define INTMAX_MIN static_cast<intmax_t>(0xFFFF'FFFe)
 #endif
 #ifndef UINTMAX_MIN
-#define UINTMAX_MIN		static_cast<uintmax_t>(0)
+#define UINTMAX_MIN static_cast<uintmax_t>(0)
 #endif
 #ifndef SIG_ATOMIC_MIN
-#define SIG_ATOMIC_MIN	static_cast<sig_atomic_t>(0xFFFF'FFFe)
+#define SIG_ATOMIC_MIN static_cast<sig_atomic_t>(0xFFFF'FFFe)
 #endif
 #ifndef INTPTR_MIN
-#define INTPTR_MIN		static_cast<intptr_t>(0xFFFF'FFFF'FFFF'FFFe)
+#define INTPTR_MIN static_cast<intptr_t>(0xFFFF'FFFF'FFFF'FFFe)
 #endif
 #ifndef UINTPTR_MIN
-#define UINTPTR_MIN		static_cast<uintptr_t>(0)
+#define UINTPTR_MIN static_cast<uintptr_t>(0)
 #endif
 #ifndef PTRDIFF_MIN
-#define PTRDIFF_MIN		static_cast<ptrdiff_t>(0xFFFF'FFFF'FFFF'FFFe)
+#define PTRDIFF_MIN static_cast<ptrdiff_t>(0xFFFF'FFFF'FFFF'FFFe)
 #endif
 
 #ifndef INTMAX_MAX
-#define INTMAX_MAX		static_cast<uintmax_t>(0x7FFF'FFFF)
+#define INTMAX_MAX static_cast<uintmax_t>(0x7FFF'FFFF)
 #endif
 #ifndef UINTMAX_MAX
-#define UINTMAX_MAX		static_cast<uuintmax_t>(0xFFFF'FFFF)
+#define UINTMAX_MAX static_cast<uuintmax_t>(0xFFFF'FFFF)
 #endif
 #ifndef SIG_ATOMIC_MAX
-#define SIG_ATOMIC_MAX	static_cast<sig_atomic_t>(0x7FFF'FFFF)
+#define SIG_ATOMIC_MAX static_cast<sig_atomic_t>(0x7FFF'FFFF)
 #endif
 #ifndef INTPTR_MAX
-#define INTPTR_MAX		static_cast<uintptr_t>(0x7FFF'FFFF'FFFF'FFFF)
+#define INTPTR_MAX static_cast<uintptr_t>(0x7FFF'FFFF'FFFF'FFFF)
 #endif
 #ifndef UINTPTR_MAX
-#define UINTPTR_MAX		static_cast<uuintptr_t>(0xFFFF'FFFF'FFFF'FFFF)
+#define UINTPTR_MAX static_cast<uuintptr_t>(0xFFFF'FFFF'FFFF'FFFF)
 #endif
 #ifndef PTRDIFF_MAX
-#define PTRDIFF_MAX		static_cast<ptrdiff_t>(0x7FFF'FFFF'FFFF'FFFF)
+#define PTRDIFF_MAX static_cast<ptrdiff_t>(0x7FFF'FFFF'FFFF'FFFF)
 #endif
 
 #ifndef WCHAR_MIN
-#define WCHAR_MIN	static_cast<wchar_t>(0)
+#define WCHAR_MIN static_cast<wchar_t>(0)
 #endif
 #ifndef WINT_MIN
-#define WINT_MIN	static_cast<wint_t>(0)
+#define WINT_MIN static_cast<wint_t>(0)
 #endif
 #ifndef WCHAR_MAX
-#define WCHAR_MAX	static_cast<wchar_t>(0xFFFF'FFFF)
+#define WCHAR_MAX static_cast<wchar_t>(0xFFFF'FFFF)
 #endif
 #ifndef WINT_MAX
-#define WINT_MAX	static_cast<wint_t>(0xFFFF'FFFF)
+#define WINT_MAX static_cast<wint_t>(0xFFFF'FFFF)
 #endif
 
 #ifndef SIZE_MAX
-#define SIZE_MAX	static_cast<size_t>(0xFFFF'FFFF'FFFF'FFFF)
+#define SIZE_MAX static_cast<size_t>(0xFFFF'FFFF'FFFF'FFFF)
 #endif
 
 // TODO: [U]INT{8163264MAX}_C
 
-}	// namespace std
+}	 // namespace std
 
-#endif	// __XXX_cstdint
+#endif	  // __XXX_cstdint

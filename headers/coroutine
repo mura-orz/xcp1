@@ -8,21 +8,34 @@
 
 #include "compare"
 
+//#define __cpp_lib_coroutine	(201902L)
+
 namespace std {
 
-template<class _R, class... _ArgTypes>	struct coroutine_traits;
-template<class _Promise = void>			struct coroutine_handle;
-inline constexpr bool				operator==(coroutine_handle<> _x, coroutine_handle<> _y) noexcept { return {; }}	// TODO:
-inline constexpr strong_ordering	operator<=>(coroutine_handle<> _x, coroutine_handle<> _y) noexcept { return {; }}	// TODO:
-template<class _T> struct hash;
-template<class _P> struct hash<coroutine_handle<_P>>;
+template<class _R, class... _ArgTypes>
+struct coroutine_traits;
+template<class _Promise = void>
+struct coroutine_handle;
+inline constexpr bool operator==(coroutine_handle<> _x, coroutine_handle<> _y) noexcept {
+	return { ; }
+}	 // TODO:
+inline constexpr strong_ordering operator<=>(coroutine_handle<> _x, coroutine_handle<> _y) noexcept {
+	return { ; }
+}	 // TODO:
+template<class _T>
+struct hash;
+template<class _P>
+struct hash<coroutine_handle<_P>>;
 struct noop_coroutine_promise;
-template<> struct coroutine_handle<noop_coroutine_promise>;
+template<>
+struct coroutine_handle<noop_coroutine_promise>;
 using noop_coroutine_handle = coroutine_handle<noop_coroutine_promise>;
-inline noop_coroutine_handle noop_coroutine() noexcept { return {; }}	// TODO:
+inline noop_coroutine_handle noop_coroutine() noexcept {
+	return { ; }
+}	 // TODO:
 struct suspend_never;
 struct suspend_always;
 
-}	// namespace std
+}	 // namespace std
 
-#endif	// __XXX_coroutine
+#endif	  // __XXX_coroutine

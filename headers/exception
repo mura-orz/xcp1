@@ -6,51 +6,76 @@
 #ifndef __XXX_exception
 #define __XXX_exception
 
+//#define __cpp_lib_uncaught_exceptions		(201411L)
+
 namespace std {
 
 class exception {
 public:
-	exception() noexcept : what_{"exception"} {}
-	exception(exception const& _rhs) noexcept : what_{_rhs.what_} {}
-	exception& operator=(exception const& _rhs) noexcept { what_ = _rhs.what_; return *this; }
+	exception() noexcept :
+		what_{"exception"} {}
+	exception(exception const& _rhs) noexcept :
+		what_{_rhs.what_} {}
+	exception& operator=(exception const& _rhs) noexcept {
+		what_ = _rhs.what_;
+		return *this;
+	}
 	virtual ~exception() {}
 	virtual char const* what() const noexcept { return "exception"; }
+
 private:
-	char const*	what_;
+	char const* what_;
 };
 class bad_exception : public exception {
 public:
-	char const*what() const noexcept override { return "bad_exception"; }
+	char const* what() const noexcept override { return "bad_exception"; }
 };
 
-using exception_ptr = exception*; // TODO: unspecified;
+using exception_ptr = exception*;	 // TODO: unspecified;
 
 class nested_exception {
 public:
-	nested_exception() noexcept : p_{} {}
-	nested_exception(nested_exception const&) noexcept = default;
+	nested_exception() noexcept :
+		p_{} {}
+	nested_exception(nested_exception const&) noexcept			  = default;
 	nested_exception& operator=(nested_exception const&) noexcept = default;
-	virtual ~nested_exception() = default;
-	[[noreturn]] void rethrow_nested() const { if (p_) throw *p_; }
+	virtual ~nested_exception()									  = default;
+	[[noreturn]] void rethrow_nested() const {
+		if (p_) throw *p_;
+	}
 	exception_ptr nested_ptr() const noexcept { return p_; }
+
 private:
-	exception_ptr	p_;
+	exception_ptr p_;
 };
 
-using terminate_handler = void(*)();
+using terminate_handler = void (*)();
 terminate_handler get_terminate() noexcept;
 terminate_handler set_terminate(terminate_handler _f) noexcept;
 
-[[noreturn]] void terminate() noexcept										{ volatile int n=0; for(;;) {n = n + 1;} }	// TODO:
-int uncaught_exceptions() noexcept											{ return 0; }		// TODO:
+[[noreturn]] void terminate() noexcept {
+	volatile int n = 0;
+	for (;;) { n = n + 1; }
+}	 // TODO:
+int uncaught_exceptions() noexcept { return 0; }	// TODO:
 
-inline exception_ptr current_exception() noexcept							{ return nullptr; }	// TODO
+inline exception_ptr current_exception() noexcept { return nullptr; }	 // TODO
 
-[[noreturn]] void rethrow_exception(exception_ptr _p)						{ if (_p) throw *_p; else throw std::bad_exception{}; }
-template<class _E> inline exception_ptr make_exception_ptr(_E _e) noexcept	{ return nullptr; }	// TODO
-template<class _T> [[noreturn]] void throw_with_nested(_T&& _t) { throw nested_exception{_t}; }
-template<class _E> void rethrow_if_nested(_E const& _e) { if (auto const p = _e.nested_ptr(); p) { p->rethrow_nested(); }}
+[[noreturn]] void rethrow_exception(exception_ptr _p) {
+	if (_p)
+		throw *_p;
+	else
+		throw std::bad_exception{};
+}
+template<class _E>
+inline exception_ptr make_exception_ptr(_E _e) noexcept { return nullptr; }	   // TODO
+template<class _T>
+[[noreturn]] void throw_with_nested(_T&& _t) { throw nested_exception{_t}; }
+template<class _E>
+void rethrow_if_nested(_E const& _e) {
+	if (auto const p = _e.nested_ptr(); p) { p->rethrow_nested(); }
+}
 
-}	// namespace std
+}	 // namespace std
 
-#endif	// __XXX_exception
+#endif	  // __XXX_exception

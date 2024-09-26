@@ -12,6 +12,6 @@ class type_info;
 class bad_cast;
 class bad_typeid;
 
-}	// namespace std
+}	 // namespace std
 
-#endif	// __XXX_typeinfo
+#endif	  // __XXX_typeinfo

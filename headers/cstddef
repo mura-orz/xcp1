@@ -6,36 +6,43 @@
 #ifndef __XXX_cstddef
 #define __XXX_cstddef
 
-namespace std{
-using ptrdiff_t = signed long long;
-using size_t = unsigned long long;	// TODO: it have to the same as compilers currently.
+//#define __cpp_lib_byte		(201603L)
+
+namespace std {
+using ptrdiff_t	  = signed long long;
+using size_t	  = unsigned long long;	   // TODO: it have to the same as compilers currently.
 using max_align_t = size_t;
-using nullptr_t = decltype(nullptr);
+using nullptr_t	  = decltype(nullptr);
 
 enum class byte : unsigned char {};
 
-template<class _IntType> inline constexpr byte& operator<<=(byte& _b, _IntType _shift) noexcept		{ return _IntType{reinterpret_cast<unsigned char&>(_b) <<= static_cast<unsigned char>(_shift)}; }
-template<class _IntType> inline constexpr byte& operator>>=(byte& _b, _IntType _shift) noexcept		{ return _IntType{reinterpret_cast<unsigned char&>(_b) >>= static_cast<unsigned char>(_shift)}; }
-template<class _IntType> inline constexpr byte operator<<(byte _b, _IntType _shift) noexcept		{ return _IntType{static_cast<unsigned char>(_b) <<  static_cast<unsigned char>(_shift)}; }
-template<class _IntType> inline constexpr byte operator>>(byte _b, _IntType _shift) noexcept		{ return _IntType{static_cast<unsigned char>(_b) >>  static_cast<unsigned char>(_shift)}; }
-inline constexpr byte& operator|=(byte& _l, byte _r) noexcept	{ return reinterpret_cast<byte&>(reinterpret_cast<unsigned char&>(_l) |= static_cast<unsigned char>(_r)); }
-inline constexpr byte& operator&=(byte& _l,byte _r) noexcept	{ return reinterpret_cast<byte&>(reinterpret_cast<unsigned char&>(_l) &= static_cast<unsigned char>(_r)); }
-inline constexpr byte& operator^=(byte& _l,byte _r)noexcept		{ return reinterpret_cast<byte&>(reinterpret_cast<unsigned char&>(_l) ^= static_cast<unsigned char>(_r)); }
-inline constexpr byte operator&(byte _l,byte _r) noexcept		{ return byte{static_cast<unsigned char>(static_cast<unsigned char>(_l) &  static_cast<unsigned char>(_r))}; }
-inline constexpr byte operator|(byte _l, byte _r) noexcept		{ return byte{static_cast<unsigned char>(static_cast<unsigned char>(_l) |  static_cast<unsigned char>(_r))}; }
-inline constexpr byte operator^(byte _l,byte _r)noexcept 		{ return byte{static_cast<unsigned char>(static_cast<unsigned char>(_l) ^  static_cast<unsigned char>(_r))}; }
-inline constexpr byte operator~(byte _b)noexcept				{ return byte{static_cast<unsigned char>(~static_cast<unsigned char>(_b))}; }
+template<class _IntType>
+inline constexpr byte& operator<<=(byte& _b, _IntType _shift) noexcept { return _IntType{reinterpret_cast<unsigned char&>(_b) <<= static_cast<unsigned char>(_shift)}; }
+template<class _IntType>
+inline constexpr byte& operator>>=(byte& _b, _IntType _shift) noexcept { return _IntType{reinterpret_cast<unsigned char&>(_b) >>= static_cast<unsigned char>(_shift)}; }
+template<class _IntType>
+inline constexpr byte operator<<(byte _b, _IntType _shift) noexcept { return _IntType{static_cast<unsigned char>(_b) << static_cast<unsigned char>(_shift)}; }
+template<class _IntType>
+inline constexpr byte  operator>>(byte _b, _IntType _shift) noexcept { return _IntType{static_cast<unsigned char>(_b) >> static_cast<unsigned char>(_shift)}; }
+inline constexpr byte& operator|=(byte& _l, byte _r) noexcept { return reinterpret_cast<byte&>(reinterpret_cast<unsigned char&>(_l) |= static_cast<unsigned char>(_r)); }
+inline constexpr byte& operator&=(byte& _l, byte _r) noexcept { return reinterpret_cast<byte&>(reinterpret_cast<unsigned char&>(_l) &= static_cast<unsigned char>(_r)); }
+inline constexpr byte& operator^=(byte& _l, byte _r) noexcept { return reinterpret_cast<byte&>(reinterpret_cast<unsigned char&>(_l) ^= static_cast<unsigned char>(_r)); }
+inline constexpr byte  operator&(byte _l, byte _r) noexcept { return byte{static_cast<unsigned char>(static_cast<unsigned char>(_l) & static_cast<unsigned char>(_r))}; }
+inline constexpr byte  operator|(byte _l, byte _r) noexcept { return byte{static_cast<unsigned char>(static_cast<unsigned char>(_l) | static_cast<unsigned char>(_r))}; }
+inline constexpr byte  operator^(byte _l, byte _r) noexcept { return byte{static_cast<unsigned char>(static_cast<unsigned char>(_l) ^ static_cast<unsigned char>(_r))}; }
+inline constexpr byte  operator~(byte _b) noexcept { return byte{static_cast<unsigned char>(~static_cast<unsigned char>(_b))}; }
 
-template<class _IntType> inline constexpr _IntType to_integer(byte _b) noexcept	{ return static_cast<unsigned char>(_b); }
+template<class _IntType>
+inline constexpr _IntType to_integer(byte _b) noexcept { return static_cast<unsigned char>(_b); }
 
-}	// namespace std
+}	 // namespace std
 
 #ifndef NULL
-#define NULL	nullptr
+#define NULL nullptr
 #endif
 
 #ifndef offsetof
-#define offsetof(_P,_D)	(reinterpret_cast<char const* const>(_D) - reinterpret_cast<char const* const>(_P))
+#define offsetof(_P, _D) (reinterpret_cast<char const* const>(_D) - reinterpret_cast<char const* const>(_P))
 #endif
 
-#endif	// __XXX_cstddef
+#endif	  // __XXX_cstddef

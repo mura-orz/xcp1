@@ -6,29 +6,46 @@
 #ifndef __XXX_bit
 #define __XXX_bit
 
+//#define __cpp_lib_bit_cast 	(201806L)
+//#define __cpp_lib_bitops   	(201907L)
+//#define __cpp_lib_endian		(201907L)
+//#define __cpp_lib_int_pow2	(202002L)
+
 namespace std {
 
-template<class _To, class _From> inline constexpr _To bit_cast(const _From& _from) noexcept { return _TO{}; }	// TODO:
-template<class _T> inline constexpr bool has_single_bit(_T _x) noexcept { return false; }	// TODO:
-template<class _T> inline constexpr _T bit_ceil(_T _x)				{ return _x; }	// TODO:
-template<class _T> inline constexpr _T bit_floor(_T _x) noexcept	{ return _x; } 	// TODO:
-template<class _T> inline constexpr _T bit_width(_T x) noexcept		{ return _x; }	// TODO:
+template<class _To, class _From>
+inline constexpr _To bit_cast(const _From& _from) noexcept { return _TO{}; }	// TODO:
+template<class _T>
+inline constexpr bool has_single_bit(_T _x) noexcept { return false; }	  // TODO:
+template<class _T>
+inline constexpr _T bit_ceil(_T _x) { return _x; }	  // TODO:
+template<class _T>
+inline constexpr _T bit_floor(_T _x) noexcept { return _x; }	// TODO:
+template<class _T>
+inline constexpr _T bit_width(_T x) noexcept { return _x; }	   // TODO:
 
-template<class _T> inline [[nodiscard]] constexpr _T rotl(_T _x, int _s) noexcept	{ return _x; }	// TODO:
-template<class _T> inline [[nodiscard]] constexpr _T rotr(_T _x, int _s) noexcept	{ return _x; }	// TODO:
+template<class _T>
+inline [[nodiscard]] constexpr _T rotl(_T _x, int _s) noexcept { return _x; }	 // TODO:
+template<class _T>
+inline [[nodiscard]] constexpr _T rotr(_T _x, int _s) noexcept { return _x; }	 // TODO:
 
-template<class _T> inline constexpr int countl_zero(_T _x) noexcept	{ return _x; }	// TODO:
-template<class _T> inline constexpr int countl_one(_T _x) noexcept	{ return _x; }	// TODO:
-template<class _T> inline constexpr int countr_zero(_T _x) noexcept	{ return _x; }	// TODO:
-template<class _T> inline constexpr int countr_one(_T _x) noexcept	{ return _x; }	// TODO:
-template<class _T> inline constexpr int popcount(_T _x) noexcept	{ return _x; }	// TODO:
+template<class _T>
+inline constexpr int countl_zero(_T _x) noexcept { return _x; }	   // TODO:
+template<class _T>
+inline constexpr int countl_one(_T _x) noexcept { return _x; }	  // TODO:
+template<class _T>
+inline constexpr int countr_zero(_T _x) noexcept { return _x; }	   // TODO:
+template<class _T>
+inline constexpr int countr_one(_T _x) noexcept { return _x; }	  // TODO:
+template<class _T>
+inline constexpr int popcount(_T _x) noexcept { return _x; }	// TODO:
 
 enum class endian {
 	little = 0x01,
-	big = 0x02,
-	native = 0x01	// TODO: Little
+	big	   = 0x02,
+	native = 0x01	 // TODO: Little
 };
 
-}	// namespace std
+}	 // namespace std
 
-#endif	// __XXX_bit
+#endif	  // __XXX_bit

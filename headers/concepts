@@ -6,45 +6,78 @@
 #ifndef __XXX_concepts
 #define __XXX_concepts
 
+//#define __cpp_lib_concepts	(202002L)
+
 namespace std {
 
-template<class _T, class _U>				concept same_as						= requires(){ requires true; };	// TODO:
-template<class _Derived, class _Base>		concept derived_from				= requires(){ requires true; };	// TODO:
-template<class _From, class _To>			concept convertible_to				= requires(){ requires true; };	// TODO:
-template<class _T, class _U>				concept common_reference_with		= requires(){ requires true; };	// TODO:
-template<class _T, class _U>				concept common_with					= requires(){ requires true; };	// TODO:
-template<class _T>							concept integral					= requires(){ requires true; };	// TODO:
-template<class _T>							concept signed_integral				= requires(){ requires true; };	// TODO:
-template<class _T>							concept unsigned_integral			= requires(){ requires true; };	// TODO:
-template<class _T>							concept floating_point				= requires(){ requires true; };	// TODO:
-template<class _L_H_S, class _R_H_S>		concept assignable_from				= requires(){ requires true; };	// TODO:
+template<class _T, class _U>
+concept same_as = requires() { requires true; };	// TODO:
+template<class _Derived, class _Base>
+concept derived_from = requires() { requires true; };	 // TODO:
+template<class _From, class _To>
+concept convertible_to = requires() { requires true; };	   // TODO:
+template<class _T, class _U>
+concept common_reference_with = requires() { requires true; };	  // TODO:
+template<class _T, class _U>
+concept common_with = requires() { requires true; };	// TODO:
+template<class _T>
+concept integral = requires() { requires true; };	 // TODO:
+template<class _T>
+concept signed_integral = requires() { requires true; };	// TODO:
+template<class _T>
+concept unsigned_integral = requires() { requires true; };	  // TODO:
+template<class _T>
+concept floating_point = requires() { requires true; };	   // TODO:
+template<class _L_H_S, class _R_H_S>
+concept assignable_from = requires() { requires true; };	// TODO:
 namespace ranges {
-	inline namespace unspecified {
-		inline constexpr int swap = 0;	// TODO:
-	}
+inline namespace unspecified {
+inline constexpr int swap = 0;	  // TODO:
 }
-template<class _T>							concept swappable					= requires(){ requires true; };	// TODO:
-template<class _T, class _U>				concept swappable_with				= requires(){ requires true; };	// TODO:
-template<class _T>							concept destructible				= requires(){ requires true; };	// TODO:
-template<class _T, class... _Args>			concept constructible_from			= requires(){ requires true; };	// TODO:
-template<class _T>							concept default_initializable		= requires(){ requires true; };	// TODO:
-template<class _T>							concept move_constructible			= requires(){ requires true; };	// TODO:
-template<class _T>							concept copy_constructible			= requires(){ requires true; };	// TODO:
-template<class _T>							concept equality_comparable			= requires(){ requires true; };	// TODO:
-template<class _T, class _U>				concept equality_comparable_with	= requires(){ requires true; };	// TODO:
-template<class _T>							concept totally_ordered				= requires(){ requires true; };	// TODO:
-template<class _T, class _U>				concept totally_ordered_with		= requires(){ requires true; };	// TODO:
-template<class _T>							concept movable						= requires(){ requires true; };	// TODO:
-template<class _T>							concept copyable					= requires(){ requires true; };	// TODO:
-template<class _T>							concept semiregular					= requires(){ requires true; };	// TODO:
-template<class _T>							concept regular						= requires(){ requires true; };	// TODO:
-template<class _F, class... _Args>			concept invocable					= requires(){ requires true; };	// TODO:
-template<class _F, class... _Args>			concept regular_invocable			= requires(){ requires true; };	// TODO:
-template<class _F, class... _Args>			concept predicate					= requires(){ requires true; };	// TODO:
-template<class _R, class _T, class _U>		concept relation					= requires(){ requires true; };	// TODO:
-template<class _R, class _T, class _U>		concept equivalence_relation		= requires(){ requires true; };	// TODO:
-template<class _R, class _T, class _U>		concept strict_weak_order			= requires(){ requires true; };	// TODO:
+}	 // namespace ranges::unspecified
+template<class _T>
+concept swappable = requires() { requires true; };	  // TODO:
+template<class _T, class _U>
+concept swappable_with = requires() { requires true; };	   // TODO:
+template<class _T>
+concept destructible = requires() { requires true; };	 // TODO:
+template<class _T, class... _Args>
+concept constructible_from = requires() { requires true; };	   // TODO:
+template<class _T>
+concept default_initializable = requires() { requires true; };	  // TODO:
+template<class _T>
+concept move_constructible = requires() { requires true; };	   // TODO:
+template<class _T>
+concept copy_constructible = requires() { requires true; };	   // TODO:
+template<class _T>
+concept equality_comparable = requires() { requires true; };	// TODO:
+template<class _T, class _U>
+concept equality_comparable_with = requires() { requires true; };	 // TODO:
+template<class _T>
+concept totally_ordered = requires() { requires true; };	// TODO:
+template<class _T, class _U>
+concept totally_ordered_with = requires() { requires true; };	 // TODO:
+template<class _T>
+concept movable = requires() { requires true; };	// TODO:
+template<class _T>
+concept copyable = requires() { requires true; };	 // TODO:
+template<class _T>
+concept semiregular = requires() { requires true; };	// TODO:
+template<class _T>
+concept regular = requires() { requires true; };	// TODO:
+template<class _F, class... _Args>
+concept invocable = requires() { requires true; };	  // TODO:
+template<class _F, class... _Args>
+concept regular_invocable = requires() { requires true; };	  // TODO:
+template<class _F, class... _Args>
+concept predicate = requires() { requires true; };	  // TODO:
+template<class _R, class _T, class _U>
+concept relation = requires() { requires true; };	 // TODO:
+template<class _R, class _T, class _U>
+concept equivalence_relation = requires() { requires true; };	 // TODO:
+template<class _R, class _T, class _U>
+concept strict_weak_order = requires() { requires true; };	  // TODO:
 
-}	// namespace std
+}	 // namespace std
 
-#endif	// __XXX_concepts
+#endif	  // __XXX_concepts
