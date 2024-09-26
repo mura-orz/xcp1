@@ -758,30 +758,30 @@ static auto const value_1 = pp::tokens_t{{lex::token_type_t::Number, "1"}};
 static auto const value_4 = pp::tokens_t{{lex::token_type_t::Number, "4"}};
 
 static auto const value_199901 = pp::tokens_t{{lex::token_type_t::Number, "199901L"}};
-static auto const value_200604 = pp::tokens_t{{lex::token_type_t::Number, "200604L"}};
-static auto const value_200610 = pp::tokens_t{{lex::token_type_t::Number, "200610L"}};
-static auto const value_200704 = pp::tokens_t{{lex::token_type_t::Number, "200704L"}};
-static auto const value_200707 = pp::tokens_t{{lex::token_type_t::Number, "200707L"}};
-static auto const value_200710 = pp::tokens_t{{lex::token_type_t::Number, "200710L"}};
-static auto const value_200806 = pp::tokens_t{{lex::token_type_t::Number, "200806L"}};
-static auto const value_200809 = pp::tokens_t{{lex::token_type_t::Number, "200809L"}};
-static auto const value_200907 = pp::tokens_t{{lex::token_type_t::Number, "200907L"}};
-static auto const value_201304 = pp::tokens_t{{lex::token_type_t::Number, "201304L"}};
-static auto const value_201309 = pp::tokens_t{{lex::token_type_t::Number, "201309L"}};
-static auto const value_201411 = pp::tokens_t{{lex::token_type_t::Number, "201411L"}};
-static auto const value_201510 = pp::tokens_t{{lex::token_type_t::Number, "201510L"}};
-static auto const value_201511 = pp::tokens_t{{lex::token_type_t::Number, "201511L"}};
-static auto const value_201611 = pp::tokens_t{{lex::token_type_t::Number, "201611L"}};
-static auto const value_201603 = pp::tokens_t{{lex::token_type_t::Number, "201603L"}};
-static auto const value_201606 = pp::tokens_t{{lex::token_type_t::Number, "201606L"}};
-static auto const value_201707 = pp::tokens_t{{lex::token_type_t::Number, "201707L"}};
-static auto const value_201711 = pp::tokens_t{{lex::token_type_t::Number, "201711L"}};
-static auto const value_201803 = pp::tokens_t{{lex::token_type_t::Number, "201803L"}};
-static auto const value_201806 = pp::tokens_t{{lex::token_type_t::Number, "201806L"}};
-static auto const value_201811 = pp::tokens_t{{lex::token_type_t::Number, "201811L"}};
-static auto const value_201902 = pp::tokens_t{{lex::token_type_t::Number, "201902L"}};
-static auto const value_201907 = pp::tokens_t{{lex::token_type_t::Number, "201907L"}};
-static auto const value_201911 = pp::tokens_t{{lex::token_type_t::Number, "201911L"}};
+// static auto const value_200604 = pp::tokens_t{{lex::token_type_t::Number, "200604L"}};
+// static auto const value_200610 = pp::tokens_t{{lex::token_type_t::Number, "200610L"}};
+// static auto const value_200704 = pp::tokens_t{{lex::token_type_t::Number, "200704L"}};
+// static auto const value_200707 = pp::tokens_t{{lex::token_type_t::Number, "200707L"}};
+// static auto const value_200710 = pp::tokens_t{{lex::token_type_t::Number, "200710L"}};
+// static auto const value_200806 = pp::tokens_t{{lex::token_type_t::Number, "200806L"}};
+// static auto const value_200809 = pp::tokens_t{{lex::token_type_t::Number, "200809L"}};
+// static auto const value_200907 = pp::tokens_t{{lex::token_type_t::Number, "200907L"}};
+// static auto const value_201304 = pp::tokens_t{{lex::token_type_t::Number, "201304L"}};
+// static auto const value_201309 = pp::tokens_t{{lex::token_type_t::Number, "201309L"}};
+// static auto const value_201411 = pp::tokens_t{{lex::token_type_t::Number, "201411L"}};
+// static auto const value_201510 = pp::tokens_t{{lex::token_type_t::Number, "201510L"}};
+// static auto const value_201511 = pp::tokens_t{{lex::token_type_t::Number, "201511L"}};
+// static auto const value_201611 = pp::tokens_t{{lex::token_type_t::Number, "201611L"}};
+// static auto const value_201603 = pp::tokens_t{{lex::token_type_t::Number, "201603L"}};
+// static auto const value_201606 = pp::tokens_t{{lex::token_type_t::Number, "201606L"}};
+// static auto const value_201707 = pp::tokens_t{{lex::token_type_t::Number, "201707L"}};
+// static auto const value_201711 = pp::tokens_t{{lex::token_type_t::Number, "201711L"}};
+// static auto const value_201803 = pp::tokens_t{{lex::token_type_t::Number, "201803L"}};
+// static auto const value_201806 = pp::tokens_t{{lex::token_type_t::Number, "201806L"}};
+// static auto const value_201811 = pp::tokens_t{{lex::token_type_t::Number, "201811L"}};
+// static auto const value_201902 = pp::tokens_t{{lex::token_type_t::Number, "201902L"}};
+// static auto const value_201907 = pp::tokens_t{{lex::token_type_t::Number, "201907L"}};
+// static auto const value_201911 = pp::tokens_t{{lex::token_type_t::Number, "201911L"}};
 static auto const value_202002 = pp::tokens_t{{lex::token_type_t::Number, "202002L"}};
 
 inline pp::line_tokens_t to_line_tokens(pp::tokens_t const& tokens) {
@@ -796,30 +796,30 @@ static auto const macro_1 = to_line_tokens(value_1);
 static auto const macro_4 = to_line_tokens(value_4);
 
 static auto const macro_199901 = to_line_tokens(value_199901);
-static auto const macro_200604 = to_line_tokens(value_200604);
-static auto const macro_200610 = to_line_tokens(value_200610);
-static auto const macro_200704 = to_line_tokens(value_200704);
-static auto const macro_200707 = to_line_tokens(value_200707);
-static auto const macro_200710 = to_line_tokens(value_200710);
-static auto const macro_200806 = to_line_tokens(value_200806);
-static auto const macro_200809 = to_line_tokens(value_200809);
-static auto const macro_200907 = to_line_tokens(value_200907);
-static auto const macro_201304 = to_line_tokens(value_201304);
-static auto const macro_201309 = to_line_tokens(value_201309);
-static auto const macro_201411 = to_line_tokens(value_201411);
-static auto const macro_201510 = to_line_tokens(value_201510);
-static auto const macro_201511 = to_line_tokens(value_201511);
-static auto const macro_201603 = to_line_tokens(value_201603);
-static auto const macro_201606 = to_line_tokens(value_201606);
-static auto const macro_201611 = to_line_tokens(value_201611);
-static auto const macro_201707 = to_line_tokens(value_201707);
-static auto const macro_201711 = to_line_tokens(value_201711);
-static auto const macro_201803 = to_line_tokens(value_201803);
-static auto const macro_201806 = to_line_tokens(value_201806);
-static auto const macro_201811 = to_line_tokens(value_201811);
-static auto const macro_201902 = to_line_tokens(value_201902);
-static auto const macro_201907 = to_line_tokens(value_201907);
-static auto const macro_201911 = to_line_tokens(value_201911);
+// static auto const macro_200604 = to_line_tokens(value_200604);
+// static auto const macro_200610 = to_line_tokens(value_200610);
+// static auto const macro_200704 = to_line_tokens(value_200704);
+// static auto const macro_200707 = to_line_tokens(value_200707);
+// static auto const macro_200710 = to_line_tokens(value_200710);
+// static auto const macro_200806 = to_line_tokens(value_200806);
+// static auto const macro_200809 = to_line_tokens(value_200809);
+// static auto const macro_200907 = to_line_tokens(value_200907);
+// static auto const macro_201304 = to_line_tokens(value_201304);
+// static auto const macro_201309 = to_line_tokens(value_201309);
+// static auto const macro_201411 = to_line_tokens(value_201411);
+// static auto const macro_201510 = to_line_tokens(value_201510);
+// static auto const macro_201511 = to_line_tokens(value_201511);
+// static auto const macro_201603 = to_line_tokens(value_201603);
+// static auto const macro_201606 = to_line_tokens(value_201606);
+// static auto const macro_201611 = to_line_tokens(value_201611);
+// static auto const macro_201707 = to_line_tokens(value_201707);
+// static auto const macro_201711 = to_line_tokens(value_201711);
+// static auto const macro_201803 = to_line_tokens(value_201803);
+// static auto const macro_201806 = to_line_tokens(value_201806);
+// static auto const macro_201811 = to_line_tokens(value_201811);
+// static auto const macro_201902 = to_line_tokens(value_201902);
+// static auto const macro_201907 = to_line_tokens(value_201907);
+// static auto const macro_201911 = to_line_tokens(value_201911);
 static auto const macro_202002 = to_line_tokens(value_202002);
 
 }	 // namespace def
@@ -887,64 +887,64 @@ private:
 		simple_macros_["__STDCPP_DEFAULT_NEW_ALIGNMENT__"] = def::macro_4;
 
 		// C++ features.
-		simple_macros_["__cpp_aggregate_bases"]					 = def::macro_201603;
-		simple_macros_["__cpp_aggregate_nsdmi"]					 = def::macro_201304;
-		simple_macros_["__cpp_aggregate_paren_init"]			 = def::macro_201902;
-		simple_macros_["__cpp_alias_templates"]					 = def::macro_200704;
-		simple_macros_["__cpp_aligned_new"]						 = def::macro_201606;
-		simple_macros_["__cpp_attributes"]						 = def::macro_200809;
-		simple_macros_["__cpp_binary_literals"]					 = def::macro_201304;
-		simple_macros_["__cpp_capture_star_this"]				 = def::macro_201603;
-		simple_macros_["__cpp_char8_t"]							 = def::macro_201811;
-		simple_macros_["__cpp_concepts "]						 = def::macro_201907;
-		simple_macros_["__cpp_conditional_explicit "]			 = def::macro_201806;
-		simple_macros_["__cpp_constexpr "]						 = def::macro_201907;
-		simple_macros_["__cpp_constexpr_dynamic_alloc "]		 = def::macro_201907;
-		simple_macros_["__cpp_constexpr_in_decltype "]			 = def::macro_201711;
-		simple_macros_["__cpp_consteval "]						 = def::macro_201811;
-		simple_macros_["__cpp_constinit "]						 = def::macro_201907;
-		simple_macros_["__cpp_decltype "]						 = def::macro_200707;
-		simple_macros_["__cpp_decltype_auto "]					 = def::macro_201304;
-		simple_macros_["__cpp_deduction_guides"]				 = def::macro_201907;
-		simple_macros_["__cpp_delegating_constructors "]		 = def::macro_200604;
-		simple_macros_["__cpp_designated_initializers "]		 = def::macro_201707;
-		simple_macros_["__cpp_enumerator_attributes "]			 = def::macro_201411;
-		simple_macros_["__cpp_fold_expressions "]				 = def::macro_201603;
-		simple_macros_["__cpp_generic_lambdas "]				 = def::macro_201707;
-		simple_macros_["__cpp_guaranteed_copy_elision "]		 = def::macro_201606;
-		simple_macros_["__cpp_hex_float "]						 = def::macro_201603;
-		simple_macros_["__cpp_if_constexpr "]					 = def::macro_201606;
-		simple_macros_["__cpp_impl_coroutine "]					 = def::macro_201902;
-		simple_macros_["__cpp_impl_destroying_delete "]			 = def::macro_201806;
-		simple_macros_["__cpp_impl_three_way_comparison "]		 = def::macro_201907;
-		simple_macros_["__cpp_inheriting_constructors "]		 = def::macro_201511;
-		simple_macros_["__cpp_init_captures "]					 = def::macro_201803;
-		simple_macros_["__cpp_initializer_lists "]				 = def::macro_200806;
-		simple_macros_["__cpp_inline_variables "]				 = def::macro_201606;
-		simple_macros_["__cpp_lambdas "]						 = def::macro_200907;
-		simple_macros_["__cpp_modules "]						 = def::macro_201907;
-		simple_macros_["__cpp_namespace_attributes "]			 = def::macro_201411;
-		simple_macros_["__cpp_noexcept_function_type "]			 = def::macro_201510;
-		simple_macros_["__cpp_nontype_template_args "]			 = def::macro_201911;
-		simple_macros_["__cpp_nontype_template_parameter_auto "] = def::macro_201606;
-		simple_macros_["__cpp_nsdmi "]							 = def::macro_200809;
-		simple_macros_["__cpp_range_based_for "]				 = def::macro_201603;
-		simple_macros_["__cpp_raw_strings "]					 = def::macro_200710;
-		simple_macros_["__cpp_ref_qualifiers "]					 = def::macro_200710;
-		simple_macros_["__cpp_return_type_deduction "]			 = def::macro_201304;
-		simple_macros_["__cpp_rvalue_references "]				 = def::macro_200610;
-		simple_macros_["__cpp_sized_deallocation "]				 = def::macro_201309;
-		simple_macros_["__cpp_static_assert "]					 = def::macro_201411;
-		simple_macros_["__cpp_structured_bindings "]			 = def::macro_201606;
-		simple_macros_["__cpp_template_template_args "]			 = def::macro_201611;
-		simple_macros_["__cpp_threadsafe_static_init "]			 = def::macro_200806;
-		simple_macros_["__cpp_unicode_characters "]				 = def::macro_200704;
-		simple_macros_["__cpp_unicode_literals "]				 = def::macro_200710;
-		simple_macros_["__cpp_user_defined_literals "]			 = def::macro_200809;
-		simple_macros_["__cpp_using_enum "]						 = def::macro_201907;
-		simple_macros_["__cpp_variable_templates "]				 = def::macro_201304;
-		simple_macros_["__cpp_variadic_templates "]				 = def::macro_200704;
-		simple_macros_["__cpp_variadic_using "]					 = def::macro_201611;
+		// simple_macros_["__cpp_aggregate_bases"]					 = def::macro_201603;
+		// simple_macros_["__cpp_aggregate_nsdmi"]					 = def::macro_201304;
+		// simple_macros_["__cpp_aggregate_paren_init"]				 = def::macro_201902;
+		// simple_macros_["__cpp_alias_templates"]					 = def::macro_200704;
+		// simple_macros_["__cpp_aligned_new"]						 = def::macro_201606;
+		// simple_macros_["__cpp_attributes"]						 = def::macro_200809;
+		// simple_macros_["__cpp_binary_literals"]					 = def::macro_201304;
+		// simple_macros_["__cpp_capture_star_this"]				 = def::macro_201603;
+		// simple_macros_["__cpp_char8_t"]							 = def::macro_201811;
+		// simple_macros_["__cpp_concepts "]						 = def::macro_201907;
+		// simple_macros_["__cpp_conditional_explicit "]			 = def::macro_201806;
+		// simple_macros_["__cpp_constexpr "]						 = def::macro_201907;
+		// simple_macros_["__cpp_constexpr_dynamic_alloc "]			 = def::macro_201907;
+		// simple_macros_["__cpp_constexpr_in_decltype "]			 = def::macro_201711;
+		// simple_macros_["__cpp_consteval "]						 = def::macro_201811;
+		// simple_macros_["__cpp_constinit "]						 = def::macro_201907;
+		// simple_macros_["__cpp_decltype "]						 = def::macro_200707;
+		// simple_macros_["__cpp_decltype_auto "]					 = def::macro_201304;
+		// simple_macros_["__cpp_deduction_guides"]					 = def::macro_201907;
+		// simple_macros_["__cpp_delegating_constructors "]			 = def::macro_200604;
+		// simple_macros_["__cpp_designated_initializers "]			 = def::macro_201707;
+		// simple_macros_["__cpp_enumerator_attributes "]			 = def::macro_201411;
+		// simple_macros_["__cpp_fold_expressions "]				 = def::macro_201603;
+		// simple_macros_["__cpp_generic_lambdas "]					 = def::macro_201707;
+		// simple_macros_["__cpp_guaranteed_copy_elision "]			 = def::macro_201606;
+		// simple_macros_["__cpp_hex_float "]						 = def::macro_201603;
+		// simple_macros_["__cpp_if_constexpr "]					 = def::macro_201606;
+		// simple_macros_["__cpp_impl_coroutine "]					 = def::macro_201902;
+		// simple_macros_["__cpp_impl_destroying_delete "]			 = def::macro_201806;
+		// simple_macros_["__cpp_impl_three_way_comparison "]		 = def::macro_201907;
+		// simple_macros_["__cpp_inheriting_constructors "]			 = def::macro_201511;
+		// simple_macros_["__cpp_init_captures "]					 = def::macro_201803;
+		// simple_macros_["__cpp_initializer_lists "]				 = def::macro_200806;
+		// simple_macros_["__cpp_inline_variables "]				 = def::macro_201606;
+		// simple_macros_["__cpp_lambdas "]							 = def::macro_200907;
+		// simple_macros_["__cpp_modules "]							 = def::macro_201907;
+		// simple_macros_["__cpp_namespace_attributes "]			 = def::macro_201411;
+		// simple_macros_["__cpp_noexcept_function_type "]			 = def::macro_201510;
+		// simple_macros_["__cpp_nontype_template_args "]			 = def::macro_201911;
+		// simple_macros_["__cpp_nontype_template_parameter_auto "]	= def::macro_201606;
+		// simple_macros_["__cpp_nsdmi "]							 = def::macro_200809;
+		// simple_macros_["__cpp_range_based_for "]					 = def::macro_201603;
+		// simple_macros_["__cpp_raw_strings "]						 = def::macro_200710;
+		// simple_macros_["__cpp_ref_qualifiers "]					 = def::macro_200710;
+		// simple_macros_["__cpp_return_type_deduction "]			 = def::macro_201304;
+		// simple_macros_["__cpp_rvalue_references "]				 = def::macro_200610;
+		// simple_macros_["__cpp_sized_deallocation "]				 = def::macro_201309;
+		// simple_macros_["__cpp_static_assert "]					 = def::macro_201411;
+		// simple_macros_["__cpp_structured_bindings "]				 = def::macro_201606;
+		// simple_macros_["__cpp_template_template_args "]			 = def::macro_201611;
+		// simple_macros_["__cpp_threadsafe_static_init "]			 = def::macro_200806;
+		// simple_macros_["__cpp_unicode_characters "]				 = def::macro_200704;
+		// simple_macros_["__cpp_unicode_literals "]				 = def::macro_200710;
+		// simple_macros_["__cpp_user_defined_literals "]			 = def::macro_200809;
+		// simple_macros_["__cpp_using_enum "]						 = def::macro_201907;
+		// simple_macros_["__cpp_variable_templates "]				 = def::macro_201304;
+		// simple_macros_["__cpp_variadic_templates "]				 = def::macro_200704;
+		// simple_macros_["__cpp_variadic_using "]					 = def::macro_201611;
 
 		// C-compatibilities
 		simple_macros_["__STDC__"]						   = def::macro_1;
@@ -1239,7 +1239,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 }
 
 std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 
@@ -1270,7 +1270,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	}
 }
 std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
@@ -1285,7 +1285,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	return {true, std::visit([](auto const& a) { return a != 0; }, result) != 0};
 }
 bool parse_preprocessing_else_line(line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1294,7 +1294,7 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	return next_nonws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1397,13 +1397,17 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	return {true, *fullpath, pp_tokens};
 }
 std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_line(mm::macro_manager_t&, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "line")) return {false, "", 0ull};
-	return {next_nonws(directive, line.second) == line.second, "", 0ull};
+	auto const lineno = next_nonws(directive, line.second);
+	if (lineno == line.second || ! lineno->matched(lex::token_type_t::Number)) return {false, "", 0ull};
+	auto const no		= lexical_cast<unsigned long long>(lineno->token());
+	auto const filename = next_nonws(lineno, line.second);
+	return {true, filename == line.second ? ""sv : filename->token(), no};
 }
 bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
@@ -1458,7 +1462,7 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 		auto end = std::ranges::begin(paths.mutable_tokens());
 		std::advance(itr, std::distance(std::ranges::begin(paths.tokens()), line.first));
 
-		auto const filename		= ! file.empty() ? std::make_shared<std::filesystem::path>(file) : nullptr;
+		auto const filename		= (! file.empty()) ? std::make_shared<std::filesystem::path>(file) : nullptr;
 		long long  current_line = line.first->line();
 		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) { if(a.file()){ auto const ln = lineno + (a.line() - current_line);  if(filename){ a.pos(ln, filename); } else { a.pos(ln); } } });
 
