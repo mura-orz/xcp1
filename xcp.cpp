@@ -81,7 +81,7 @@ static level_t	  level_s = level_t::Silent;
 namespace impl {
 
 char const*		 Lv[]{"[*]", "[T]", "[I]", "[E]", "[S]"};
-std::regex const function_name_re{R"(^(?:.* )(?:`?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*(~?[A-Za-z_][A-Za-z_0-9<>]*) ?\(.*$)"};
+std::regex const function_name_re{R"(^(?:[^ ]+ )*(?:`?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*(~?[A-Za-z_<][A-Za-z_0-9<>]*) ?\(.*$)"};
 
 inline std::tm local_tm(std::chrono::system_clock::time_point const& now) {
 	std::tm	   tm{};
