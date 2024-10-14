@@ -129,18 +129,20 @@ inline void err(std::string_view const& message, std::source_location sl = std::
 
 class tracer_t {
 public:
-	explicit tracer_t(std::vector<std::string_view> const& args, std::source_location sl = std::source_location::current()) :
-		tracer_t(level_t::Trace, args, sl) {}
-	tracer_t(level_t level, std::vector<std::string_view> const& args, std::source_location sl = std::source_location::current()) :
-		level_{level}, sl_{sl}, result_{} {
-		if (level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
+	explicit tracer_t(std::vector<std::string_view> const& args, bool silent=false, std::source_location sl = std::source_location::current()) :
+		tracer_t(level_t::Trace, args, silent, sl) {}
+	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent=false, std::source_location sl = std::source_location::current()) :
+		level_{level}, sl_{sl}, result_{}, silent_{silent} {
+		if (!silent_ && level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
 	}
 	~tracer_t() {
-		if (level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
+		if (!silent_ && level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
 	}
 
 	template<typename T>
-	void trace(T const& v, std::source_location sl = std::source_location::current()) {
+	void trace(T const& v, bool force=false, std::source_location sl = std::source_location::current()) {
+		if (!force && (silent_ || level_ < level_s)) return;
+
 		if constexpr (std::is_integral_v<T>) {
 			log(level_, "----" + std::to_string(sl.line()) + "|" + std::to_string(v) + "|", sl_);
 		} else {
@@ -165,6 +167,7 @@ private:
 	level_t				 level_;
 	std::source_location sl_;
 	std::string			 result_;
+	bool				 silent_;
 };
 
 template<>
@@ -181,15 +184,18 @@ inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
 }
 
 template<>
-inline void tracer_t::trace(std::string const& v, std::source_location sl) {
+inline void tracer_t::trace(std::string const& v, bool force, std::source_location sl) {
+	if (!force && (silent_ || level_ < level_s)) return;
 	log(level_, "----" + std::to_string(sl.line()) + "|" + v + "|", sl_);
 }
 template<>
-inline void tracer_t::trace(std::string_view const& v, std::source_location sl) {
+inline void tracer_t::trace(std::string_view const& v, bool force, std::source_location sl) {
+	if (!force && (silent_ || level_ < level_s)) return;
 	log(level_, "----" + std::to_string(sl.line()) + "|" + std::string{v} + "|", sl_);
 }
 template<>
-inline void tracer_t::trace(std::vector<std::string_view> const& v, std::source_location sl) {
+inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, std::source_location sl) {
+	if (!force && (silent_ || level_ < level_s)) return;
 	auto const vs = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
 	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
 }
@@ -447,7 +453,7 @@ inline bool is_trinary_op(std::string_view const& op) {
 
 template<typename I>
 inline I skip_ws(I pos, I const& end) {
-	//-     log::tracer_t tr{{}};
+	log::tracer_t tr{{}, true};
 	using enum token_type_t;
 	for (; pos != end; ++pos) {
 		switch (pos->type()) {
@@ -521,7 +527,7 @@ inline std::string to_string(token_t const& token) {
 /// @param[in]  str             Source string literal, which have to be available while parsing results exist.
 /// @return             The first is token type. The last string is parsed token, which is substring of the @p str.
 inline std::tuple<token_type_t, std::string_view> next_token(std::string_view const& str, bool noheader = false) {
-	log::tracer_t tr{{escape(str, 32)}};
+	log::tracer_t tr{{escape(str, 32)}, true};
 	using enum token_type_t;
 	if (str.empty()) return {Terminated, str};
 	svmatch result;
@@ -552,7 +558,7 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 }
 
 inline std::tuple<token_t, pos_t> next_token(std::string_view const& str, pos_t const& pos, bool noheader = false) {
-	log::tracer_t tr{{to_string(pos), escape(str, 32)}};
+	log::tracer_t tr{{to_string(pos), escape(str, 32)}, true};
 
 	using enum token_type_t;
 	switch (auto const [type, token]{next_token(str, noheader)}; type) {
@@ -577,7 +583,7 @@ inline std::tuple<token_t, pos_t> next_token(std::string_view const& str, pos_t 
 }
 
 std::vector<token_t> scan(std::string_view const& str, std::filesystem::path const& name) {
-	log::tracer_t tr{{name.string(), escape(str, 32)}};
+	log::tracer_t tr{{name.string(), escape(str, 32)}, true};
 
 	using enum token_type_t;
 	pos_t pos{1u, 1u, std::make_shared<std::filesystem::path>(name)};
@@ -1257,7 +1263,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 }
 
 std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 
@@ -1288,7 +1294,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	}
 }
 std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
@@ -1303,7 +1309,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	return {true, std::visit([](auto const& a) { return a != 0; }, result) != 0};
 }
 bool parse_preprocessing_else_line(line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1312,7 +1318,7 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	return next_nonws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1381,7 +1387,7 @@ std::tuple<bool, bool> parse_preprocessing_undef_line(mm::macro_manager_t& macro
 	return {true, true};
 }
 std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, {}, {}};
@@ -1399,8 +1405,6 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 
 	tr.set_result(fullpath->string());
 
-	log::level_s = log::level_t::Info;	 // TODO:
-
 	paths.push(*fullpath);
 	try {
 		paths.source(xxx::load_file(paths.path()));
@@ -1417,7 +1421,7 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	return {true, *fullpath, pp_tokens};
 }
 std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_line(mm::macro_manager_t&, line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
@@ -1430,7 +1434,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	return {true, filename == line.second ? ""sv : filename->token(), no};
 }
 bool parse_preprocessing_error_line(line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1446,11 +1450,11 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
 	}
 	std::clog << oss.str() << std::endl;
-	//-     tr.set_result(oss.str());
+	tr.set_result(oss.str());
 	return true;
 }
 bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
-	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1466,12 +1470,12 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
 	}
 	std::clog << oss.str() << std::endl;
-	//-     tr.set_result(oss.str());
+	tr.set_result(oss.str());
 	return true;
 }
 
 std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line, std::filesystem::path const& source) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 	if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, line); matched) {
 		// -------------------------------
 		// #line number (filename)?
@@ -1514,7 +1518,7 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 ///     @brief  Proceeds conditions.
 ////            #if ... (#elif ...)* (#else ...)? #endif
 std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lines_t::const_iterator const& begin, lines_t::const_iterator const& end, std::filesystem::path const& source) {
-	log::tracer_t tr{{}};
+	log::tracer_t tr{{}, true};
 
 	lines_t result;
 
