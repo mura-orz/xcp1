@@ -1532,7 +1532,7 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 			tr.trace(lex::to_string(token->pos()) + "#if " + std::to_string(condition), true);
 			conditions.push(condition);
 			auto const [r, itr] = preprocess_conditions(conditions, macros, paths, ++line, end, source);
-			if (! std::ranges::empty(r)) { result.assign(std::ranges::begin(r), std::ranges::end(r)); }
+			if (! std::ranges::empty(r)) { result.insert(std::ranges::end(result), std::ranges::begin(r), std::ranges::end(r)); }
 			if (itr == end) break;
 			line = itr;
 		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, std::make_pair(token, line->second)); matched) {
@@ -1562,7 +1562,7 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 			// -------------------------------
 			// ...
 			tr.trace(lex::to_string(token->pos()) + "#");
-			if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
+			if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line); required) { result.insert(std::ranges::end(result), std::ranges::begin(tokens), std::ranges::end(tokens)); }
 		}	 // else skips whole
 	}
 	return {result, end};
