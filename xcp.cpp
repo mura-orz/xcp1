@@ -691,7 +691,7 @@ public:
 	std::optional<std::filesystem::path> find(std::filesystem::path const& header, bool includes_current_path) const {
 		auto dir = path();
 		dir.remove_filename();
-		if (includes_current_path && std::filesystem::exists(dir / header)) return path() / header;
+		if (includes_current_path && std::filesystem::exists(dir / header)) return dir / header;
 		auto const paths = includes_ | std::views::transform([&header](auto const& a) { return a / header; });
 		if (auto const itr = std::ranges::find_if(paths, [](auto const& a) { return std::filesystem::exists(a); }); itr != std::ranges::end(paths)) { return *itr; }
 		return std::nullopt;
