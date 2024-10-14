@@ -12,13 +12,13 @@ namespace std {
 #define CHAR_BIT (8)
 #endif
 #ifndef SCHAR_MIN
-#define SCHAR_MIN (static_cast<shined char>(0xFe))
+#define SCHAR_MIN (static_cast<signed char>(0xFe))
 #endif
 #ifndef SCHAR_MAX
-#define SCHAR_MAX (static_cast<shined char>(0x7F))
+#define SCHAR_MAX (static_cast<signed char>(0x7F))
 #endif
 #ifndef UCHAR_MAX
-#define UCHAR_MAX (static_cast<unshined char>(0xFF))
+#define UCHAR_MAX (static_cast<unsigned char>(0xFF))
 #endif
 #ifndef CHAR_MIN
 #define CHAR_MIN (static_cast<char>(0xFe))
