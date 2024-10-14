@@ -129,19 +129,19 @@ inline void err(std::string_view const& message, std::source_location sl = std::
 
 class tracer_t {
 public:
-	explicit tracer_t(std::vector<std::string_view> const& args, bool silent=false, std::source_location sl = std::source_location::current()) :
+	explicit tracer_t(std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		tracer_t(level_t::Trace, args, silent, sl) {}
-	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent=false, std::source_location sl = std::source_location::current()) :
+	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		level_{level}, sl_{sl}, result_{}, silent_{silent} {
-		if (!silent_ && level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
+		if (! silent_ && level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
 	}
 	~tracer_t() {
-		if (!silent_ && level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
+		if (! silent_ && level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
 	}
 
 	template<typename T>
-	void trace(T const& v, bool force=false, std::source_location sl = std::source_location::current()) {
-		if (!force && (silent_ || level_ < level_s)) return;
+	void trace(T const& v, bool force = false, std::source_location sl = std::source_location::current()) {
+		if (! force && (silent_ || level_ < level_s)) return;
 
 		if constexpr (std::is_integral_v<T>) {
 			log(level_, "----" + std::to_string(sl.line()) + "|" + std::to_string(v) + "|", sl_);
@@ -185,17 +185,17 @@ inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
 
 template<>
 inline void tracer_t::trace(std::string const& v, bool force, std::source_location sl) {
-	if (!force && (silent_ || level_ < level_s)) return;
+	if (! force && (silent_ || level_ < level_s)) return;
 	log(level_, "----" + std::to_string(sl.line()) + "|" + v + "|", sl_);
 }
 template<>
 inline void tracer_t::trace(std::string_view const& v, bool force, std::source_location sl) {
-	if (!force && (silent_ || level_ < level_s)) return;
+	if (! force && (silent_ || level_ < level_s)) return;
 	log(level_, "----" + std::to_string(sl.line()) + "|" + std::string{v} + "|", sl_);
 }
 template<>
 inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, std::source_location sl) {
-	if (!force && (silent_ || level_ < level_s)) return;
+	if (! force && (silent_ || level_ < level_s)) return;
 	auto const vs = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
 	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
 }
@@ -1638,8 +1638,8 @@ public:
 
 		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) {
 			std::for_each(a.first, a.second, [](auto const& aa) {
-			 std::clog << " $---> " << xxx::lex::to_string(aa) << "\n";
-			  });	   // TODO:
+				std::clog << " $---> " << xxx::lex::to_string(aa) << "\n";
+			});	   // TODO:
 		});
 
 		return paths_.nodes();	  // TODO:
