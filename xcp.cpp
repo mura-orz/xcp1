@@ -689,7 +689,9 @@ public:
 	}
 
 	std::optional<std::filesystem::path> find(std::filesystem::path const& header, bool includes_current_path) const {
-		if (includes_current_path && std::filesystem::exists(path() / header)) return path() / header;
+		auto dir = path();
+		dir.remove_filename();
+		if (includes_current_path && std::filesystem::exists(dir / header)) return path() / header;
 		auto const paths = includes_ | std::views::transform([&header](auto const& a) { return a / header; });
 		if (auto const itr = std::ranges::find_if(paths, [](auto const& a) { return std::filesystem::exists(a); }); itr != std::ranges::end(paths)) { return *itr; }
 		return std::nullopt;
@@ -1656,7 +1658,7 @@ static char const Unexpected[]{"Unexpected"};
 static char const Title[]{
 	"====================================\n"
 	" xcp - xxx c++ compiler\n"
-	"  v.0.2.0.0 (c) 20223, Mura.\n"
+	"  v.0.2.0.0 (c) 20223-, Mura.\n"
 	"===================================="};
 static char const Usage[]{
 	"  $ ./xcp.exe  {options}  sources\n"
