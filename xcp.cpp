@@ -1471,18 +1471,15 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 	if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, line); matched) {
 		// -------------------------------
 		// #line number (filename)?
-		// TODO: relocate following tolens
-
-		// Gets non-const iterator of tokens to relocate these positions.
 		long long current_line = line.first->line();
-
+		// Gets non-const iterator of tokens to relocate these positions.
 		auto& tokens = paths.mutable_tokens();
 		auto  itr	 = std::ranges::begin(tokens);
 		auto  end	 = std::ranges::end(tokens);
 		std::advance(itr, std::distance(std::ranges::begin(paths.tokens()), line.first));
 
 		auto const filename = (! file.empty()) ? std::make_shared<std::filesystem::path>(file) : nullptr;
-		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) {                        if (a.file()) {                                a.pos(lineno + (a.line() - current_line);, filename);                        } });
+		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) {	if (a.file()) {a.pos(lineno + (a.line() - current_line), filename);	} });
 		return {false, {line}};
 	} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, line); matched) {
 		// -------------------------------
