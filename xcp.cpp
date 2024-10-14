@@ -1,9 +1,10 @@
-///	@file
-///	@brief		xcp - xxx c++ compiler.
-///		It is a C++20 compiler written in C++20.
-///		It s just for hobby and does not take care of performance.
-///	@author		Mura
-///	@copyright	(c) 2023-, Mura.
+
+///     @file
+///     @brief          xcp - xxx c++ compiler.
+///             It is a C++20 compiler written in C++20.
+///             It s just for hobby and does not take care of performance.
+///     @author         Mura
+///     @copyright      (c) 2023-, Mura.
 
 #include <source_location>
 #include <string_view>
@@ -86,8 +87,8 @@ std::regex const function_name_re{R"(^(?:[^ ]+ )*(?:`?[A-Za-z_{][-A-Za-z_0-9<>'}
 inline std::tm local_tm(std::chrono::system_clock::time_point const& now) {
 	std::tm	   tm{};
 	auto const tt{std::chrono::system_clock::to_time_t(now)};
-	// ::localtime_s(&tm, &tt);	for xxx_win32
-	// ::localtime_r(&tt, &tm);	for xxx_posix
+	// ::localtime_s(&tm, &tt);     for xxx_win32
+	// ::localtime_r(&tt, &tm);     for xxx_posix
 	// NOTE: It is always called with lock of mutex currently.
 	tm = *std::localtime(&tt);
 	return tm;
@@ -354,7 +355,7 @@ std::unordered_set<std::string_view> const trinary_op_set{"?", ":"};
 
 }	 // namespace def
 
-/// @brief	Lexical token type.
+/// @brief      Lexical token type.
 enum class token_type_t {
 	Terminated,
 	Failure,
@@ -400,21 +401,27 @@ inline std::ostream& operator<<(std::ostream& os, token_type_t t) {
 	return os;
 }
 
-using pos_t = std::tuple<std::size_t, std::size_t, std::shared_ptr<std::filesystem::path const>>;
+class pos_t {
+public:
+	auto line() const noexcept { return line_; }
+	auto column() const noexcept { return column_; }
+	auto file() const { return file_; }
 
-namespace impl {
+	void				set_line(std::size_t value) noexcept { line_ = value; }
+	void				set_column(std::size_t value) noexcept { column_ = value; }
+	void				set_file(std::shared_ptr<std::filesystem::path const> value = nullptr) { file_ = value; }
+	[[nodiscard]] pos_t moved(std::size_t length) const { return {line_, column_ + length, file_}; }
 
-inline auto& line(pos_t& pos) { return std::get<0>(pos); }
-inline auto& column(pos_t& pos) { return std::get<1>(pos); }
-inline auto& file(pos_t& pos) { return std::get<2>(pos); }
+	pos_t() :
+		line_{}, column_{}, file_{} {}
+	pos_t(std::size_t line, std::size_t column, std::shared_ptr<std::filesystem::path const> file = nullptr) :
+		line_{line}, column_{column}, file_{file} {}
 
-inline auto line(pos_t const& pos) { return std::get<0>(pos); }
-inline auto column(pos_t const& pos) { return std::get<1>(pos); }
-inline auto file(pos_t const& pos) { return std::get<2>(pos); }
-
-[[nodiscard]] inline pos_t moved(pos_t const& pos, std::size_t length) { return {impl::line(pos), impl::column(pos) + length, impl::file(pos)}; }
-
-}	 // namespace impl
+private:
+	std::size_t									 line_;
+	std::size_t									 column_;
+	std::shared_ptr<std::filesystem::path const> file_;
+};
 
 inline bool is_unary_op(std::string_view const& op) {
 	log::tracer_t tr{{std::string{op}}};
@@ -440,7 +447,7 @@ inline bool is_trinary_op(std::string_view const& op) {
 
 template<typename I>
 inline I skip_ws(I pos, I const& end) {
-	//-	log::tracer_t tr{{}};
+	//-     log::tracer_t tr{{}};
 	using enum token_type_t;
 	for (; pos != end; ++pos) {
 		switch (pos->type()) {
@@ -462,28 +469,28 @@ inline I skip_ws(I pos, I const& end) {
 	return pos;
 }
 
-/// @brief	Lexical token.
+/// @brief      Lexical token.
 class token_t {
 public:
 	auto token() const noexcept { return token_; }
 	auto type() const noexcept { return type_; }
-	auto line() const noexcept { return impl::line(pos_); }
-	auto column() const noexcept { return impl::column(pos_); }
-	auto file() const noexcept { return impl::file(pos_); }
+	auto line() const noexcept { return pos_.line(); }
+	auto column() const noexcept { return pos_.column(); }
+	auto file() const noexcept { return pos_.file(); }
 
 	auto const& pos() const noexcept { return pos_; }
 
-	void pos(std::size_t line) { impl::line(pos_) = line; }
-	void pos(std::size_t line, std::shared_ptr<std::filesystem::path const> path) {
-		impl::line(pos_) = line;
-		impl::file(pos_) = path;
+	void pos(std::size_t line, std::shared_ptr<std::filesystem::path const> path = nullptr) {
+		pos_.set_line(line);
+		pos_.set_column(0u);
+		pos_.set_file(path);
 	}
 
 	bool matched(token_type_t type, std::string_view token) const noexcept { return type_ == type && token_ == token; }
 	bool matched(token_type_t type) const noexcept { return type_ == type; }
 
 	token_t(token_type_t type, std::string_view token) :
-		type_{type}, token_{token}, pos_{0, 0, nullptr} {}
+		type_{type}, token_{token}, pos_{0, 0} {}
 	token_t(token_type_t type, std::string_view token, pos_t const& pos) :
 		type_{type}, token_{token}, pos_{pos} {
 		check<std::logic_error>(! ! file());
@@ -496,10 +503,10 @@ private:
 };
 
 inline std::string to_string(pos_t const& pos) {
-	if (! impl::file(pos)) return "{no position}";
+	if (! pos.file()) return "{no position}";
 
 	std::ostringstream oss;
-	oss << "[" << impl::file(pos)->string() << "(l:" << std::to_string(impl::line(pos)) << " c:" << std::to_string(impl::column(pos)) << ")"
+	oss << "[" << pos.file()->string() << "(l:" << std::to_string(pos.line()) << " c:" << std::to_string(pos.column()) << ")"
 		<< "]";
 	return oss.str();
 }
@@ -510,9 +517,9 @@ inline std::string to_string(token_t const& token) {
 	return oss.str();
 }
 
-/// @brief		Gets next token from source literal.
-/// @param[in]	str		Source string literal, which have to be available while parsing results exist.
-/// @return		The first is token type. The last string is parsed token, which is substring of the @p str.
+/// @brief              Gets next token from source literal.
+/// @param[in]  str             Source string literal, which have to be available while parsing results exist.
+/// @return             The first is token type. The last string is parsed token, which is substring of the @p str.
 inline std::tuple<token_type_t, std::string_view> next_token(std::string_view const& str, bool noheader = false) {
 	log::tracer_t tr{{escape(str, 32)}};
 	using enum token_type_t;
@@ -555,17 +562,17 @@ inline std::tuple<token_t, pos_t> next_token(std::string_view const& str, pos_t 
 		tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
 		// TODO: Ths implementation does not take care of escaped new line here.
 		if (auto const lf = std::ranges::count(token, '\n'); 0u < lf) {
-			return {token_t{type, token, pos}, pos_t{impl::line(pos) + lf, token.length() - token.find_last_of("\n"), impl::file(pos)}};
+			return {token_t{type, token, pos}, pos_t{pos.line() + lf, token.length() - token.find_last_of("\n"), pos.file()}};
 		} else {
-			return {token_t{type, token, pos}, impl::moved(pos, token.length())};
+			return {token_t{type, token, pos}, pos.moved(token.length())};
 		}
 	case Line_comment: [[fallthrough]];
 	case Newline:
 		tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
-		return {token_t{type, token, pos}, pos_t{impl::line(pos) + 1u, 1u, impl::file(pos)}};
+		return {token_t{type, token, pos}, pos_t{pos.line() + 1u, 1u, pos.file()}};
 	default:
 		tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
-		return {token_t{type, token, pos}, impl::moved(pos, token.length())};
+		return {token_t{type, token, pos}, pos.moved(token.length())};
 	}
 }
 
@@ -618,10 +625,10 @@ public:
 	}
 
 public:
-	///	@note	implicit
+	///     @note   implicit
 	node_t(lex::token_t const& token) noexcept :
 		token_{std::make_shared<lex::token_t>(token)}, children_{} {}
-	///	@note	implicit
+	///     @note   implicit
 	node_t(lex::token_t&& token) noexcept :
 		token_{std::make_shared<lex::token_t>(std::move(token))}, children_{} {}
 
@@ -663,20 +670,23 @@ namespace pm {
 
 class path_manager_t {
 public:
-	auto const&		 path() const { return std::get<0>(*current_.top()); }
-	std::string_view source() const { return std::get<1>(*current_.top()); }
-	auto const&		 tokens() const { return std::get<2>(*current_.top()); }
-	auto const&		 preprocessing_tokens() const { return std::get<3>(*current_.top()); }
-	auto			 nodes() const { return std::get<4>(*current_.top()); }
+	auto const&		 path() const { return current_.top()->path; }
+	std::string_view source() const { return current_.top()->source; }
+	auto const&		 tokens() const { return current_.top()->tokens; }
+	auto const&		 preprocessing_tokens() const { return current_.top()->lines; }
+	auto			 nodes() const { return current_.top()->node; }
 
-	void source(std::string_view str) { std::get<1>(*current_.top()) = str; }
-	void tokens(pp::tokens_t const& tokens) { std::get<2>(*current_.top()) = tokens; }
-	void tokens(pp::tokens_t&& tokens) { std::get<2>(*current_.top()) = std::move(tokens); }
-	void preprocessing_tokens(pp::lines_t const& pp_tokens) { std::get<3>(*current_.top()) = pp_tokens; }
-	void preprocessing_tokens(pp::lines_t&& pp_tokens) { std::get<3>(*current_.top()) = std::move(pp_tokens); }
-	void nodes(std::shared_ptr<node_t> nodes) const { std::get<4>(*current_.top()) = std::move(nodes); }
+	void source(std::string_view str) { current_.top()->source = str; }
+	void tokens(pp::tokens_t const& tokens) { current_.top()->tokens = tokens; }
+	void tokens(pp::tokens_t&& tokens) { current_.top()->tokens = std::move(tokens); }
+	void preprocessing_tokens(pp::lines_t const& pp_tokens) { current_.top()->lines = pp_tokens; }
+	void preprocessing_tokens(pp::lines_t&& pp_tokens) { current_.top()->lines = std::move(pp_tokens); }
+	void node(std::shared_ptr<node_t> nodes) const { current_.top()->node = std::move(nodes); }
 
-	auto& mutable_tokens() { return std::get<2>(*current_.top()); }
+	auto& mutable_tokens() {
+		if (current_.empty()) throw std::runtime_error(__func__);
+		return current_.top()->tokens;
+	}
 
 	std::optional<std::filesystem::path> find(std::filesystem::path const& header, bool includes_current_path) const {
 		if (includes_current_path && std::filesystem::exists(path() / header)) return path() / header;
@@ -685,7 +695,7 @@ public:
 		return std::nullopt;
 	}
 	void push(std::filesystem::path const& hpath) {
-		paths_.emplace_back(std::make_shared<file_t>(std::make_tuple(hpath, std::string{}, pp::tokens_t{}, pp::lines_t{}, nullptr)));
+		paths_.emplace_back(std::make_shared<file_t>(hpath, std::string{}, pp::tokens_t{}, pp::lines_t{}, nullptr));
 		current_.push(paths_.back());
 	}
 	void pop() { current_.pop(); }
@@ -714,13 +724,19 @@ private:
 	}
 
 private:
-	using file_t = std::tuple<std::filesystem::path, std::string, pp::tokens_t, pp::lines_t, std::shared_ptr<node_t>>;
+	struct file_t {
+		std::filesystem::path	path;
+		std::string				source;
+		pp::tokens_t			tokens;
+		pp::lines_t				lines;
+		std::shared_ptr<node_t> node;
+	};
 
-	std::vector<std::shared_ptr<file_t>> paths_;		///<	@brief	Stack of current paths.
-	std::stack<std::shared_ptr<file_t>>	 current_;		///<	@brief	Stack of current paths.
-	std::vector<std::filesystem::path>	 includes_;		///<	@brief	Paths to search headers.
-	std::vector<std::filesystem::path>	 linkages_;		///<	@brief	Paths to search libraries.
-	std::vector<std::string>			 libraries_;	///<	@brief	Name of libraries.
+	std::vector<std::shared_ptr<file_t>> paths_;		///<    @brief  Stack of current paths.
+	std::stack<std::shared_ptr<file_t>>	 current_;		///<    @brief  Stack of current paths.
+	std::vector<std::filesystem::path>	 includes_;		///<    @brief  Paths to search headers.
+	std::vector<std::filesystem::path>	 linkages_;		///<    @brief  Paths to search libraries.
+	std::vector<std::string>			 libraries_;	///<    @brief  Name of libraries.
 };
 
 }	 // namespace pm
@@ -887,64 +903,64 @@ private:
 		simple_macros_["__STDCPP_DEFAULT_NEW_ALIGNMENT__"] = def::macro_4;
 
 		// C++ features.
-		// simple_macros_["__cpp_aggregate_bases"]					 = def::macro_201603;
-		// simple_macros_["__cpp_aggregate_nsdmi"]					 = def::macro_201304;
-		// simple_macros_["__cpp_aggregate_paren_init"]				 = def::macro_201902;
-		// simple_macros_["__cpp_alias_templates"]					 = def::macro_200704;
-		// simple_macros_["__cpp_aligned_new"]						 = def::macro_201606;
-		// simple_macros_["__cpp_attributes"]						 = def::macro_200809;
-		// simple_macros_["__cpp_binary_literals"]					 = def::macro_201304;
-		// simple_macros_["__cpp_capture_star_this"]				 = def::macro_201603;
-		// simple_macros_["__cpp_char8_t"]							 = def::macro_201811;
-		// simple_macros_["__cpp_concepts "]						 = def::macro_201907;
-		// simple_macros_["__cpp_conditional_explicit "]			 = def::macro_201806;
-		// simple_macros_["__cpp_constexpr "]						 = def::macro_201907;
-		// simple_macros_["__cpp_constexpr_dynamic_alloc "]			 = def::macro_201907;
-		// simple_macros_["__cpp_constexpr_in_decltype "]			 = def::macro_201711;
-		// simple_macros_["__cpp_consteval "]						 = def::macro_201811;
-		// simple_macros_["__cpp_constinit "]						 = def::macro_201907;
-		// simple_macros_["__cpp_decltype "]						 = def::macro_200707;
-		// simple_macros_["__cpp_decltype_auto "]					 = def::macro_201304;
-		// simple_macros_["__cpp_deduction_guides"]					 = def::macro_201907;
-		// simple_macros_["__cpp_delegating_constructors "]			 = def::macro_200604;
-		// simple_macros_["__cpp_designated_initializers "]			 = def::macro_201707;
-		// simple_macros_["__cpp_enumerator_attributes "]			 = def::macro_201411;
-		// simple_macros_["__cpp_fold_expressions "]				 = def::macro_201603;
-		// simple_macros_["__cpp_generic_lambdas "]					 = def::macro_201707;
-		// simple_macros_["__cpp_guaranteed_copy_elision "]			 = def::macro_201606;
-		// simple_macros_["__cpp_hex_float "]						 = def::macro_201603;
-		// simple_macros_["__cpp_if_constexpr "]					 = def::macro_201606;
-		// simple_macros_["__cpp_impl_coroutine "]					 = def::macro_201902;
-		// simple_macros_["__cpp_impl_destroying_delete "]			 = def::macro_201806;
-		// simple_macros_["__cpp_impl_three_way_comparison "]		 = def::macro_201907;
-		// simple_macros_["__cpp_inheriting_constructors "]			 = def::macro_201511;
-		// simple_macros_["__cpp_init_captures "]					 = def::macro_201803;
-		// simple_macros_["__cpp_initializer_lists "]				 = def::macro_200806;
-		// simple_macros_["__cpp_inline_variables "]				 = def::macro_201606;
-		// simple_macros_["__cpp_lambdas "]							 = def::macro_200907;
-		// simple_macros_["__cpp_modules "]							 = def::macro_201907;
-		// simple_macros_["__cpp_namespace_attributes "]			 = def::macro_201411;
-		// simple_macros_["__cpp_noexcept_function_type "]			 = def::macro_201510;
-		// simple_macros_["__cpp_nontype_template_args "]			 = def::macro_201911;
-		// simple_macros_["__cpp_nontype_template_parameter_auto "]	= def::macro_201606;
-		// simple_macros_["__cpp_nsdmi "]							 = def::macro_200809;
-		// simple_macros_["__cpp_range_based_for "]					 = def::macro_201603;
-		// simple_macros_["__cpp_raw_strings "]						 = def::macro_200710;
-		// simple_macros_["__cpp_ref_qualifiers "]					 = def::macro_200710;
-		// simple_macros_["__cpp_return_type_deduction "]			 = def::macro_201304;
-		// simple_macros_["__cpp_rvalue_references "]				 = def::macro_200610;
-		// simple_macros_["__cpp_sized_deallocation "]				 = def::macro_201309;
-		// simple_macros_["__cpp_static_assert "]					 = def::macro_201411;
-		// simple_macros_["__cpp_structured_bindings "]				 = def::macro_201606;
-		// simple_macros_["__cpp_template_template_args "]			 = def::macro_201611;
-		// simple_macros_["__cpp_threadsafe_static_init "]			 = def::macro_200806;
-		// simple_macros_["__cpp_unicode_characters "]				 = def::macro_200704;
-		// simple_macros_["__cpp_unicode_literals "]				 = def::macro_200710;
-		// simple_macros_["__cpp_user_defined_literals "]			 = def::macro_200809;
-		// simple_macros_["__cpp_using_enum "]						 = def::macro_201907;
-		// simple_macros_["__cpp_variable_templates "]				 = def::macro_201304;
-		// simple_macros_["__cpp_variadic_templates "]				 = def::macro_200704;
-		// simple_macros_["__cpp_variadic_using "]					 = def::macro_201611;
+		// simple_macros_["__cpp_aggregate_bases"]                                       = def::macro_201603;
+		// simple_macros_["__cpp_aggregate_nsdmi"]                                       = def::macro_201304;
+		// simple_macros_["__cpp_aggregate_paren_init"]                          = def::macro_201902;
+		// simple_macros_["__cpp_alias_templates"]                                       = def::macro_200704;
+		// simple_macros_["__cpp_aligned_new"]                                           = def::macro_201606;
+		// simple_macros_["__cpp_attributes"]                                            = def::macro_200809;
+		// simple_macros_["__cpp_binary_literals"]                                       = def::macro_201304;
+		// simple_macros_["__cpp_capture_star_this"]                             = def::macro_201603;
+		// simple_macros_["__cpp_char8_t"]                                                       = def::macro_201811;
+		// simple_macros_["__cpp_concepts "]                                             = def::macro_201907;
+		// simple_macros_["__cpp_conditional_explicit "]                         = def::macro_201806;
+		// simple_macros_["__cpp_constexpr "]                                            = def::macro_201907;
+		// simple_macros_["__cpp_constexpr_dynamic_alloc "]                      = def::macro_201907;
+		// simple_macros_["__cpp_constexpr_in_decltype "]                        = def::macro_201711;
+		// simple_macros_["__cpp_consteval "]                                            = def::macro_201811;
+		// simple_macros_["__cpp_constinit "]                                            = def::macro_201907;
+		// simple_macros_["__cpp_decltype "]                                             = def::macro_200707;
+		// simple_macros_["__cpp_decltype_auto "]                                        = def::macro_201304;
+		// simple_macros_["__cpp_deduction_guides"]                                      = def::macro_201907;
+		// simple_macros_["__cpp_delegating_constructors "]                      = def::macro_200604;
+		// simple_macros_["__cpp_designated_initializers "]                      = def::macro_201707;
+		// simple_macros_["__cpp_enumerator_attributes "]                        = def::macro_201411;
+		// simple_macros_["__cpp_fold_expressions "]                             = def::macro_201603;
+		// simple_macros_["__cpp_generic_lambdas "]                                      = def::macro_201707;
+		// simple_macros_["__cpp_guaranteed_copy_elision "]                      = def::macro_201606;
+		// simple_macros_["__cpp_hex_float "]                                            = def::macro_201603;
+		// simple_macros_["__cpp_if_constexpr "]                                         = def::macro_201606;
+		// simple_macros_["__cpp_impl_coroutine "]                                       = def::macro_201902;
+		// simple_macros_["__cpp_impl_destroying_delete "]                       = def::macro_201806;
+		// simple_macros_["__cpp_impl_three_way_comparison "]            = def::macro_201907;
+		// simple_macros_["__cpp_inheriting_constructors "]                      = def::macro_201511;
+		// simple_macros_["__cpp_init_captures "]                                        = def::macro_201803;
+		// simple_macros_["__cpp_initializer_lists "]                            = def::macro_200806;
+		// simple_macros_["__cpp_inline_variables "]                             = def::macro_201606;
+		// simple_macros_["__cpp_lambdas "]                                                      = def::macro_200907;
+		// simple_macros_["__cpp_modules "]                                                      = def::macro_201907;
+		// simple_macros_["__cpp_namespace_attributes "]                         = def::macro_201411;
+		// simple_macros_["__cpp_noexcept_function_type "]                       = def::macro_201510;
+		// simple_macros_["__cpp_nontype_template_args "]                        = def::macro_201911;
+		// simple_macros_["__cpp_nontype_template_parameter_auto "]     = def::macro_201606;
+		// simple_macros_["__cpp_nsdmi "]                                                        = def::macro_200809;
+		// simple_macros_["__cpp_range_based_for "]                                      = def::macro_201603;
+		// simple_macros_["__cpp_raw_strings "]                                          = def::macro_200710;
+		// simple_macros_["__cpp_ref_qualifiers "]                                       = def::macro_200710;
+		// simple_macros_["__cpp_return_type_deduction "]                        = def::macro_201304;
+		// simple_macros_["__cpp_rvalue_references "]                            = def::macro_200610;
+		// simple_macros_["__cpp_sized_deallocation "]                           = def::macro_201309;
+		// simple_macros_["__cpp_static_assert "]                                        = def::macro_201411;
+		// simple_macros_["__cpp_structured_bindings "]                          = def::macro_201606;
+		// simple_macros_["__cpp_template_template_args "]                       = def::macro_201611;
+		// simple_macros_["__cpp_threadsafe_static_init "]                       = def::macro_200806;
+		// simple_macros_["__cpp_unicode_characters "]                           = def::macro_200704;
+		// simple_macros_["__cpp_unicode_literals "]                             = def::macro_200710;
+		// simple_macros_["__cpp_user_defined_literals "]                        = def::macro_200809;
+		// simple_macros_["__cpp_using_enum "]                                           = def::macro_201907;
+		// simple_macros_["__cpp_variable_templates "]                           = def::macro_201304;
+		// simple_macros_["__cpp_variadic_templates "]                           = def::macro_200704;
+		// simple_macros_["__cpp_variadic_using "]                                       = def::macro_201611;
 
 		// C-compatibilities
 		simple_macros_["__STDC__"]						   = def::macro_1;
@@ -961,8 +977,8 @@ private:
 	pp::tokens_t value_date_;
 	pp::tokens_t value_time_;
 
-	simple_macros_t	  simple_macros_;	   ///<	@brief	Simple macros.
-	function_macros_t function_macros_;	   ///<	@brief	Function macros.
+	simple_macros_t	  simple_macros_;	   ///< @brief  Simple macros.
+	function_macros_t function_macros_;	   ///< @brief  Function macros.
 };
 
 }	 // namespace mm
@@ -1239,7 +1255,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 }
 
 std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 
@@ -1270,7 +1286,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	}
 }
 std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
@@ -1285,7 +1301,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	return {true, std::visit([](auto const& a) { return a != 0; }, result) != 0};
 }
 bool parse_preprocessing_else_line(line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1294,7 +1310,7 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	return next_nonws(directive, line.second) == line.second;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1386,7 +1402,7 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 		paths.source(xxx::load_file(paths.path()));
 		paths.tokens(xxx::lex::scan(paths.source(), *fullpath));
 		paths.preprocessing_tokens(preprocess(conditions, macros, paths, paths.tokens(), *fullpath));
-		//		paths.nodes(std::make_shared<pp::node_t>(pp_tokens));	 // TODO: nodes
+		//              paths.nodes(std::make_shared<pp::node_t>(pp_tokens));    // TODO: nodes
 	} catch (std::exception const& e) {
 		std::cerr << e.what() << std::endl;
 		paths.pop();
@@ -1397,7 +1413,7 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	return {true, *fullpath, pp_tokens};
 }
 std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_line(mm::macro_manager_t&, line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
@@ -1410,7 +1426,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	return {true, filename == line.second ? ""sv : filename->token(), no};
 }
 bool parse_preprocessing_error_line(line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1426,11 +1442,11 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
 	}
 	std::clog << oss.str() << std::endl;
-	//-	tr.set_result(oss.str());
+	//-     tr.set_result(oss.str());
 	return true;
 }
 bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
-	//-	log::tracer_t tr{{lex::to_string(line.first->pos())}};
+	//-     log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
@@ -1446,7 +1462,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
 	}
 	std::clog << oss.str() << std::endl;
-	//-	tr.set_result(oss.str());
+	//-     tr.set_result(oss.str());
 	return true;
 }
 
@@ -1458,14 +1474,15 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 		// TODO: relocate following tolens
 
 		// Gets non-const iterator of tokens to relocate these positions.
-		auto itr = std::ranges::begin(paths.mutable_tokens());
-		auto end = std::ranges::begin(paths.mutable_tokens());
+		long long current_line = line.first->line();
+
+		auto& tokens = paths.mutable_tokens();
+		auto  itr	 = std::ranges::begin(tokens);
+		auto  end	 = std::ranges::end(tokens);
 		std::advance(itr, std::distance(std::ranges::begin(paths.tokens()), line.first));
 
-		auto const filename		= (! file.empty()) ? std::make_shared<std::filesystem::path>(file) : nullptr;
-		long long  current_line = line.first->line();
-		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) { if(a.file()){ auto const ln = lineno + (a.line() - current_line);  if(filename){ a.pos(ln, filename); } else { a.pos(ln); } } });
-
+		auto const filename = (! file.empty()) ? std::make_shared<std::filesystem::path>(file) : nullptr;
+		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) {                        if (a.file()) {                                a.pos(lineno + (a.line() - current_line);, filename);                        } });
 		return {false, {line}};
 	} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, line); matched) {
 		// -------------------------------
@@ -1493,8 +1510,8 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 	}
 }
 
-///	@brief	Proceeds conditions.
-////		#if ... (#elif ...)* (#else ...)? #endif
+///     @brief  Proceeds conditions.
+////            #if ... (#elif ...)* (#else ...)? #endif
 std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lines_t::const_iterator const& begin, lines_t::const_iterator const& end, std::filesystem::path const& source) {
 	log::tracer_t tr{{}};
 
@@ -1605,7 +1622,7 @@ public:
 		// -------------------------------
 		// Proceeds preprocessing.
 
-		//-	log::level_s = log::level_t::Verbose;	 // TODO:
+		//-     log::level_s = log::level_t::Verbose;    // TODO:
 		// To keep address of lexical tokens and preprocessing tokens, it uses shared pointers in the path manager;
 		// otherwise, const iterators would be invalidate.
 		paths_.source(xxx::load_file(paths_.path()));
@@ -1615,8 +1632,8 @@ public:
 		log::level_s = log::level_t::Verbose;	 // TODO:
 
 		paths_.preprocessing_tokens(xxx::pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
-		// TODO:		auto const	 pps = paths_.preprocessing_tokens() | [](auto const& a) {	return pp::tokens_t(a.first, a.second); }) | std::views::join | std::views::common;
-		// TODO:		paths_.nodes(std::make_shared<pp::node_t>(std::ranges::begin(pps), std::ranges::end(pps)));
+		// TODO:                auto const       pps = paths_.preprocessing_tokens() | [](auto const& a) {      return pp::tokens_t(a.first, a.second); }) | std::views::join | std::views::common;
+		// TODO:                paths_.nodes(std::make_shared<pp::node_t>(std::ranges::begin(pps), std::ranges::end(pps)));
 
 		return paths_.nodes();	  // TODO:
 	}
@@ -1626,12 +1643,12 @@ public:
 	}
 
 private:
-	std::stack<context_t> contexts_;	///<	@brief	Context.
+	std::stack<context_t> contexts_;	///<    @brief  Context.
 
-	pp::sm::symbol_manager_t	symbols_;		///<	@brief	Symbol manager.
-	pp::pm::path_manager_t		paths_;			///<	@brief	Path manager.
-	pp::mm::macro_manager_t		macros_;		///<	@brief	Macro manager.
-	pp::cm::condition_manager_t conditions_;	///<	@brief	Condition manager.
+	pp::sm::symbol_manager_t	symbols_;		///<    @brief  Symbol manager.
+	pp::pm::path_manager_t		paths_;			///<    @brief  Path manager.
+	pp::mm::macro_manager_t		macros_;		///<    @brief  Macro manager.
+	pp::cm::condition_manager_t conditions_;	///<    @brief  Condition manager.
 };
 
 }	 // namespace tu
