@@ -1474,7 +1474,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	return true;
 }
 
-std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line, std::filesystem::path const& source) {
+std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 	if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, line); matched) {
 		// -------------------------------
@@ -1529,7 +1529,7 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, std::make_pair(token, line->second)); matched) {
 			// -------------------------------
 			// #if ...
-			tr.trace(lex::to_string(token->pos()) + "#if");
+			tr.trace(lex::to_string(token->pos()) + "#if " + std::to_string(condition), true);
 			conditions.push(condition);
 			auto const [r, itr] = preprocess_conditions(conditions, macros, paths, ++line, end, source);
 			if (! std::ranges::empty(r)) { result.assign(std::ranges::begin(r), std::ranges::end(r)); }
@@ -1562,7 +1562,7 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 			// -------------------------------
 			// ...
 			tr.trace(lex::to_string(token->pos()) + "#");
-			if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line, source); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
+			if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line); required) { result.assign(std::ranges::begin(tokens), std::ranges::end(tokens)); }
 		}	 // else skips whole
 	}
 	return {result, end};
