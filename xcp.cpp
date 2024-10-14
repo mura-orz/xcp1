@@ -324,7 +324,7 @@ std::regex const line_comment_re{R"(^(//[^\r\n]*(\r?\n)))"};
 std::regex const block_comment_re{R"(^(/[*](?:[^*]|[*][^/]|^|$|[\r\n])*[*]/))"};	// workaround for multiline regex
 std::regex const inline_whitespaces_re{R"(^([ \t\v\f]+))"};
 std::regex const identifier_re{R"(^([a-zA-Z_][a-zA-Z_0-9]*))"};
-std::regex const pp_number_re{R"(^([-+]?[.]?\d+(?:'|[a-zA-Z_0-9]+|[eEpP][-+]|[.])?))"};
+std::regex const pp_number_re{R"(^([-+]?[.]?\d(?:\d|')*(?:['a-zA-Z_0-9]+|[eEpP][-+]|[.])?))"};
 std::regex const string_literal_re{R"(^((?:u8?|[UL])?"(?:\\(?:[?'"abfnrtv\\]|u[0-9a-fA-f]{4}|U[0-9a-fA-f]{8})|[^"\r\n])*"[a-zA-Z_0-9]*))"};
 std::regex const character_literal_re{R"(^((?:u8?|[UL])?'(?:\\(?:[?'"abfnrtv\\]|u[0-9a-fA-f]{4}|U[0-9a-fA-f]{8})|[^'\r\n])'))"};
 
@@ -1399,6 +1399,8 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 
 	tr.set_result(fullpath->string());
 
+	log::level_s = log::level_t::Info;	 // TODO:
+
 	paths.push(*fullpath);
 	try {
 		paths.source(xxx::load_file(paths.path()));
@@ -1633,6 +1635,12 @@ public:
 		paths_.preprocessing_tokens(xxx::pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
 		// TODO:                auto const       pps = paths_.preprocessing_tokens() | [](auto const& a) {      return pp::tokens_t(a.first, a.second); }) | std::views::join | std::views::common;
 		// TODO:                paths_.nodes(std::make_shared<pp::node_t>(std::ranges::begin(pps), std::ranges::end(pps)));
+
+		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) {
+			std::for_each(a.first, a.second, [](auto const& aa) {
+			 std::clog << " $---> " << xxx::lex::to_string(aa) << "\n";
+			  });	   // TODO:
+		});
 
 		return paths_.nodes();	  // TODO:
 	}
