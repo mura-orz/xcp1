@@ -1627,15 +1627,11 @@ public:
 		// -------------------------------
 		// Proceeds preprocessing.
 
-		//-     log::level_s = log::level_t::Verbose;    // TODO:
 		// To keep address of lexical tokens and preprocessing tokens, it uses shared pointers in the path manager;
 		// otherwise, const iterators would be invalidate.
 		paths_.source(xxx::load_file(paths_.path()));
 		paths_.tokens(xxx::lex::scan(paths_.source(), paths_.path()));
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::clog << " ---> " << xxx::lex::to_string(a) << "\n"; });	   // TODO:
-
-		log::level_s = log::level_t::Verbose;	 // TODO:
-
 		paths_.preprocessing_tokens(xxx::pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
 		// TODO:                auto const       pps = paths_.preprocessing_tokens() | [](auto const& a) {      return pp::tokens_t(a.first, a.second); }) | std::views::join | std::views::common;
 		// TODO:                paths_.nodes(std::make_shared<pp::node_t>(std::ranges::begin(pps), std::ranges::end(pps)));
@@ -1721,14 +1717,17 @@ int main(int ac, char* av[]) {
 		// Gets the arguments as options and sources.
 		std::vector<std::string_view> const args{av + 1, av + ac};
 
-		xxx::log::tracer_t tr{args};
-
 		auto options{args | std::views::filter([](auto const& a) { return a != "-" && a.starts_with("-"); }) | std::views::common};
 		auto sources{args | std::views::filter([](auto const& a) { return ! a.starts_with("-"); }) | std::views::common};
+
+		if (xxx::contains(options, "-V")) {
+			xxx::log::level_s = xxx::log::level_t::Verbose;
+		}
+		xxx::log::tracer_t tr{args};
 		{
 			// -------------------------------
 			// Checks arguments.
-			if (xxx::contains(options, "-h")) {
+			if (xxx::contains(options, "-h") || xxx::contains(options, "-v")) {
 				std::cerr << msg::Usage << std::endl;
 				return 1;
 			}
