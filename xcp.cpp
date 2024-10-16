@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <list>
 #include <locale>
 #include <mutex>
 #include <numeric>
@@ -415,12 +416,12 @@ public:
 
 	void				set_line(std::size_t value) noexcept { line_ = value; }
 	void				set_column(std::size_t value) noexcept { column_ = value; }
-	void				set_file(std::shared_ptr<std::filesystem::path const> value = nullptr) { file_ = value; }
+	void				set_file(std::shared_ptr<std::filesystem::path const> value = std::shared_ptr<std::filesystem::path const>{}) { file_ = value; }
 	[[nodiscard]] pos_t moved(std::size_t length) const { return {line_, column_ + length, file_}; }
 
 	pos_t() :
 		line_{}, column_{}, file_{} {}
-	pos_t(std::size_t line, std::size_t column, std::shared_ptr<std::filesystem::path const> file = nullptr) :
+	pos_t(std::size_t line, std::size_t column, std::shared_ptr<std::filesystem::path const> file = std::shared_ptr<std::filesystem::path const>{}) :
 		line_{line}, column_{column}, file_{file} {}
 
 private:
@@ -486,7 +487,7 @@ public:
 
 	auto const& pos() const noexcept { return pos_; }
 
-	void pos(std::size_t line, std::shared_ptr<std::filesystem::path const> path = nullptr) {
+	void pos(std::size_t line, std::shared_ptr<std::filesystem::path const> path = std::shared_ptr<std::filesystem::path const>{}) {
 		pos_.set_line(line);
 		pos_.set_column(0u);
 		pos_.set_file(path);
@@ -582,13 +583,13 @@ inline std::tuple<token_t, pos_t> next_token(std::string_view const& str, pos_t 
 	}
 }
 
-std::vector<token_t> scan(std::string_view const& str, std::filesystem::path const& name) {
+std::list<token_t> scan(std::string_view const& str, std::filesystem::path const& name) {
 	log::tracer_t tr{{name.string(), escape(str, 32)}, true};
 
 	using enum token_type_t;
 	pos_t pos{1u, 1u, std::make_shared<std::filesystem::path>(name)};
 	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
-	std::vector<token_t> tokens;
+	std::list<token_t> tokens;
 	for (auto s = str; ! s.empty(); s = s.substr(tokens.back().token().length())) {
 		auto [token, next] = next_token(s, pos);
 		tokens.push_back(token);
@@ -600,9 +601,10 @@ std::vector<token_t> scan(std::string_view const& str, std::filesystem::path con
 				tr.trace("It is not a header");
 				// It is not the correct header.For example, it might be just an arithmetic comparison expression. e.g., (a < 1 && b > 1)
 				// Drops it once and takes it again excluding header.
-				tokens.erase(tokens.rbegin().base());
+				tokens.erase(--tokens.rbegin().base());
 				auto [nonheader, n] = next_token(s, pos, true);
-				next				= n;
+
+				next = n;
 				tokens.push_back(nonheader);
 			}
 			break;
@@ -616,7 +618,7 @@ std::vector<token_t> scan(std::string_view const& str, std::filesystem::path con
 }	 // namespace lex
 namespace pp {
 
-using tokens_t		= std::vector<lex::token_t>;
+using tokens_t		= std::list<lex::token_t>;
 using line_tokens_t = std::pair<tokens_t::const_iterator, tokens_t::const_iterator>;
 using lines_t		= std::vector<line_tokens_t>;
 
@@ -1335,7 +1337,8 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "define")) return {false, false};
 	auto const macro = impl::next_nonws(directive, line.second);
 	if (macro == line.second) return {false, false};
-	auto const lp = macro + 1;	  // If there is left parsistant without wshitespaces, it is function macro.
+	auto lp = macro;
+	lp++;	 // If there is left parsistant without wshitespaces, it is function macro.
 	if (lp == line.second) {
 		// -------------------------------
 		// Simple macro without value.
@@ -1486,7 +1489,7 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 		auto  end	 = std::ranges::end(tokens);
 		std::advance(itr, std::distance(std::ranges::begin(paths.tokens()), line.first));
 
-		auto const filename = (! file.empty()) ? std::make_shared<std::filesystem::path>(file) : nullptr;
+		auto const filename = (! file.empty()) ? std::make_shared<std::filesystem::path const>(file) : line.first->file();
 		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) {	if (a.file()) {a.pos(lineno + (a.line() - current_line), filename);	} });
 		return {false, {line}};
 	} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, line); matched) {
