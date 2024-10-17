@@ -854,7 +854,8 @@ class macro_manager_t {
 	using macros_parameters_t = line_tokens_t;
 	using values_t			  = line_tokens_t;
 	using simple_macros_t	  = std::unordered_map<std::string_view, line_tokens_t>;
-	using function_macros_t	  = std::unordered_map<std::string_view, std::pair<macros_parameters_t, values_t>>;
+	using function_macro_t	  = std::pair<macros_parameters_t, values_t>;
+	using function_macros_t	  = std::unordered_map<std::string_view, function_macro_t>;
 
 public:
 	auto const& value(std::string_view const& name) const noexcept { return simple_macros_.at(name); }	  // TODO:
