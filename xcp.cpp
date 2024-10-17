@@ -1467,7 +1467,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	auto const message = lex::skip_ws(directive, line.second);
 
 	std::ostringstream oss;
-	oss << "unknown pragma is ignored ";
+	oss << "unknown pragma is ignored ";	// TODO: _Pragma
 	if (message != line.second) {
 		tokens_t messages(message, line.second);
 		auto	 msg = messages | std::views::transform([](lex::token_t const& token) { return std::string{token.token()}; });
