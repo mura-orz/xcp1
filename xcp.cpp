@@ -342,16 +342,19 @@ std::regex const header_name_re{R"(^(<[^>\r\n]+>))"};
 
 std::regex const raw_string_literal_prefix_re{R"(^(?:u8?|[UL])?R"([^()\\\r\n\f\v ]*)\()"};
 
-std::regex const preprocessing_op_or_punc_re{
+std::regex const preprocessing_op_re{
 	"^("
 	R"([.]{3}|(?:%:){1,2})"					  // ... %:%: %:
 	R"(|\[|\]|(?:[.]|->)[*]?)"				  // [ ] . .* -> ->*
-	R"(|&&?|-[-=]?|\+[+=]?|##?|::?|\|\|?)"	  // && || -- ++ ## :: & | - + # : += -=
-	R"(|<[:%]|[:%]>)"						  // <: <% :> %>
-	R"(|>>?=?|<<?=?)"						  // >>= <<= >> << >= <= > <
+	R"(|&&?|-[-=]?|\+[+=]?|##?|:[:>]?|\|\|?)"	// && || -- ++ ## :: & | - + # : += -= :>
+	R"(|>>?=?|<(?::|<?=?))"					  // >>= <<= >> << >= <= > < <:
 	R"(|[*/%^&|~!=]=?)"						  // *= /= %= ^= &= |= ~= != == * / % ^ & | ~ ! =
-	R"(|[{}();?,])"							  // { } ( ) ; ? ,
+	R"(|[;?,])"								  // ; ? ,
 	")"};									  // ( new delete and and_eq bitand bitor compl not not_eq or or_eq xor xor_eq )
+std::regex const preprocessing_punc_re{
+	"^("
+	R"([{}()]|<%|%>)"						// { } ( ) <% %>
+	")"};
 
 // character set
 std::string_view const basic_source_character_set{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_{}[]#()<>%:;.?*+-/^&|~!=,\\\"’ \t\v\f\r\n"};
@@ -532,29 +535,91 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 	using enum token_type_t;
 	if (str.empty()) return {Terminated, str};
 	svmatch result;
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::raw_string_literal_prefix_re)) {
-		// Raw string is especial token beccause it is deterined by d-char-sequennce dynamically.
-		// To parse the raw string, it seperates two parts: prefix and suffix.
-		// Regex rules of the suffix is made here according to its prefix.
-		auto const suffix = ")" + result.str(1) + "\"";
-		if (auto const pos = str.find(suffix, result.length(0)); pos != std::string_view::npos) return {Raw_string, str.substr(0, pos + suffix.length())};
-		return {Failure, str.substr(0, 0)};
+
+	// It checks the first character once before using regex for performance
+	// because parsing by complex regex is too slow.
+
+	// Raw string is especial token beccause it is deterined by d-char-sequennce dynamically.
+	// To parse the raw string, it seperates two parts: prefix and suffix.
+	// Regex rules of the suffix is made here according to its prefix.
+
+	if (auto const ch = str.at(0); std::isdigit(ch)) {
+		// -------------------------------
+		// pp-number
+		tr.trace(ch);
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
+	} else if (std::isalpha(ch) || ch == '_') {
+		// -------------------------------
+		// maybe identifier, keyword, or prefix.
+		tr.trace(ch);
+		switch (ch) {
+		// -------------------------------
+		// raw-string-literal
+		case 'R':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::raw_string_literal_prefix_re)) {
+				auto const suffix = ")" + result.str(1) + "\"";
+				if (auto const pos = str.find(suffix, result.length(0)); pos != std::string_view::npos) return {Raw_string, str.substr(0, pos + suffix.length())};
+				return {Failure, str.substr(0, 0)};
+			}
+			break;
+		// -------------------------------
+		// prefixe of strings or character literal
+		case 'u': [[fallthrough]];
+		case 'U': [[fallthrough]];
+		case 'L':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::raw_string_literal_prefix_re)) {
+				auto const suffix = ")" + result.str(1) + "\"";
+				if (auto const pos = str.find(suffix, result.length(0)); pos != std::string_view::npos) return {Raw_string, str.substr(0, pos + suffix.length())};
+				return {Failure, str.substr(0, 0)};
+			}
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
+			break;
+		}
+		// -------------------------------
+		// identifier or keyword (including alternative token)
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::identifier_re)) {
+			if (def::alternative_expressions.contains(result.str())) return {Operator, str.substr(0, result.length(1))};
+			if (def::keywords.contains(result.str(1))) return {Keyword, str.substr(0, result.length(1))};
+			return {Identifier, str.substr(0, result.length(1))};
+		}
+	} else if (std::isblank(ch) || std::iscntrl(ch)) {
+		// -------------------------------
+		// white-spaces regardless of escape
+		tr.trace(ch);
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::newline_re)) return {Newline, str.substr(0, result.length(1))};
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::inline_whitespaces_re)) return {Whitespace, str.substr(0, result.length(1))};
+	} else if (ch == '/') {
+		// -------------------------------
+		// comments or operator
+		tr.trace(ch);
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::block_comment_re)) return {Block_comment, str.substr(0, result.length(1))};
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::line_comment_re)) return {Line_comment, str.substr(0, result.length(1))};
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_op_re)) return {Operator, str.substr(0, result.length(1))};
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_punc_re)) return {Separator, str.substr(0, result.length(1))};
+	} else {
+		// -------------------------------
+		// string, character, (header), or pp-number
+		// The header depends on context.
+		tr.trace(ch);
+		switch (ch) {
+		case '"':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};			break;
+		case '<':	if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};			break;
+		case '\'':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};			break;
+		case '+':	[[fallthrough]];
+		case '-':	[[fallthrough]];
+		case '.':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};		break;
+		}
+		// -------------------------------
+		// separator
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_op_re)) return {Operator, str.substr(0, result.length(1))};
+		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_punc_re)) return {Separator, str.substr(0, result.length(1))};
 	}
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::block_comment_re)) return {Block_comment, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::line_comment_re)) return {Line_comment, str.substr(0, result.length(1))};
-	if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::newline_re)) return {Newline, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::inline_whitespaces_re)) return {Whitespace, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_op_or_punc_re)) return {Separator, str.substr(0, result.length(1))};
-	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::identifier_re)) {
-		if (def::alternative_expressions.contains(result.str())) return {Operator, str.substr(0, result.length(1))};
-		if (def::keywords.contains(result.str(1))) return {Keyword, str.substr(0, result.length(1))};
-		return {Identifier, str.substr(0, result.length(1))};
-	}
+	// -------------------------------
+	// Other character, for example Japanese.
+	// TODO: Such character shold handle as an universal-character.
+	tr.trace(str.at(0));
 	return {Failure, str.substr(0, 0)};
 }
 
