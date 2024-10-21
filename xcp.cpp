@@ -344,16 +344,16 @@ std::regex const raw_string_literal_prefix_re{R"(^(?:u8?|[UL])?R"([^()\\\r\n\f\v
 
 std::regex const preprocessing_op_re{
 	"^("
-	R"([.]{3}|(?:%:){1,2})"					  // ... %:%: %:
-	R"(|\[|\]|(?:[.]|->)[*]?)"				  // [ ] . .* -> ->*
-	R"(|&&?|-[-=]?|\+[+=]?|##?|:[:>]?|\|\|?)"	// && || -- ++ ## :: & | - + # : += -= :>
-	R"(|>>?=?|<(?::|<?=?))"					  // >>= <<= >> << >= <= > < <:
-	R"(|[*/%^&|~!=]=?)"						  // *= /= %= ^= &= |= ~= != == * / % ^ & | ~ ! =
-	R"(|[;?,])"								  // ; ? ,
-	")"};									  // ( new delete and and_eq bitand bitor compl not not_eq or or_eq xor xor_eq )
+	R"([.]{3}|(?:%:){1,2})"						 // ... %:%: %:
+	R"(|\[|\]|(?:[.]|->)[*]?)"					 // [ ] . .* -> ->*
+	R"(|&&?|-[-=]?|\+[+=]?|##?|:[:>]?|\|\|?)"	 // && || -- ++ ## :: & | - + # : += -= :>
+	R"(|>>?=?|<(?::|<?=?))"						 // >>= <<= >> << >= <= > < <:
+	R"(|[*/%^&|~!=]=?)"							 // *= /= %= ^= &= |= ~= != == * / % ^ & | ~ ! =
+	R"(|[;?,])"									 // ; ? ,
+	")"};										 // ( new delete and and_eq bitand bitor compl not not_eq or or_eq xor xor_eq )
 std::regex const preprocessing_punc_re{
 	"^("
-	R"([{}()]|<%|%>)"						// { } ( ) <% %>
+	R"([{}()]|<%|%>)"	 // { } ( ) <% %>
 	")"};
 
 // character set
@@ -604,12 +604,20 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		// The header depends on context.
 		tr.trace(ch);
 		switch (ch) {
-		case '"':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};			break;
-		case '<':	if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};			break;
-		case '\'':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};			break;
-		case '+':	[[fallthrough]];
-		case '-':	[[fallthrough]];
-		case '.':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};		break;
+		case '"':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
+			break;
+		case '<':
+			if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};
+			break;
+		case '\'':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
+			break;
+		case '+': [[fallthrough]];
+		case '-': [[fallthrough]];
+		case '.':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
+			break;
 		}
 		// -------------------------------
 		// separator
@@ -1335,7 +1343,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
 
 	if (directive == line.second) return {false, false};
@@ -1365,7 +1373,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
 	auto const conditions = impl::next_nonws(directive, line.second);
@@ -1380,7 +1388,7 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Keyword, "else")) return false;
 	return next_nonws(directive, line.second) == line.second;
@@ -1389,7 +1397,7 @@ bool parse_preprocessing_endif_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "endif")) return false;
 	return next_nonws(directive, line.second) == line.second;
@@ -1398,7 +1406,7 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "define")) return {false, false};
 	auto const macro = impl::next_nonws(directive, line.second);
@@ -1442,7 +1450,7 @@ std::tuple<bool, bool> parse_preprocessing_undef_line(mm::macro_manager_t& macro
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "undef")) return {false, false};
 	auto const macro = next_nonws(directive, line.second);
@@ -1459,7 +1467,8 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, {}, {}};
+	tr.trace(lex::to_string(*marker));
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, {}, {}};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "include")) return {false, {}, {}};
 	auto const path_token = next_nonws(directive, line.second);
@@ -1493,7 +1502,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, "", 0ull};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "line")) return {false, "", 0ull};
 	auto const lineno = next_nonws(directive, line.second);
@@ -1506,7 +1515,7 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "error")) return false;
 	auto const message = next_nonws(directive, line.second);
@@ -1526,7 +1535,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "pragma")) return false;
 	auto const message = lex::skip_ws(directive, line.second);
@@ -1572,7 +1581,7 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 		// #pragma ...
 		// Ignores it because no pragma is supported yet.
 		return {true, {}};
-	} else if (auto const marker = lex::skip_ws(line.first, line.second); marker != line.second && marker->matched(lex::token_type_t::Separator, "#") && impl::next_nonws(marker, line.second) == line.second) {
+	} else if (auto const marker = lex::skip_ws(line.first, line.second); marker != line.second && marker->matched(lex::token_type_t::Operator, "#") && impl::next_nonws(marker, line.second) == line.second) {
 		// -------------------------------
 		// #
 		// Ignores it because of empty directive.
