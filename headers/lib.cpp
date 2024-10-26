@@ -35,10 +35,8 @@ terminate_handler		 set_terminate(terminate_handler _f) noexcept {
 }
 
 [[noreturn]] void terminate() noexcept {
-#if defined(_POSIX_C_SOURCE)
-	::_ezit(-1);
-#endif
-}	 // TODO:
+	_Exit(-1);
+}
 
 }	 // namespace std
 // ===========================================================================
@@ -85,15 +83,6 @@ namespace std {
 // ===========================================================================
 #include "cstdlib"
 namespace std {
-
-struct _exit_exception_t {
-	int _result_;
-	_exit_exception_t() noexcept :
-		_result_{} {}
-	explicit _exit_exception_t(int _result) noexcept :
-		_result_{_result} {}
-	int _result() const noexcept { return _result_; }
-};
 
 struct _atexit_handler_t {
 	bool _cpp;
@@ -174,16 +163,18 @@ int at_quick_exit(_Cpp_atexit_handler* _func) noexcept {
 
 [[noreturn]] void exit(int _status) {
 	_do_atexit_handlers_(_at_exit_handlers_s);
-	throw _exit_exception_t{_status};
+	_Exit(-1);
 }
 
 [[noreturn]] void _Exit(int _status) noexcept {
-	throw _exit_exception_t{_status};
+#if defined(_POSIX_C_SOURCE)
+	::_ezit(-1);
+#endif
 }
 
 [[noreturn]] void quick_exit(int _status) noexcept {
 	_do_atexit_handlers_(_at_quick_exit_handlers_s);
-	throw _exit_exception_t{_status};
+	_Exit(-1);
 }
 
 }	 // namespace std
@@ -212,14 +203,7 @@ namespace std {
 extern int main(int, char*[]);
 
 int _Crt(int _Ac, char* _Av[]) {
-	try {
-		int _result = main(_Ac, _Av);
-		return _result;
-	} catch (std::_exit_exception_t const& e) {
-		return e._result();
-	} catch (...) {
-		return -1;
-	}
+	std::exit(main(_Ac, _Av));
 }
 
 // ===========================================================================
