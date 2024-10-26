@@ -44,26 +44,14 @@ extern "C++" using _Cpp_atexit_handler = void();						   // exposition only
 extern "C" using _C_compare_pred	   = int(void const*, void const*);	   // exposition only
 extern "C++" using _Cpp_compare_pred   = int(void const*, void const*);	   // exposition only
 
-[[noreturn]] inline void abort() noexcept {
-	volatile int n = 0;
-	for (;;) { n += 1; }
-}	 // TODO:
-inline int atexit(_C_atexit_handler* _func) noexcept { return 0; }	  // TODO:
-// inline int atexit(_Cpp_atexit_handler* _func) noexcept								{ return 0; }	// TODO:
-inline int at_quick_exit(_C_atexit_handler* _func) noexcept { return 0; }	 // TODO:
-// inline int at_quick_exit(_Cpp_atexit_handler* _func) noexcept							{ return 0; }	// TODO:
-[[noreturn]] inline void exit(int _status) {
-	volatile int n = 0;
-	for (;;) { n += 1; }
-}	 // TODO:
-[[noreturn]] inline void _Exit(int _status) noexcept {
-	volatile int n = 0;
-	for (;;) { n += 1; }
-}	 // TODO:
-[[noreturn]] inline void quick_exit(int _status) noexcept {
-	volatile int n = 0;
-	for (;;) { n += 1; }
-}	 // TODO:
+[[noreturn]] void			  abort() noexcept;
+int							  atexit(_C_atexit_handler* _func) noexcept;								 // TODO:
+int							  atexit(_Cpp_atexit_handler* _func) noexcept;								 // TODO:
+int							  at_quick_exit(_C_atexit_handler* _func) noexcept;							 // TODO:
+int							  at_quick_exit(_Cpp_atexit_handler* _func) noexcept;						 // TODO:
+[[noreturn]] void			  exit(int _status);														 // TODO:
+[[noreturn]] void			  _Exit(int _status) noexcept;												 // TODO:
+[[noreturn]] void			  quick_exit(int _status) noexcept;											 // TODO:
 inline char*				  getenv(char const* _name) { return ""; }									 // TODO:
 inline int					  system(char const* _string) { return 0; }									 // TODO:
 inline void*				  aligned_alloc(size_t _alignment, size_t _size) { return nullptr; }		 // TODO:
