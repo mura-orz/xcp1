@@ -73,6 +73,8 @@
         "thread": "cpp",
         "cfloat": "cpp",
         "climits": "cpp",
-        "coroutine": "cpp"
+        "coroutine": "cpp",
+        "list": "cpp",
+        "set": "cpp"
     }
 }
