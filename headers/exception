@@ -6,7 +6,7 @@
 #ifndef __XXX_exception
 #define __XXX_exception
 
-//#define __cpp_lib_uncaught_exceptions		(201411L)
+// #define __cpp_lib_uncaught_exceptions		(201411L)
 
 namespace std {
 
@@ -53,15 +53,12 @@ using terminate_handler = void (*)();
 terminate_handler get_terminate() noexcept;
 terminate_handler set_terminate(terminate_handler _f) noexcept;
 
-[[noreturn]] void terminate() noexcept {
-	volatile int n = 0;
-	for (;;) { n = n + 1; }
-}	 // TODO:
-int uncaught_exceptions() noexcept { return 0; }	// TODO:
+[[noreturn]] void terminate() noexcept;
+int				  uncaught_exceptions() noexcept { return 0; }	  // TODO:
 
 inline exception_ptr current_exception() noexcept { return nullptr; }	 // TODO
 
-[[noreturn]] void rethrow_exception(exception_ptr _p) {
+[[noreturn]] inline void rethrow_exception(exception_ptr _p) {
 	if (_p)
 		throw *_p;
 	else
@@ -70,9 +67,9 @@ inline exception_ptr current_exception() noexcept { return nullptr; }	 // TODO
 template<class _E>
 inline exception_ptr make_exception_ptr(_E _e) noexcept { return nullptr; }	   // TODO
 template<class _T>
-[[noreturn]] void throw_with_nested(_T&& _t) { throw nested_exception{_t}; }
+[[noreturn]] inline void throw_with_nested(_T&& _t) { throw nested_exception{_t}; }
 template<class _E>
-void rethrow_if_nested(_E const& _e) {
+inline void rethrow_if_nested(_E const& _e) {
 	if (auto const p = _e.nested_ptr(); p) { p->rethrow_nested(); }
 }
 

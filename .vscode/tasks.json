@@ -1,0 +1,18 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "buildmake",
+			"command": "make",
+			"args": [],
+			"group": "build", 
+			"options": {
+				"cwd": "${workspaceFolder}/build",
+			},
+			"presentation": {
+				"reveal": "always"
+			}
+		}
+	]
+}
