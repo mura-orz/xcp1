@@ -1,10 +1,9 @@
-
-///     @file
-///     @brief          xcp - xxx c++ compiler.
-///             It is a C++20 compiler written in C++20.
-///             It s just for hobby and does not take care of performance.
-///     @author         Mura
-///     @copyright      (c) 2023-, Mura.
+///	@file
+///	@brief	xcp - xxx c++ compiler.
+///		It is a C++20 compiler written in C++20.
+///		It s just for hobby and does not take care of performance.
+///	@author		Mura
+///	@copyright	(c) 2023-, Mura.
 
 #include <source_location>
 #include <string_view>
@@ -24,6 +23,7 @@
 #include <optional>
 #include <ranges>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -344,16 +344,16 @@ std::regex const raw_string_literal_prefix_re{R"(^(?:u8?|[UL])?R"([^()\\\r\n\f\v
 
 std::regex const preprocessing_op_re{
 	"^("
-	R"([.]{3}|(?:%:){1,2})"					  // ... %:%: %:
-	R"(|\[|\]|(?:[.]|->)[*]?)"				  // [ ] . .* -> ->*
-	R"(|&&?|-[-=]?|\+[+=]?|##?|:[:>]?|\|\|?)"	// && || -- ++ ## :: & | - + # : += -= :>
-	R"(|>>?=?|<(?::|<?=?))"					  // >>= <<= >> << >= <= > < <:
-	R"(|[*/%^&|~!=]=?)"						  // *= /= %= ^= &= |= ~= != == * / % ^ & | ~ ! =
-	R"(|[;?,])"								  // ; ? ,
-	")"};									  // ( new delete and and_eq bitand bitor compl not not_eq or or_eq xor xor_eq )
+	R"([.]{3}|(?:%:){1,2})"						 // ... %:%: %:
+	R"(|\[|\]|(?:[.]|->)[*]?)"					 // [ ] . .* -> ->*
+	R"(|&&?|-[-=]?|\+[+=]?|##?|:[:>]?|\|\|?)"	 // && || -- ++ ## :: & | - + # : += -= :>
+	R"(|>>?=?|<(?::|<?=?))"						 // >>= <<= >> << >= <= > < <:
+	R"(|[*/%^&|~!=]=?)"							 // *= /= %= ^= &= |= ~= != == * / % ^ & | ~ ! =
+	R"(|[;?,])"									 // ; ? ,
+	")"};										 // ( new delete and and_eq bitand bitor compl not not_eq or or_eq xor xor_eq )
 std::regex const preprocessing_punc_re{
 	"^("
-	R"([{}()]|<%|%>)"						// { } ( ) <% %>
+	R"([{}()]|<%|%>)"	 // { } ( ) <% %>
 	")"};
 
 // character set
@@ -488,6 +488,9 @@ public:
 	auto column() const noexcept { return pos_.column(); }
 	auto file() const noexcept { return pos_.file(); }
 
+	auto&		hideset() noexcept { return hideset_; }
+	auto const& hideset() const noexcept { return hideset_; }
+
 	auto const& pos() const noexcept { return pos_; }
 
 	void pos(std::size_t line, std::shared_ptr<std::filesystem::path const> path = std::shared_ptr<std::filesystem::path const>{}) {
@@ -500,17 +503,29 @@ public:
 	bool matched(token_type_t type) const noexcept { return type_ == type; }
 
 	token_t(token_type_t type, std::string_view token) :
-		type_{type}, token_{token}, pos_{0, 0} {}
+		type_{type}, token_{token}, pos_{0, 0}, hideset_{} {}
 	token_t(token_type_t type, std::string_view token, pos_t const& pos) :
-		type_{type}, token_{token}, pos_{pos} {
+		type_{type}, token_{token}, pos_{pos}, hideset_{} {
 		check<std::logic_error>(! ! file());
 	}
-
+	token_t(token_type_t type, std::string_view token, std::set<token_t> const& hideset) :
+		type_{type}, token_{token}, pos_{0, 0}, hideset_{hideset} {}
+	token_t(token_type_t type, std::string_view token, std::set<token_t> const& hideset, pos_t const& pos) :
+		type_{type}, token_{token}, pos_{pos}, hideset_{hideset} {
+		check<std::logic_error>(! ! file());
+	}
 private:
-	token_type_t	 type_;
-	std::string_view token_;
-	pos_t			 pos_;
+	token_type_t	   type_;
+	std::string_view   token_;
+	pos_t			   pos_;
+	std::set<token_t> hideset_;
 };
+inline bool operator ==(token_t const & lhs, token_t const& rhs) {
+	return lhs.type() == rhs.type() && lhs.token() == rhs.token();
+}
+inline bool operator <(token_t const & lhs, token_t const& rhs) {
+	return lhs.type() < rhs.type() || (lhs.token() < rhs.token());
+}
 
 inline std::string to_string(pos_t const& pos) {
 	if (! pos.file()) return "{no position}";
@@ -604,12 +619,20 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		// The header depends on context.
 		tr.trace(ch);
 		switch (ch) {
-		case '"':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};			break;
-		case '<':	if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};			break;
-		case '\'':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};			break;
-		case '+':	[[fallthrough]];
-		case '-':	[[fallthrough]];
-		case '.':	if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};		break;
+		case '"':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
+			break;
+		case '<':
+			if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};
+			break;
+		case '\'':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
+			break;
+		case '+': [[fallthrough]];
+		case '-': [[fallthrough]];
+		case '.':
+			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
+			break;
 		}
 		// -------------------------------
 		// separator
@@ -684,8 +707,11 @@ std::list<token_t> scan(std::string_view const& str, std::filesystem::path const
 namespace pp {
 
 using tokens_t		= std::list<lex::token_t>;
-using line_tokens_t = std::pair<tokens_t::const_iterator, tokens_t::const_iterator>;
+using tokens_itr_t = tokens_t::iterator;
+using tokens_citr_t = tokens_t::const_iterator;
+using line_tokens_t = std::pair<tokens_citr_t, tokens_citr_t>;
 using lines_t		= std::vector<line_tokens_t>;
+using strs_t = std::vector<std::string_view>;	// TODO:
 
 class node_t {
 public:
@@ -693,7 +719,7 @@ public:
 	auto children() const noexcept { return children_; }
 
 	void push(std::shared_ptr<node_t> node) { children_.push_back(node); }
-	void push(tokens_t::const_iterator begin, tokens_t::const_iterator end) {
+	void push(tokens_citr_t begin, tokens_citr_t end) {
 		std::transform(begin, end, std::back_inserter(children_), [](auto const& a) { return std::make_shared<node_t>(a); });
 	}
 
@@ -735,7 +761,7 @@ lines_t split_lines(tokens_t const& tokens) {
 	return lines;
 }
 
-inline tokens_t::const_iterator next_nonws(tokens_t::const_iterator pos, tokens_t::const_iterator end) { return pos == end ? end : lex::skip_ws(++pos, end); }
+inline tokens_citr_t next_nonws(tokens_citr_t pos, tokens_citr_t end) { return pos == end ? end : lex::skip_ws(++pos, end); }
 
 }	 // namespace impl
 
@@ -915,29 +941,51 @@ static auto const macro_202002 = to_line_tokens(value_202002);
 
 }	 // namespace def
 
+using parameters_t = std::list<lex::token_t>;
+using arguments_t = std::list<lex::token_t>;
+using hideset_t = std::set<lex::token_t>;
+
+inline tokens_t operator+(tokens_t const& lhs, tokens_t const& rhs) {
+	tokens_t ts;
+	std::ranges::copy(lhs, std::inserter(ts, std::ranges::end(ts)));
+	std::ranges::copy(rhs, std::inserter(ts, std::ranges::end(ts)));
+	return ts;
+}
+inline hideset_t operator+(hideset_t const& lhs, hideset_t const& rhs) {
+	hideset_t hs;
+	std::ranges::copy(lhs, std::inserter(hs, std::ranges::end(hs)));
+	std::ranges::copy(rhs, std::inserter(hs, std::ranges::end(hs)));
+	return hs;
+}
+
 class macro_manager_t {
-	using macros_parameters_t = line_tokens_t;
-	using values_t			  = line_tokens_t;
-	using simple_macros_t	  = std::unordered_map<std::string_view, line_tokens_t>;
-	using function_macro_t	  = std::pair<macros_parameters_t, values_t>;
-	using function_macros_t	  = std::unordered_map<std::string_view, function_macro_t>;
+public:
+	using macro_parameters_t = std::vector<tokens_citr_t>;
+	using values_t			 = line_tokens_t;
+	using simple_macros_t	 = std::unordered_map<std::string_view, line_tokens_t>;
+	using function_macro_t	 = std::pair<macro_parameters_t, values_t>;
+	using function_macros_t	 = std::unordered_map<std::string_view, function_macro_t>;
 
 public:
-	auto const& value(std::string_view const& name) const noexcept { return simple_macros_.at(name); }	  // TODO:
+	auto const& value(std::string_view const& name) const noexcept { return simple_macros_.at(name); }							 // TODO:
+	auto const& function_value(std::string_view const& name) const noexcept { return function_macros_.at(name).first; }			 // TODO:
+	auto const& function_parameters(std::string_view const& name) const noexcept { return function_macros_.at(name).second; }	 // TODO:
 
 	void define_simple_macro(std::string_view const& name, values_t const& value) {
 		simple_macros_[name] = value;
 		if (function_macros_.contains(name)) {
-			function_macros_.erase(name);	 // Overrrites it if exists.
+			function_macros_.erase(name);	 // Overrides it if exists.
 		}
 	}
-	void define_faction_macro(std::string_view const& name, macros_parameters_t const& arguments, values_t const& value) {
+	void define_faction_macro(std::string_view const& name, macro_parameters_t const& arguments, values_t const& value) {
 		function_macros_[name] = std::make_pair(arguments, value);
 		if (simple_macros_.contains(name)) {
-			simple_macros_.erase(name);	   // Overrrites it if exists.
+			simple_macros_.erase(name);	   // Overrides it if exists.
 		}
 	}
 	bool defined(std::string_view const& name) const noexcept { return simple_macros_.contains(name) || function_macros_.contains(name); }
+	bool defined_simple_macro(std::string_view const& name) const noexcept { return simple_macros_.contains(name); }
+	bool defined_function_macro(std::string_view const& name) const noexcept { return function_macros_.contains(name); }
 	bool undefine_macro(std::string_view const& name) { return simple_macros_.erase(name) ? true : function_macros_.erase(name); }
 
 public:
@@ -1055,11 +1103,348 @@ private:
 
 	simple_macros_t	  simple_macros_;	   ///< @brief  Simple macros.
 	function_macros_t function_macros_;	   ///< @brief  Function macros.
+
+private:
+	static auto follows(tokens_t const& ts) {
+		return tokens_t(++std::ranges::begin(ts), std::ranges::end(ts));
+	}
+	static bool matched(tokens_t const& tokens, std::size_t offset, std::string const& token) {
+		if (std::ranges::size(tokens) <= offset) {
+			return false;
+		}
+		auto itr = std::ranges::begin(tokens);
+		std::advance(itr, offset);
+		return itr->token() == token;
+	}
+	static lex::token_t const& at(tokens_t const& tokens, std::size_t offset) {
+		if (std::ranges::size(tokens) <= offset) {
+			throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+		}
+		auto itr = std::ranges::begin(tokens);
+		std::advance(itr, offset);
+		return *itr;
+	}
+	static std::optional<std::size_t> find_at(tokens_t const& tokens, lex::token_t const& token) {
+		auto const itr = std::ranges::begin(tokens);
+		auto const found = std::ranges::find(tokens, token);
+		if (found == std::ranges::end(tokens)) {
+			return std::nullopt;
+		} else {
+			return std::distance(itr, found);
+		}
+	}
+	static tokens_t select(std::size_t i, tokens_t const& ts) {
+		std::size_t n= 0;	// SPEC: max count of macro marameters
+		tokens_t	tokens;
+		int nest=0;		// SPEC: max of nest
+		for (auto const& t: ts) {
+			using enum lex::token_type_t;
+			if (t.matched(String)) {	// TODO:
+				tokens.insert(std::ranges::end(tokens), t);
+			} else if (t.matched(Operator, "(")) {	// TODO: {
+				tokens.insert(std::ranges::end(tokens), t);
+				++nest;
+			} else if (t.matched(Operator, ")")) {	// TODO: }
+				if (--nest < 0) {
+					if (n != i) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+					return tokens;
+				}
+				tokens.insert(std::ranges::end(tokens), t);
+			} else if (t.matched(Operator, ",")) {
+				if (0 < nest) {
+					tokens.insert(std::ranges::end(tokens), t);
+				} else {
+					if (n++ == i) {
+						return tokens;
+					} else {
+						tokens.clear();
+					}
+				}
+			} else {}
+		}
+		throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+	}
+	static tokens_citr_t actuals(tokens_t const& ts) {
+		int nest=0;		// SPEC: max of nest
+		for (auto itr = std::ranges::begin(ts), end = std::ranges::end(ts); itr != end; ++itr) {
+			using enum lex::token_type_t;
+			if (itr->matched(Operator, "(")) {	// TODO: {
+				++nest;
+			} else if (itr->matched(Operator, ")")) {	// TODO: }
+				if (--nest < 0) {	return itr;	}
+			} else {}
+		}
+		throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+	}
+
+	static lex::token_t stringize(tokens_t const& ts) {
+		log::tracer_t tr{{std::to_string(ts.size())}};
+		return lex::token_t{lex::token_type_t::String, std::accumulate(std::ranges::begin(ts), std::ranges::end(ts), std::move(std::ostringstream{}), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); }).str()};
+	}
+
+	bool is_simple_macro(lex::token_t const& token) const noexcept { return false; }	// TODO:
+	bool is_function_macro(lex::token_t const& token) const noexcept { return false; }	// TODO:
+
+	tokens_t value(lex::token_t const& t) { return {}; }	// TODO: value of simple macro
+	std::pair<tokens_t,tokens_t> function(lex::token_t const& t) { return {}; }	// TODO: value of simple macro
+
+	auto glue(tokens_t const& ls, tokens_t const& rs) {
+		log::tracer_t tr{{std::to_string(ls.size()), std::to_string(rs.size())}};
+		// The ls is the last one and the rs is more.
+		if (std::ranges::size(ls) == 1u && 1u < std::ranges::size(rs)) {
+			hideset_t	hs;
+			{
+				auto const& lhs = ls.front().hideset();
+				auto const& rhs = rs.front().hideset();
+				hs.insert(std::ranges::begin(lhs), std::ranges::end(lhs));
+				hs.insert(std::ranges::begin(rhs), std::ranges::end(rhs));
+			}
+			auto const& l = ls.front();
+			auto const& r = rs.front();
+
+			lex::token_t		lr{lex::token_type_t::String, std::string_view(l.token().data(), l.token().length() + r.token().length()), hs};	// TODO: reinterpred
+			auto const rs_ = follows(ls);
+			return tokens_t{lr} + rs_;
+		} else {
+	 		return tokens_t{ls.front()} + glue(follows(ls), rs);
+		}
+	}
+	tokens_t hs_add(hideset_t const& hs, tokens_t const& ts) {
+		log::tracer_t tr{{std::to_string(hs.size()), std::to_string(ts.size())}};
+		if (!std::ranges::empty(ts)) {
+			auto t	  = ts.front();
+			auto hs_ = t.hideset();
+			{ hs_.insert(std::ranges::begin(hs), std::ranges::end(hs)); }
+
+			return tokens_t{t} + hs_add(hs, follows(ts));
+		} else {
+			return {};
+		}
+	}
+
+	tokens_t subst(tokens_t const& is, parameters_t const& fp, arguments_t const& ap, hideset_t const& hs, tokens_t const& os) {
+		log::tracer_t tr{{}};
+		if (std::ranges::empty(is)) {
+			return hs_add(hs,os);	// There is no more token. So, the token sequence might have been terminated.
+		}
+		auto const is_ = follows(is);
+		if (std::optional<std::size_t> i=std::nullopt; matched(is, 0, "#") && 1u < std::ranges::size(is) && (i = find_at(fp, at(is, 1)))) {
+			// "#parameter" shall be stringized.
+
+			return subst(is_, fp,ap,hs, os + tokens_t{stringize(select(*i,ap))});
+		} else if (matched(is, 0, "##") && 1u < std::ranges::size(is) && (i = find_at(fp, at(is, 1)))) {
+			// "##parameter" shall combine both the lhs and rhs tokens.
+			if (auto const& ap_ = select(*i, ap); std::ranges::empty(ap_)) {
+				// This argument is empty and is ignored.
+				return subst(is_, fp, ap, hs, os);
+			} else {
+				// The parameter is replaced by its argument and combined.
+				return subst(is_,fp,ap,hs,glue(os,ap_));
+			}
+		} else if (1u < std::ranges::size(is) && matched(is, 0, "##")) {
+			// "##token" shall combine both the lhs and rhs tokens.
+			return subst(is_,fp,ap,hs,glue(os,{at(is, 1)}));
+		} else if (2u < std::ranges::size(is) && matched(is, 0, "##") && (i = find_at(fp, at(is, 1)))) {
+			// "##parameter" shall combine both the lhs and rhs tokens.
+			if (auto const& ap_ = select(*i, ap); std::ranges::empty(ap_)) {
+				if(is_.front() == at(fp, *i)) {	// TODO: j
+					return subst(is_, fp, ap, hs, os + ap_);
+				} else {
+					return subst(is_, fp, ap, hs, os);
+				}
+			} else {
+				return subst(tokens_t{lex::token_t{lex::token_type_t::Operator, "##"}} + is_, fp, ap, hs, os + ap_);
+			}
+		} else if (1u < std::ranges::size(is) && (i = find_at(fp, at(is, 1)))) {
+			return subst(is_, fp, ap, hs, os + expand(select(*i, ap)));
+		} else {
+			auto const& t = is.front();
+			return subst(is_, fp, ap, hs, os + tokens_t{t});
+		}
+	}
+
+public:
+	tokens_t expand(tokens_t const& ts) {
+		log::tracer_t tr{{std::to_string(ts.size())}};
+		if (std::ranges::empty(ts)) {
+			return {};	// There is no more token. So, the token sequence might have been terminated.
+		}
+		auto const& t = *std::ranges::begin(ts);
+		auto const ts_ = follows(ts);
+		if (hideset_t const& hs=t.hideset(); hs.contains(t)) {
+			// The token has been hidden. The token does not need more expansion.
+			return tokens_t{t} + expand(ts_);
+		} else if (is_simple_macro(t)) {
+			// Expands simple mscro.
+			hideset_t hs;
+			{
+				auto const& h = t.hideset();
+				auto const& t_ = std::views::single(t);
+				std::set_union(std::ranges::begin(h), std::ranges::end(h), std::ranges::begin(t_), std::ranges::end(t_), std::inserter(hs, std::ranges::end(hs)));
+			}
+			return expand(subst(value(t), {}, {}, hs, {}) + ts_);
+		} else if (is_function_macro(t)) {
+			// Expands functional mscro.
+			auto const rp = actuals(ts_);
+
+			tokens_t ap;
+			{
+				auto li = std::ranges::begin(ts_);
+				auto ri = rp;
+				++li;	// (
+				--ri;	// )
+				ap.insert(std::ranges::end(ap), li, ri);
+			}
+
+			hideset_t	h;
+			{
+				auto const& hs = t.hideset();
+				auto const& hs_ = rp->hideset();
+				h.insert(std::ranges::begin(hs), std::ranges::end(hs));
+				h.insert(std::ranges::begin(hs_), std::ranges::end(hs_));
+			}
+			return expand(subst(value(t), function(t).first, ap, hs + hideset_t{t}, {}) + ts_);
+		} else {
+			return tokens_t{ts.front()} + expand(ts_);
+		}
+	}
+
+
+//	static tokens_t followers(tokens_t const& tokens) {
+//		auto r = tokens;
+//		r.pop_front();
+//		return r;
+//	}
+//	static tokens_t join(tokens_t const& lhs, tokens_t const& rhs) {
+//		tokens_t s(std::ranges::begin(lhs), std::ranges::end(lhs));
+//		s.insert(std::ranges::end(s), std::ranges::begin(rhs), std::ranges::end(rhs));
+//		return s;
+//	}
+//	static tokens_t join(lex::token_t const& lhs, tokens_t const& rhs) {
+//		tokens_t s{1, lhs};
+//		s.insert(std::ranges::end(s), std::ranges::begin(rhs), std::ranges::end(rhs));
+//		return s;
+//	}
+//	static tokens_t join(tokens_t const& lhs, lex::token_t const& rhs) {
+//		tokens_t s(std::ranges::begin(lhs), std::ranges::end(lhs));
+//		s.push_back(rhs);
+//		return s;
+//	}
+//	static tokens_t join(lex::token_t const& lhs, lex::token_t const& rhs) {
+//		tokens_t s;
+//		s.push_back(lhs);
+//		s.push_back(rhs);
+//		return s;
+//	}
+
+//	static std::string stringize(tokens_t const& ts) {
+//		return std::accumulate(std::ranges::begin(ts), std::ranges::end(ts), std::move(std::ostringstream{}), [](auto& o, auto const& a) { o << a; return std::move(o); }).str();
+//	}
+
+//	static tokens_t select(std::size_t i, values_t const& ts) {
+//		if (ts.first == ts.second) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+//		std::size_t n = 0u;
+//		for (auto itr = ts.first; itr != ts.second; ++itr) {
+//			if (itr->matched(lex::token_type_t::Operator, ",")) {
+//				++n;
+//			} else if (i <= n) {
+//				return {*itr};
+//			}
+//		}
+//		throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+//	}
+
+//	// add to token sequence’s hide sets
+//	static tokens_t hs_add(tokens_t const& hs, tokens_t const& ts) {
+//		if (ts.empty()) return {};
+
+//		auto  t = ts.front();
+//		auto& h = t.hideset();
+//		h.insert(std::ranges::end(h), std::ranges::begin(hs), std::ranges::end(hs));
+//		return join(t, hs_add(hs, followers(ts)));
+//	}
+
+//	// TODO: paste last of left side with first of right side
+//	static tokens_t glue(tokens_t const& ls, tokens_t const& rs) {
+//		if (! ls.empty() && ! rs.empty()) {
+//			auto const& r = rs.front();
+//			auto const& l = ls.front();
+
+//			std::string	 s = std::string{r.token()} + std::string{l.token()};	 // TODO:
+//			lex::token_t token(l.type(), s, l.pos());							 // TODO:
+
+//			tokens_t const hs = join(l.hideset(), r.hideset());
+//			token.hideset().insert(std::ranges::end(token.hideset()), std::ranges::begin(hs), std::ranges::end(hs));
+//			return join(token, followers(rs));
+//		}
+//		return join(ls, glue(followers(ls), rs));
+//	}
+
+//	/// @brief	substitute args, handle stringize and paste
+//	///	@param[in]	is		Input stream
+//	///	@param[in]	fp		Function parameters
+//	///	@param[in]	ap		Actual parameters
+//	///	@param[in]	hs		Hide set
+//	///	@param[in]	os		Output stream
+//	tokens_t subst(tokens_t const& is, macro_parameters_t const& fp, values_t const& ap, tokens_t const& hs, tokens_t const& os, std::size_t i=0u) {
+//		if (is.empty()) {
+//			return hs_add(hs, os);
+//		} else if (auto itr0 = std::ranges::begin(is), itr1 = ++std::ranges::begin(is); 2u < is.size() && itr0->matched(lex::token_type_t::Operator, "#") && itr1->type() == fp.at(i)->type()) {
+//			auto const is_ = followers(is);
+//			return subst(is_, fp, ap, hs, join(os, stringize({select(i, ap)})));	// TODO:
+//		} else if (2u < is.size() && itr0->matched(lex::token_type_t::Operator, "##") && itr1->type() == fp.at(i)->type()) {
+//			auto const is_ = followers(is);
+//			if (auto const v = select(i, ap); v.empty()) {
+//				return subst(is_, fp, ap, hs, os);
+//			} else {
+//				return subst(is_, fp, ap, hs, glue(os, tokens_t(std::ranges::begin(v), std::ranges::end(v))));
+//			}
+//		} else if (itr0->matched(lex::token_type_t::Separator, "##") && itr0->matched(lex::token_type_t::Separator, "##")) {
+//			auto const is_ = followers(is);
+//			return subst(is_, fp, ap, hs, glue(os, {*itr1}));
+//		} else if (2u < is.size() && itr0->matched(lex::token_type_t::Operator, "##") && itr0->type() == fp.at(i)->type()) {
+//			auto const is_ = followers(is);
+//			if (auto const v = select(i, ap); v.empty()) {
+//				return subst(is_, fp, ap, hs, os);
+//			} else {
+//				return subst(is, fp, ap, hs, join(os, v));	  // TODO: ##
+//			}
+//		} else if (itr0->type() == fp.at(i)->type()) {
+//			auto const is_ = followers(is);
+//			return subst(is_, fp, ap, hs, join(os, expand(select(i, ap))));
+//		} else {
+//			auto const is_ = followers(is);
+//			return subst(is_, fp, ap, hs, join(os, *itr0));
+//		}
+//	}
+
+//public:
+//	// recur, substitute, pushback, rescan
+//	tokens_t expand(tokens_t const& ts) {
+//		if (ts.empty()) {
+//			return {};	  // It has terminated.
+//		} else if (auto const& t = ts.front(); contains(t.hideset(), t)) {
+//			return join(t, expand(followers(ts)));	  // It has been hidden.
+//		} else if (auto const ts_ = followers(ts); defined_simple_macro(t.token())) {
+//			auto const v = value(t.token());
+//			return expand(subst(tokens_t(v.first, v.second), {}, {}, join(t, t.hideset()), {}), ts_);
+//		} else if (defined_function_macro(t.token())) {
+//			auto	   begin = std::ranges::begin(ts_);
+//			auto const end	 = std::ranges::end(ts_);
+//			if (auto const actuals = impl::enclosed_parameters(begin, end), fp = function_value(ts_); actuals.size() == fp.size()) {	 // TODO: ...
+//				if (++begin != end && begin->matched(lex::token_type_t::Separator, ")")) {
+//					++begin;
+//				}
+//				return expand(subst(function_value(t.token()), function_parameters(t.token()), actuals, join(join(t.hideset(), ts_.front().hideset()), t), {}), tokens_t(begin, end));
+//			}
+//		} else {
+//			return join(t, expand(ts_));	// It has been hidden.
+//		}
+//	}
 };
 
 }	 // namespace mm
 namespace sm {
-
 class symbol_t {};
 
 class symbol_manager_t {
@@ -1335,7 +1720,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 
 	auto const marker = lex::skip_ws(line.first, line.second);
 
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
 
 	if (directive == line.second) return {false, false};
@@ -1365,7 +1750,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
 	auto const conditions = impl::next_nonws(directive, line.second);
@@ -1380,7 +1765,7 @@ bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Keyword, "else")) return false;
 	return next_nonws(directive, line.second) == line.second;
@@ -1389,16 +1774,37 @@ bool parse_preprocessing_endif_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "endif")) return false;
 	return next_nonws(directive, line.second) == line.second;
+}
+
+mm::macro_manager_t::macro_parameters_t enclosed_parameters(tokens_citr_t itr, tokens_citr_t const& end) {
+	if (itr->matched(lex::token_type_t::Separator, "(")) { ++itr; }
+	mm::macro_manager_t::macro_parameters_t parameters;
+
+	bool value{true};
+	for (; itr != end; ++itr) {
+		if (itr->matched(lex::token_type_t::Separator, ")")) {
+			if (value && ! parameters.empty()) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+			break;
+		} else if (itr->matched(lex::token_type_t::Separator, ",")) {
+			if (value) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+			value = ! value;
+		} else if (itr->matched(lex::token_type_t::Identifier)) {
+			if (! value) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
+			value = ! value;
+			parameters.push_back(itr);
+		}
+	}
+	return parameters;
 }
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "define")) return {false, false};
 	auto const macro = impl::next_nonws(directive, line.second);
@@ -1416,14 +1822,8 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 		auto itr = next_nonws(lp, line.second);
 
 		// parses parameters
-		line_tokens_t parameters;
-		for (int nest = 1; itr != line.second; ++itr) {
-			if (itr->matched(lex::token_type_t::Separator, "(")) {
-				++nest;
-			} else if (itr->matched(lex::token_type_t::Separator, ")")) {
-				if (--nest <= 0) break;
-			}
-		}
+		mm::macro_manager_t::macro_parameters_t parameters = enclosed_parameters(itr, line.second);
+
 		// parses body
 		itr = lex::skip_ws(itr, line.second);
 		if (itr == line.second) return {true, false};
@@ -1442,7 +1842,7 @@ std::tuple<bool, bool> parse_preprocessing_undef_line(mm::macro_manager_t& macro
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, false};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "undef")) return {false, false};
 	auto const macro = next_nonws(directive, line.second);
@@ -1459,7 +1859,8 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, {}, {}};
+	tr.trace(lex::to_string(*marker));
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, {}, {}};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "include")) return {false, {}, {}};
 	auto const path_token = next_nonws(directive, line.second);
@@ -1479,7 +1880,6 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 		paths.source(xxx::load_file(paths.path()));
 		paths.tokens(xxx::lex::scan(paths.source(), *fullpath));
 		paths.preprocessing_tokens(preprocess(conditions, macros, paths, paths.tokens(), *fullpath));
-		//              paths.nodes(std::make_shared<pp::node_t>(pp_tokens));    // TODO: nodes
 	} catch (std::exception const& e) {
 		std::cerr << e.what() << std::endl;
 		paths.pop();
@@ -1493,7 +1893,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return {false, "", 0ull};
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, "", 0ull};
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "line")) return {false, "", 0ull};
 	auto const lineno = next_nonws(directive, line.second);
@@ -1506,7 +1906,7 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "error")) return false;
 	auto const message = next_nonws(directive, line.second);
@@ -1526,7 +1926,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Separator, "#")) return false;
+	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
 	auto const directive = impl::next_nonws(marker, line.second);
 	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "pragma")) return false;
 	auto const message = lex::skip_ws(directive, line.second);
@@ -1572,17 +1972,13 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 		// #pragma ...
 		// Ignores it because no pragma is supported yet.
 		return {true, {}};
-	} else if (auto const marker = lex::skip_ws(line.first, line.second); marker != line.second && marker->matched(lex::token_type_t::Separator, "#") && impl::next_nonws(marker, line.second) == line.second) {
+	} else if (auto const marker = lex::skip_ws(line.first, line.second); marker != line.second && marker->matched(lex::token_type_t::Operator, "#") && impl::next_nonws(marker, line.second) == line.second) {
 		// -------------------------------
 		// #
 		// Ignores it because of empty directive.
 		// It is parsed here directly.
 		return {true, {}};
 	} else {
-		// -------------------------------
-		// applies macros
-		std::for_each(line.first, line.second, [](auto const& a) {});
-
 		return {true, {line}};
 	}
 }
@@ -1634,7 +2030,22 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 			// -------------------------------
 			// ...
 			tr.trace(lex::to_string(token->pos()) + "#");
-			if (auto const [required, tokens] = parse_preprocessing_line(conditions, macros, paths, *line); required) { result.insert(std::ranges::end(result), std::ranges::begin(tokens), std::ranges::end(tokens)); }
+			if (auto [required, lines] = parse_preprocessing_line(conditions, macros, paths, *line); required) {
+				std::ranges::for_each(lines, [&macros,&paths](auto& line) {
+					// TODO: currently all the lines are regenerated here regardress of whether macro expanded or not....
+					pp::tokens_t tokens(line.first, line.second);
+					auto const ex = macros.expand(tokens);
+					auto& mt = paths.mutable_tokens();
+					mt.erase(line.first, line.second);
+					auto pos = std::ranges::begin(mt);
+					int tmp = std::distance(std::ranges::begin(paths.tokens()), line.first)-1;
+					std::clog << tmp << "---" << std::endl;
+					std::advance(pos, tmp);
+					auto i	   = mt.insert(pos, std::ranges::begin(ex), std::ranges::end(ex));
+					line.first = i;
+				});
+				std::ranges::copy(lines, std::inserter(result, std::ranges::end(result)));
+			}
 		}	 // else skips whole
 	}
 	return {result, end};
@@ -1705,14 +2116,13 @@ public:
 		paths_.tokens(xxx::lex::scan(paths_.source(), paths_.path()));
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::clog << " ---> " << xxx::lex::to_string(a) << "\n"; });	   // TODO:
 		paths_.preprocessing_tokens(xxx::pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
-		// TODO:                auto const       pps = paths_.preprocessing_tokens() | [](auto const& a) {      return pp::tokens_t(a.first, a.second); }) | std::views::join | std::views::common;
-		// TODO:                paths_.nodes(std::make_shared<pp::node_t>(std::ranges::begin(pps), std::ranges::end(pps)));
 
 		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) {
 			std::for_each(a.first, a.second, [](auto const& aa) {
 				std::clog << " $---> " << xxx::lex::to_string(aa) << "\n";
 			});	   // TODO:
 		});
+		// TODO:                paths_.nodes(std::make_shared<pp::node_t>(std::ranges::begin(pps), std::ranges::end(pps)));
 
 		return paths_.nodes();	  // TODO:
 	}
