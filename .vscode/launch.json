@@ -2,28 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch",
-            "type": "cppdbg",
+            "name": "(lldb) Launch",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/xcp",
-            "args": ["-V", "${workspaceFolder}/xcp.cpp"],
+            "args": ["-V", "${workspaceFolder}/tmp.cpp"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
+            "MIMode": "lldb",
+            "setupCommands": [],
             "preLaunchTask": "buildmake"
         }
     ]
