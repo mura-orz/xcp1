@@ -548,8 +548,8 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 	// It checks the first character once before using regex for performance
 	// because parsing by complex regex is too slow.
 
-	// Raw string is especial token beccause it is deterined by d-char-sequennce dynamically.
-	// To parse the raw string, it seperates two parts: prefix and suffix.
+	// Raw string is especial token because it is determined by d-char-sequence dynamically.
+	// To parse the raw string, it separates two parts: prefix and suffix.
 	// Regex rules of the suffix is made here according to its prefix.
 
 	if (auto const ch = str.at(0); std::isdigit(ch)) {
@@ -572,7 +572,7 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 			}
 			break;
 		// -------------------------------
-		// prefixe of strings or character literal
+		// prefixes of strings or character literal
 		case 'u': [[fallthrough]];
 		case 'U': [[fallthrough]];
 		case 'L':
@@ -670,7 +670,7 @@ std::list<token_t> scan(std::string_view const& str, std::filesystem::path const
 
 	using enum token_type_t;
 	pos_t pos{1u, 1u, std::make_shared<std::filesystem::path>(name)};
-	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
+	// This implementation does not use recursive call here to avoid risk of stack overflow.
 	std::list<token_t> tokens;
 	for (auto s = str; ! s.empty(); s = s.substr(tokens.back().token().length())) {
 		auto [token, next] = next_token(s, pos);
@@ -743,7 +743,7 @@ lines_t split_lines(tokens_t const& tokens) {
 	if (tokens.empty()) return lines_t{};
 	auto const newline = [](auto const& a) { return a.type() == lex::token_type_t::Newline || a.type() == lex::token_type_t::Line_comment; };
 
-	// This implementation does not use recurseive call here to avoid risk of stack overfilow.
+	// This implementation does not use recursive call here to avoid risk of stack overflow.
 	lines_t lines;
 	lines.reserve(tokens.back().line() + 1u);
 	// Source is always terminated by the LF.
@@ -814,8 +814,8 @@ private:
 
 		// -------------------------------
 		// Standard libraries.
-		libraries_.emplace_back("c++");		  // libc++
-		libraries_.emplace_back("pthrea");	  // libpthread
+		libraries_.emplace_back("c++");		   // libc++
+		libraries_.emplace_back("pthread");	   // libpthread
 	}
 
 private:
@@ -1007,7 +1007,7 @@ private:
 				simple_macros_[macro] = def::to_line_tokens(value);
 			};
 			auto const now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-			auto const tm  = *std::localtime(&now);	   // Thee returing tm is just copied as local variable instead of localtime_r because here is single-thread yet.
+			auto const tm  = *std::localtime(&now);	   // The returning tm is just copied as local variable instead of localtime_r because here is single-thread yet.
 
 			set_datetime("__DATE__", tm, "%b %d %Y", str_date_, value_date_);	 // "Mmm dd yyyy"
 			set_datetime("__TIME__", tm, "%T", str_time_, value_time_);			 // "hh:mm:ss"
@@ -1128,7 +1128,7 @@ private:
 		}
 	}
 	static tokens_t select(std::size_t i, tokens_t const& ts) {
-		std::size_t n = 0;	  // SPEC: max count of macro marameters
+		std::size_t n = 0;	  // SPEC: max count of macro parameters
 		tokens_t	tokens;
 		int			nest = 0;	 // SPEC: max of nest
 		for (auto const& t: ts) {
@@ -1271,7 +1271,7 @@ public:
 			// The token has been hidden. The token does not need more expansion.
 			return tokens_t{t} + expand(ts_);
 		} else if (is_simple_macro(t)) {
-			// Expands simple mscro.
+			// Expands simple macro.
 			hideset_t hs;
 			{
 				auto const& h  = t.hideset();
@@ -1280,7 +1280,7 @@ public:
 			}
 			return expand(subst(value(t), {}, {}, hs, {}) + ts_);
 		} else if (is_function_macro(t)) {
-			// Expands functional mscro.
+			// Expands functional macro.
 			auto const rp = actuals(ts_);
 
 			tokens_t ap;
@@ -1372,7 +1372,7 @@ inline pp_value_t calculate_(std::string_view const o, L const lhs, R const rhs)
 	}
 
 	// Deals pointer as integer of address.
-	// Furthermore, bool is one of integeer, too.
+	// Furthermore, bool is one of integer, too.
 	if constexpr (std::is_pointer_v<L>) {
 		auto const l = reinterpret_cast<std::intptr_t>(lhs);
 		if constexpr (std::is_pointer_v<R>) {
@@ -1673,7 +1673,7 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 	auto const macro = impl::next_nonws(directive, line.second);
 	if (macro == line.second) return {false, false};
 	auto lp = macro;
-	lp++;	 // If there is left parsistant without wshitespaces, it is function macro.
+	lp++;	 // If there is left parenthesis without whitespace, it is function macro.
 	if (lp == line.second) {
 		// -------------------------------
 		// Simple macro without value.
@@ -1895,7 +1895,7 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 			tr.trace(lex::to_string(token->pos()) + "#");
 			if (auto [required, lines] = parse_preprocessing_line(conditions, macros, paths, *line); required) {
 				std::ranges::for_each(lines, [&macros, &paths](auto& line) {
-					// TODO: currently all the lines are regenerated here regardress of whether macro expanded or not....
+					// TODO: currently all the lines are regenerated here regardless of whether macro expanded or not....
 					pp::tokens_t tokens(line.first, line.second);
 					auto const	 ex = macros.expand(tokens);
 					auto&		 mt = paths.mutable_tokens();
@@ -2021,7 +2021,7 @@ static char const Usage[]{
 	"  -h                   : Shows this message\n"
 	"  -v                   : Shows version\n"
 	"  -D:{macro}(={value}) : Defines macro definition (default value is 1)\n"
-	"  -I:{path}            : Adds sytem including path to find headers\n"
+	"  -I:{path}            : Adds system including path to find headers\n"
 	"  -L:{path}            : Adds linker path to find libraries\n"
 	"  -l:{name}            : Links the library\n"};
 
@@ -2105,8 +2105,8 @@ int main(int ac, char* av[]) {
 
 		// -------------------------------
 		// Compiles the sources.
-		auto tsanslation_units = sources | std::views::transform([&configurations](auto const& a) { return std::make_shared<xxx::tu::translation_unit_t>(a, configurations); }) | std::views::common;
-		std::ranges::for_each(tsanslation_units, [](auto /*copy of shared pointer*/ tu) {
+		auto translation_units = sources | std::views::transform([&configurations](auto const& a) { return std::make_shared<xxx::tu::translation_unit_t>(a, configurations); }) | std::views::common;
+		std::ranges::for_each(translation_units, [](auto /*copy of shared pointer*/ tu) {
 			util::stopwatch_t sw{[name = tu->name()](auto const& a) { std::clog << "TODO:" << name << ": " << static_cast<float>(a) / 1000.0f / 1000.0f << "sec." << std::endl; }};	   // TODO:
 
 			auto const result = tu->compile();
