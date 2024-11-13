@@ -698,6 +698,11 @@ std::list<token_t> scan(std::string_view const& str, std::filesystem::path const
 }
 
 }	 // namespace lex
+namespace cxx::ast {
+
+class node_t;
+
+}	 // namespace cxx::ast
 namespace pp {
 
 using tokens_t		= std::list<lex::token_t>;
@@ -706,34 +711,6 @@ using tokens_citr_t = tokens_t::const_iterator;
 using line_tokens_t = std::pair<tokens_citr_t, tokens_citr_t>;
 using lines_t		= std::vector<line_tokens_t>;
 using strs_t		= std::vector<std::string_view>;	// TODO:
-
-class node_t {
-public:
-	auto token() const noexcept { return token_; }
-	auto children() const noexcept { return children_; }
-
-	void push(std::shared_ptr<node_t> node) { children_.push_back(node); }
-	void push(tokens_citr_t begin, tokens_citr_t end) {
-		std::transform(begin, end, std::back_inserter(children_), [](auto const& a) { return std::make_shared<node_t>(a); });
-	}
-
-public:
-	///     @note   implicit
-	node_t(lex::token_t const& token) noexcept :
-		token_{std::make_shared<lex::token_t>(token)}, children_{} {}
-	///     @note   implicit
-	node_t(lex::token_t&& token) noexcept :
-		token_{std::make_shared<lex::token_t>(std::move(token))}, children_{} {}
-
-	explicit node_t(std::vector<std::shared_ptr<node_t>> const& children) noexcept :
-		token_{}, children_{children} {}
-	explicit node_t(std::vector<std::shared_ptr<node_t>>&& children) noexcept :
-		token_{}, children_{std::move(children)} {}
-
-private:
-	std::shared_ptr<lex::token_t>		 token_;
-	std::vector<std::shared_ptr<node_t>> children_;
-};
 
 namespace impl {
 
@@ -758,7 +735,6 @@ lines_t split_lines(tokens_t const& tokens) {
 inline tokens_citr_t next_nonws(tokens_citr_t pos, tokens_citr_t end) { return pos == end ? end : lex::skip_ws(++pos, end); }
 
 }	 // namespace impl
-
 namespace pm {
 
 class path_manager_t {
@@ -774,7 +750,7 @@ public:
 	void tokens(pp::tokens_t&& tokens) { current_.top()->tokens = std::move(tokens); }
 	void preprocessing_tokens(pp::lines_t const& pp_tokens) { current_.top()->lines = pp_tokens; }
 	void preprocessing_tokens(pp::lines_t&& pp_tokens) { current_.top()->lines = std::move(pp_tokens); }
-	void node(std::shared_ptr<node_t> nodes) const { current_.top()->node = std::move(nodes); }
+	void node(std::shared_ptr<cxx::ast::node_t> nodes) const { current_.top()->node = std::move(nodes); }
 
 	auto& mutable_tokens() {
 		if (current_.empty()) throw std::runtime_error(__func__);
@@ -820,11 +796,11 @@ private:
 
 private:
 	struct file_t {
-		std::filesystem::path	path;
-		std::string				source;
-		pp::tokens_t			tokens;
-		pp::lines_t				lines;
-		std::shared_ptr<node_t> node;
+		std::filesystem::path			  path;
+		std::string						  source;
+		pp::tokens_t					  tokens;
+		pp::lines_t						  lines;
+		std::shared_ptr<cxx::ast::node_t> node;
 	};
 
 	std::vector<std::shared_ptr<file_t>> paths_;		///<    @brief  Stack of current paths.
@@ -1932,9 +1908,1075 @@ lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& mac
 
 }	 // namespace pp
 namespace cxx {
+namespace ast {
 
-std::shared_ptr<pp::node_t> parse(pp::lines_t const& preprocessing_tokens) {
-	return nullptr;
+class node_t {
+public:
+	auto token() const noexcept { return token_; }
+	auto children() const noexcept { return children_; }
+
+	void push(std::shared_ptr<node_t> node) { children_.push_back(node); }
+	void push(pp::tokens_citr_t begin, pp::tokens_citr_t end) {
+		std::transform(begin, end, std::back_inserter(children_), [](auto const& a) { return std::make_shared<node_t>(a); });
+	}
+
+public:
+	///     @note   implicit
+	node_t(lex::token_t const& token) noexcept :
+		token_{std::make_shared<lex::token_t>(token)}, children_{} {}
+	///     @note   implicit
+	node_t(lex::token_t&& token) noexcept :
+		token_{std::make_shared<lex::token_t>(std::move(token))}, children_{} {}
+
+	explicit node_t(std::vector<std::shared_ptr<node_t>> const& children) noexcept :
+		token_{}, children_{children} {}
+	explicit node_t(std::vector<std::shared_ptr<node_t>>&& children) noexcept :
+		token_{}, children_{std::move(children)} {}
+
+private:
+	std::shared_ptr<lex::token_t>		 token_;
+	std::vector<std::shared_ptr<node_t>> children_;
+};
+
+}	 // namespace ast
+namespace stx {
+
+struct parser_t {
+	using nodes_t  = std::vector<std::shared_ptr<ast::node_t>>;
+	using result_t = std::tuple<nodes_t, std::optional<pp::tokens_t>>;
+
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const = 0;
+
+	virtual ~parser_t() = default;
+};
+using parser_p = std::shared_ptr<parser_t const>;
+
+namespace impl {
+
+struct or_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		for (auto const& parser: parsers_) {
+			if (auto const [ns, rest] = parser->parse(nodes, source); rest) { return {ns, rest}; }
+		}
+		return {nodes_t{}, std::nullopt};
+	}
+	explicit or_t(std::vector<parser_p> const& parsers) :
+		parsers_{parsers} {}
+
+private:
+	std::vector<parser_p> parsers_;
+};
+struct seq_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		nodes_t		 r = nodes;
+		pp::tokens_t t = source;
+		for (auto const& parser: parsers_) {
+			if (auto const [ns, rest] = parser->parse(r, t); rest) {
+				r.insert(std::ranges::end(r), std::ranges::begin(ns), std::ranges::end(ns));
+				t = *rest;
+			} else {
+				return {};
+			}
+		}
+		return {r, t};
+	}
+	explicit seq_t(std::vector<parser_p> const& parsers) :
+		parsers_{parsers} {}
+
+private:
+	std::vector<parser_p> parsers_;
+};
+struct opt_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		if (auto const [ns, rest] = parser_->parse(nodes, source); rest) { return {ns, rest}; }
+		return {nodes_t{}, source};
+	}
+	explicit opt_t(parser_p parser) :
+		parser_{parser} {}
+
+private:
+	parser_p parser_;
+};
+struct zom_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const {
+		nodes_t		 r = nodes;
+		pp::tokens_t t = source;
+		for (;;) {
+			if (auto const [ns, rest] = parser_->parse(r, t); rest) {
+				r.insert(std::ranges::end(r), std::ranges::begin(ns), std::ranges::end(ns));
+				t = *rest;
+			} else {
+				break;
+			}
+		}
+		return {r, t};
+	}
+	explicit zom_t(parser_p parser) :
+		parser_{parser} {}
+
+private:
+	parser_p parser_;
+};
+struct oom_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		if (auto const [ns, rest] = zom_t(parser_).parse(nodes, source); rest && ! ns.empty()) { return {ns, rest}; }
+		return {nodes_t{}, std::nullopt};
+	}
+	explicit oom_t(parser_p parser) :
+		parser_{parser} {}
+
+private:
+	parser_p parser_;
+};
+
+struct tok_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		if (source.empty()) return {nodes, {}};
+		if (auto const& token = source.front(); token.matched(lex::token_type_t::Identifier)) {
+			nodes_t ns = nodes;
+			ns.emplace_back(std::make_shared<ast::node_t>(token));
+			return {ns, pp::tokens_t{++source.begin(), source.end()}};
+		}
+		return {nodes_t{}, std::nullopt};
+	}
+	explicit tok_t(lex::token_type_t type) :
+		type_{type} {
+	}
+
+private:
+	lex::token_type_t type_;
+};
+
+struct str_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		if (source.empty()) return {nodes, {}};
+		if (auto const& token = source.front(); token.matched(lex::token_type_t::Identifier, str_)) {
+			nodes_t ns = nodes;
+			ns.emplace_back(std::make_shared<ast::node_t>(token));
+			return {ns, pp::tokens_t{++source.begin(), source.end()}};
+		}
+		return {nodes_t{}, std::nullopt};
+	}
+	explicit str_t(std::string const& str, lex::token_type_t type) :
+		str_{str}, type_{type} {
+		if (str.empty()) { throw std::invalid_argument(__func__); }
+	}
+
+private:
+	std::string		  str_;
+	lex::token_type_t type_;
+};
+
+struct set_t : parser_t {
+	virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override {
+		if (source.empty()) return {nodes, {}};
+		for (auto const& str: set_) {
+			if (auto const& token = source.front(); token.matched(type_, str)) {
+				nodes_t ns = nodes;
+				ns.emplace_back(std::make_shared<ast::node_t>(token));
+				return {ns, pp::tokens_t{++source.begin(), source.end()}};
+			}
+		}
+		return {nodes_t{}, std::nullopt};
+	}
+	explicit set_t(std::vector<std::string> const& set, lex::token_type_t type = lex::token_type_t::Keyword) :
+		set_{set}, type_{type} {
+		if (set.empty()) { throw std::invalid_argument(__func__); }
+	}
+
+private:
+	std::vector<std::string> set_;
+	lex::token_type_t		 type_;
+};
+
+}	 // namespace impl
+
+inline parser_p or_(std::vector<parser_p> const& parsers) { return std::make_shared<impl::or_t>(parsers); }
+inline parser_p seq_(std::vector<parser_p> const& parsers) { return std::make_shared<impl::seq_t>(parsers); }
+inline parser_p opt_(parser_p parser) { return std::make_shared<impl::opt_t>(parser); }
+inline parser_p zom_(parser_p parser) { return std::make_shared<impl::oom_t>(parser); }
+inline parser_p oom_(parser_p parser) { return std::make_shared<impl::zom_t>(parser); }
+inline parser_p tok_(lex::token_type_t type) { return std::make_shared<impl::tok_t>(type); }
+inline parser_p tok_(lex::token_type_t type, std::string const& str) { return std::make_shared<impl::str_t>(str, type); }
+inline parser_p id_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Identifier); }
+inline parser_p op_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Operator); }
+inline parser_p kw_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Keyword); }
+inline parser_p punc_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Separator); }
+inline parser_p set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set); }
+
+#define xxx_parser_declare(name)                                                                 \
+	struct name##parser_t : parser_t {                                                           \
+		virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override; \
+	};                                                                                           \
+	auto const name = std::make_shared<name##parser_t>()
+
+#define xxx_parser_define(name, body)                                                                \
+	struct name##parser_t : parser_t {                                                               \
+		virtual result_t parse(nodes_t const& nodes, pp::tokens_t const& source) const override body \
+	};                                                                                               \
+	auto const name = std::make_shared<name##parser_t>()
+
+#define xxx_parser_impl(name, body) \
+	inline parser_t::result_t name##parser_t::parse(nodes_t const& nodes, pp::tokens_t const& source) const body
+
+namespace lit {
+auto const scope_	   = op_("::");
+auto const lp_		   = punc_("(");
+auto const rp_		   = punc_(")");
+auto const lbc_		   = punc_("{");
+auto const rbc_		   = punc_("}");
+auto const lbk_		   = op_("[");
+auto const rbk_		   = op_("]");
+auto const tilde_	   = op_("~");
+auto const lt_		   = op_("<");
+auto const gt_		   = op_(">");
+auto const amp_		   = op_("&");
+auto const amp2_	   = op_("&&");
+auto const vl_		   = op_("|");
+auto const vl2_		   = op_("||");
+auto const eq_		   = op_("=");
+auto const ex_		   = op_("!");
+auto const q_		   = op_("?");
+auto const semi_	   = op_(";");
+auto const col_		   = op_(":");
+auto const comma_	   = op_(",");
+auto const hut_		   = op_("^");
+auto const sq_		   = op_("'");
+auto const dot_		   = op_(".");
+auto const ellapsis_   = op_("...");
+auto const arrow_	   = op_("->");
+auto const arrow_star_ = op_("->*");
+auto const star_	   = op_("*");
+auto const spaceship_  = op_("<=>");
+auto const dq_		   = op_("\"");
+
+auto const zero_ = tok_(lex::token_type_t::Number, "0");
+
+auto const alignas_			 = kw_("alignas");
+auto const alignof_			 = kw_("alignof");
+auto const asm_				 = kw_("asm");
+auto const auto_			 = kw_("auto");
+auto const bool_			 = kw_("bool");
+auto const break_			 = kw_("break");
+auto const case_			 = kw_("case");
+auto const catch_			 = kw_("catch");
+auto const char_			 = kw_("char");
+auto const char8_t_			 = kw_("char8_t");
+auto const char16_t_		 = kw_("char16_t");
+auto const char32_t_		 = kw_("char32_t");
+auto const class_			 = kw_("class");
+auto const concept_			 = kw_("concept");
+auto const const_			 = kw_("const");
+auto const consteval_		 = kw_("consteval");
+auto const constexpr_		 = kw_("constexpr");
+auto const constinit_		 = kw_("constinit");
+auto const const_cast_		 = kw_("const_cast");
+auto const continue_		 = kw_("continue");
+auto const co_await_		 = kw_("co_await");
+auto const co_return_		 = kw_("co_return");
+auto const co_yield_		 = kw_("co_yield");
+auto const decltype_		 = kw_("decltype");
+auto const default_			 = kw_("default");
+auto const delete_			 = kw_("delete");
+auto const do_				 = kw_("do");
+auto const double_			 = kw_("double");
+auto const dynamic_cast_	 = kw_("dynamic_cast");
+auto const else_			 = kw_("else");
+auto const enum_			 = kw_("enum");
+auto const explicit_		 = kw_("explicit");
+auto const export_			 = kw_("export");
+auto const extern_			 = kw_("extern");
+auto const false_			 = kw_("false");
+auto const float_			 = kw_("float");
+auto const for_				 = kw_("for");
+auto const friend_			 = kw_("friend");
+auto const goto_			 = kw_("goto");
+auto const if_				 = kw_("if");
+auto const inline_			 = kw_("inline");
+auto const int_				 = kw_("int");
+auto const long_			 = kw_("long");
+auto const mutable_			 = kw_("mutable");
+auto const namespace_		 = kw_("namespace");
+auto const new_				 = kw_("new");
+auto const noexcept_		 = kw_("noexcept");
+auto const nullptr_			 = kw_("nullptr");
+auto const operator_		 = kw_("operator");
+auto const private_			 = kw_("private");
+auto const protected_		 = kw_("protected");
+auto const public_			 = kw_("public");
+auto const register_		 = kw_("register");
+auto const reinterpret_cast_ = kw_("reinterpret_cast");
+auto const requires_		 = kw_("requires");
+auto const return_			 = kw_("return");
+auto const short_			 = kw_("short");
+auto const signed_			 = kw_("signed");
+auto const sizeof_			 = kw_("sizeof");
+auto const static_			 = kw_("static");
+auto const static_assert_	 = kw_("static_assert");
+auto const static_cast_		 = kw_("static_cast");
+auto const struct_			 = kw_("struct");
+auto const switch_			 = kw_("switch");
+auto const template_		 = kw_("template");
+auto const this_			 = kw_("this");
+auto const thread_local_	 = kw_("thread_local");
+auto const throw_			 = kw_("throw");
+auto const true_			 = kw_("true");
+auto const try_				 = kw_("try");
+auto const typedef_			 = kw_("typedef");
+auto const typeid_			 = kw_("typeid");
+auto const typename_		 = kw_("typename");
+auto const union_			 = kw_("union");
+auto const unsigned_		 = kw_("unsigned");
+auto const using_			 = kw_("using");
+auto const virtual_			 = kw_("virtual");
+auto const void_			 = kw_("void");
+auto const volatile_		 = kw_("volatile");
+auto const wchar_t_			 = kw_("wchar_t");
+auto const while_			 = kw_("while");
+
+auto const final_	 = id_("final");
+auto const override_ = id_("override");
+
+auto const import_ = id_("import");
+auto const module_ = id_("module");
+
+}	 // namespace lit
+
+xxx_parser_declare(simple_template_id_);
+xxx_parser_declare(identifier_);
+
+//  A.2 Keywords [gram.key]
+
+xxx_parser_define(typedef_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
+xxx_parser_define(namespace_alias_, { return identifier_->parse(nodes, source); });
+xxx_parser_define(namespace_name_, { return or_({namespace_alias_, identifier_})->parse(nodes, source); });
+xxx_parser_define(class_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
+xxx_parser_define(enum_name_, { return identifier_->parse(nodes, source); });
+xxx_parser_define(template_name_, { return identifier_->parse(nodes, source); });
+
+//	A.3 Lexical conventions
+
+xxx_parser_declare(token_);
+xxx_parser_declare(header_name_);
+xxx_parser_declare(keyword_);
+xxx_parser_define(import_keyword_, { return lit::import_->parse(nodes, source); });
+xxx_parser_define(module_keyword_, { return lit::module_->parse(nodes, source); });
+xxx_parser_define(export_keyword_, { return lit::export_->parse(nodes, source); });
+xxx_parser_declare(literal_);
+xxx_parser_declare(integer_literal_);
+xxx_parser_declare(binary_literal_);
+xxx_parser_declare(octal_literal_);
+xxx_parser_declare(decimal_literal_);
+xxx_parser_declare(hexadecimal_literal_);
+xxx_parser_declare(character_literal_);
+xxx_parser_declare(floating_point_literal_);
+xxx_parser_declare(string_literal_);
+xxx_parser_define(boolean_literal_, { return set_({"true", "false"})->parse(nodes, source); });
+xxx_parser_define(pointer_literal_, { return lit::nullptr_->parse(nodes, source); });
+xxx_parser_declare(user_defined_literal_);
+xxx_parser_declare(user_defined_integer_literal_);
+xxx_parser_declare(user_defined_floating_point_literal_);
+xxx_parser_declare(user_defined_string_literal_);
+xxx_parser_declare(user_defined_character_literal_);
+
+// TODO:
+xxx_parser_impl(token_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(header_name_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(identifier_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_define(identifier_list_, { return seq_({identifier_, zom_(seq_({lit::comma_, identifier_}))})->parse(nodes, source); });
+xxx_parser_impl(keyword_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(integer_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(binary_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(octal_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(decimal_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(hexadecimal_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(character_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(floating_point_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(string_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(user_defined_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(user_defined_integer_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(user_defined_floating_point_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(user_defined_string_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(user_defined_character_literal_, { return kw_("TODO:")->parse(nodes, source); });
+
+//	A.4 Basics [gram.basic]
+
+xxx_parser_declare(translation_unit_);
+
+//	A.5 Expressions
+
+xxx_parser_declare(primary_expression_);
+xxx_parser_declare(id_expression_);
+xxx_parser_declare(unqualified_id_);
+xxx_parser_declare(qualified_id_);
+xxx_parser_declare(nested_name_specifier_);
+xxx_parser_declare(lambda_expression_);
+xxx_parser_declare(lambda_introducer_);
+xxx_parser_declare(lambda_declarator_);
+xxx_parser_declare(lambda_specifier_);
+xxx_parser_declare(lambda_capture_);
+xxx_parser_declare(capture_default_);
+xxx_parser_declare(capture_list_);
+xxx_parser_declare(capture_);
+xxx_parser_declare(simple_capture_);
+xxx_parser_declare(init_capture_);
+xxx_parser_declare(fold_expression_);
+xxx_parser_declare(fold_operator_);
+xxx_parser_declare(requires_expression_);
+xxx_parser_declare(requirement_parameter_list_);
+xxx_parser_declare(requirement_body_);
+xxx_parser_declare(requirement_);
+xxx_parser_declare(simple_requirement_);
+xxx_parser_declare(type_requirement_);
+xxx_parser_declare(compound_requirement_);
+xxx_parser_declare(return_type_requirement_);
+xxx_parser_declare(nested_requirement_);
+xxx_parser_declare(postfix_expression_);
+xxx_parser_declare(expression_list_);
+xxx_parser_declare(unary_expression_);
+xxx_parser_declare(unary_operator_);
+xxx_parser_declare(await_expression_);
+xxx_parser_declare(noexcept_expression_);
+xxx_parser_declare(new_expression_);
+xxx_parser_declare(new_placement_);
+xxx_parser_declare(new_type_id_);
+xxx_parser_declare(new_declarator_);
+xxx_parser_declare(noptr_new_declarator_);
+xxx_parser_declare(new_initializer_);
+xxx_parser_declare(delete_expression_);
+xxx_parser_declare(cast_expression_);
+xxx_parser_declare(pm_expression_);
+xxx_parser_declare(multiplicative_expression_);
+xxx_parser_declare(additive_expression_);
+xxx_parser_declare(shift_expression_);
+xxx_parser_declare(compare_expression_);
+xxx_parser_declare(relational_expression_);
+xxx_parser_declare(equality_expression_);
+xxx_parser_declare(and_expression_);
+xxx_parser_declare(exclusive_or_expression_);
+xxx_parser_declare(inclusive_or_expression_);
+xxx_parser_declare(logical_and_expression_);
+xxx_parser_declare(logical_or_expression_);
+xxx_parser_declare(conditional_expression_);
+xxx_parser_declare(yield_expression_);
+xxx_parser_declare(throw_expression_);
+xxx_parser_declare(assignment_expression_);
+xxx_parser_declare(assignment_operator_);
+xxx_parser_declare(expression_);
+xxx_parser_declare(constant_expression_);
+
+//	A.6 Statements
+
+xxx_parser_declare(statement_);
+xxx_parser_declare(init_statement_);
+xxx_parser_declare(condition_);
+xxx_parser_declare(label_);
+xxx_parser_declare(labeled_statement_);
+xxx_parser_declare(expression_statement_);
+xxx_parser_declare(compound_statement_);
+xxx_parser_declare(selection_statement_);
+xxx_parser_declare(iteration_statement_);
+xxx_parser_declare(for_range_declaration_);
+xxx_parser_declare(for_range_initializer_);
+xxx_parser_declare(jump_statement_);
+xxx_parser_declare(coroutine_return_statement_);
+xxx_parser_declare(declaration_statement_);
+
+//	A.7 Declarations
+
+xxx_parser_declare(declaration_);
+xxx_parser_declare(name_declaration_);
+xxx_parser_declare(special_declaration_);
+xxx_parser_declare(block_declaration_);
+xxx_parser_declare(nodeclspec_function_declaration_);
+xxx_parser_declare(alias_declaration_);
+xxx_parser_declare(simple_declaration_);
+xxx_parser_declare(static_assert_declaration_);
+xxx_parser_declare(empty_declaration_);
+xxx_parser_declare(attribute_declaration_);
+xxx_parser_declare(decl_specifier_);
+xxx_parser_declare(decl_specifier_seq_);
+xxx_parser_declare(storage_class_specifier_);
+xxx_parser_declare(function_specifier_);
+xxx_parser_declare(explicit_specifier_);
+xxx_parser_declare(type_specifier_);
+xxx_parser_declare(defining_type_specifier_);
+xxx_parser_declare(simple_type_specifier_);
+xxx_parser_declare(type_name_);
+xxx_parser_declare(elaborated_type_specifier_);
+xxx_parser_declare(decltype_specifier_);
+xxx_parser_declare(placeholder_type_specifier_);
+xxx_parser_declare(init_declarator_list_);
+xxx_parser_declare(init_declarator_);
+xxx_parser_declare(declarator_);
+xxx_parser_declare(ptr_declarator_);
+xxx_parser_declare(noptr_declarator_);
+xxx_parser_declare(parameters_and_qualifiers_);
+xxx_parser_declare(trailing_return_type_);
+xxx_parser_declare(ptr_operator_);
+xxx_parser_declare(cv_qualifier_);
+xxx_parser_declare(ref_qualifier_);
+xxx_parser_declare(declarator_id_);
+xxx_parser_declare(type_id_);
+xxx_parser_declare(defining_type_id_);
+xxx_parser_declare(abstract_declarator_);
+xxx_parser_declare(ptr_abstract_declarator_);
+xxx_parser_declare(noptr_abstract_declarator_);
+xxx_parser_declare(abstract_pack_declarator_);
+xxx_parser_declare(noptr_abstract_pack_declarator_);
+xxx_parser_declare(parameter_declaration_clause_);
+xxx_parser_declare(parameter_declaration_list_);
+xxx_parser_declare(parameter_declaration_);
+xxx_parser_declare(initializer_);
+xxx_parser_declare(brace_or_equal_initializer_);
+xxx_parser_declare(initializer_clause_);
+xxx_parser_declare(braced_init_list_);
+xxx_parser_declare(initializer_list_);
+xxx_parser_declare(designated_initializer_list_);
+xxx_parser_declare(designated_initializer_clause_);
+xxx_parser_declare(designator_);
+xxx_parser_declare(expr_or_braced_init_list_);
+xxx_parser_declare(function_definition_);
+xxx_parser_declare(function_body_);
+xxx_parser_declare(enum_specifier_);
+xxx_parser_declare(enum_head_);
+xxx_parser_declare(enum_head_name_);
+xxx_parser_declare(opaque_enum_declaration_);
+xxx_parser_declare(enum_key_);
+xxx_parser_declare(enum_base_);
+xxx_parser_declare(enumerator_list_);
+xxx_parser_declare(enumerator_definition_);
+xxx_parser_declare(enumerator_);
+xxx_parser_declare(using_enum_declaration_);
+xxx_parser_declare(using_enum_declarator_);
+xxx_parser_declare(namespace_definition_);
+xxx_parser_declare(named_namespace_definition_);
+xxx_parser_declare(unnamed_namespace_definition_);
+xxx_parser_declare(nested_namespace_definition_);
+xxx_parser_declare(enclosing_namespace_specifier_);
+xxx_parser_declare(namespace_body_);
+xxx_parser_declare(namespace_alias_definition_);
+xxx_parser_declare(qualified_namespace_specifier_);
+xxx_parser_declare(using_directive_);
+xxx_parser_declare(using_declaration_);
+xxx_parser_declare(using_declarator_list_);
+xxx_parser_declare(using_declarator_);
+xxx_parser_declare(asm_declaration_);
+xxx_parser_declare(linkage_specification_);
+xxx_parser_declare(attribute_specifier_);
+xxx_parser_declare(alignment_specifier_);
+xxx_parser_declare(attribute_using_prefix_);
+xxx_parser_declare(attribute_list_);
+xxx_parser_declare(attribute_);
+xxx_parser_declare(attribute_token_);
+xxx_parser_declare(attribute_scoped_token_);
+xxx_parser_declare(attribute_namespace_);
+xxx_parser_declare(attribute_argument_clause_);
+xxx_parser_declare(balanced_token_);
+
+//	A.8 Modules
+
+xxx_parser_declare(module_declaration_);
+xxx_parser_declare(module_name_);
+xxx_parser_declare(module_partition_);
+xxx_parser_declare(module_name_qualifier_);
+xxx_parser_declare(export_declaration_);
+xxx_parser_declare(module_import_declaration_);
+xxx_parser_declare(global_module_fragment_);
+xxx_parser_declare(private_module_fragment_);
+
+//	A.9 Classes
+
+xxx_parser_declare(class_specifier_);
+xxx_parser_declare(class_head_);
+xxx_parser_declare(class_head_name_);
+xxx_parser_declare(class_virt_specifier_);
+xxx_parser_declare(class_key_);
+xxx_parser_declare(member_specification_);
+xxx_parser_declare(member_declaration_);
+xxx_parser_declare(member_declarator_list_);
+xxx_parser_declare(member_declarator_);
+xxx_parser_declare(virt_specifier_);
+xxx_parser_declare(pure_specifier_);
+xxx_parser_declare(conversion_function_id_);
+xxx_parser_declare(conversion_type_id_);
+xxx_parser_declare(conversion_declarator_);
+xxx_parser_declare(base_clause_);
+xxx_parser_declare(base_specifier_list_);
+xxx_parser_declare(base_specifier_);
+xxx_parser_declare(class_or_decltype_);
+xxx_parser_declare(access_specifier_);
+xxx_parser_declare(ctor_initializer_);
+xxx_parser_declare(mem_initializer_list_);
+xxx_parser_declare(mem_initializer_);
+xxx_parser_declare(mem_initializer_id_);
+
+//	A.10 Overloading
+
+xxx_parser_declare(operator_function_id_);
+xxx_parser_declare(operator_);
+xxx_parser_declare(literal_operator_id_);
+
+//	A.11 Templates
+
+xxx_parser_declare(template_declaration_);
+xxx_parser_declare(template_head_);
+xxx_parser_declare(template_parameter_list_);
+xxx_parser_declare(requires_clause_);
+xxx_parser_declare(constraint_logical_or_expression_);
+xxx_parser_declare(constraint_logical_and_expression_);
+xxx_parser_declare(template_parameter_);
+xxx_parser_declare(type_parameter_);
+xxx_parser_declare(type_parameter_key_);
+xxx_parser_declare(type_constraint_);
+xxx_parser_declare(template_id_);
+xxx_parser_declare(template_argument_list_);
+xxx_parser_declare(template_argument_);
+xxx_parser_declare(constraint_expression_);
+xxx_parser_declare(deduction_guide_);
+xxx_parser_declare(concept_definition_);
+xxx_parser_declare(concept_name_);
+xxx_parser_declare(typename_specifier_);
+xxx_parser_declare(explicit_instantiation_);
+xxx_parser_declare(explicit_specialization_);
+
+//	A.12 Exception handling
+
+xxx_parser_declare(try_block_);
+xxx_parser_declare(function_try_block_);
+xxx_parser_declare(handler_);
+xxx_parser_declare(exception_declaration_);
+xxx_parser_declare(noexcept_specifier_);
+
+//	A.13 Preprocessing directives
+
+//	--------------------------------------------
+
+//	A.4 Basics [gram.basic]
+
+xxx_parser_impl(translation_unit_, { return or_({zom_(declaration_), seq_({opt_(global_module_fragment_), module_declaration_, zom_(declaration_), opt_(private_module_fragment_)})})->parse(nodes, source); });
+
+//	A.5 Expressions
+
+xxx_parser_impl(primary_expression_, { return or_({literal_, lit::this_, seq_({lit::lp_, expression_, lit::rp_}), id_expression_, lambda_expression_, fold_expression_, requires_expression_})->parse(nodes, source); });
+xxx_parser_impl(id_expression_, { return or_({qualified_id_, unqualified_id_})->parse(nodes, source); });
+xxx_parser_impl(unqualified_id_, { return or_({identifier_, operator_function_id_, conversion_function_id_, literal_operator_id_, seq_({lit::tilde_, type_name_}), seq_({lit::tilde_, decltype_specifier_}), template_id_})->parse(nodes, source); });
+xxx_parser_impl(qualified_id_, { return seq_({nested_name_specifier_, opt_(lit::template_), unqualified_id_})->parse(nodes, source); });
+xxx_parser_impl(nested_name_specifier_, { return or_({lit::scope_, seq_({type_name_, lit::scope_}), seq_({namespace_name_, lit::scope_}), seq_({decltype_specifier_, lit::scope_}), seq_({nested_name_specifier_, or_({seq_({opt_(lit::template_), simple_template_id_}), identifier_}), lit::scope_})})->parse(nodes, source); });
+xxx_parser_impl(lambda_expression_, {
+	return or_({seq_({lambda_introducer_, zom_(attribute_specifier_), lambda_declarator_, compound_statement_}),
+				seq_({
+					lambda_introducer_,
+					lit::lt_,
+					template_parameter_list_,
+					lit::gt_,
+					opt_(requires_clause_),
+					zom_(attribute_specifier_),
+				}),
+				seq_({lambda_declarator_, compound_statement_})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(lambda_introducer_, { return seq_({lit::lbk_, opt_(lambda_capture_), lit::rbk_})->parse(nodes, source); });
+xxx_parser_impl(lambda_declarator_, {
+	return or_({seq_({oom_(lambda_specifier_), opt_(noexcept_specifier_), zom_(attribute_specifier_), opt_(trailing_return_type_)}),
+				seq_({noexcept_specifier_, zom_(attribute_specifier_), opt_(trailing_return_type_)}),
+				opt_(trailing_return_type_),
+				seq_({lit::lp_, parameter_declaration_clause_, lit::rp_, zom_(lambda_specifier_), opt_(noexcept_specifier_), zom_(attribute_specifier_), opt_(trailing_return_type_), opt_(requires_clause_)})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(lambda_specifier_, { return or_({lit::consteval_, lit::constexpr_, lit::mutable_, lit::static_})->parse(nodes, source); });
+xxx_parser_impl(lambda_capture_, { return or_({seq_({capture_default_, opt_(seq_({lit::comma_, capture_list_}))}), capture_list_})->parse(nodes, source); });
+xxx_parser_impl(capture_default_, { return set_({"&", "="})->parse(nodes, source); });
+xxx_parser_impl(capture_list_, { return seq_({capture_, zom_(seq_({lit::comma_, capture_}))})->parse(nodes, source); });
+xxx_parser_impl(capture_, { return or_({simple_capture_, init_capture_})->parse(nodes, source); });
+xxx_parser_impl(simple_capture_, { return or_({seq_({identifier_, lit::ellapsis_}), seq_({lit::amp_, identifier_, lit::ellapsis_}), lit::this_, seq_({lit::star_, lit::this_})})->parse(nodes, source); });
+xxx_parser_impl(init_capture_, { return seq_({opt_(lit::amp_), opt_(lit::ellapsis_), identifier_, initializer_})->parse(nodes, source); });
+xxx_parser_impl(fold_expression_, { return seq_({lit::lp_, or_({seq_({lit::ellapsis_, fold_operator_, cast_expression_}), seq_({constant_expression_, fold_operator_, lit::ellapsis_, opt_(seq_({fold_operator_, cast_expression_}))})}), lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(fold_operator_, {
+	return set_({"->*", "->",
+				 "==", "!=", "<=", ">=", "&&", "||", ",", ".*",
+				 "*=", "/=", "%=", "+=", "-=", "^", "&=", "!", "<<=", ">>=",
+				 "*", "/", "%", "+", "-", "^=", "&", "|=", "<<", ">>",
+				 "<", ">"})
+		->parse(nodes, source);
+});
+xxx_parser_impl(requires_expression_, { return seq_({lit::requires_, opt_(requirement_parameter_list_), requirement_body_})->parse(nodes, source); });
+xxx_parser_impl(requirement_parameter_list_, { return seq_({lit::lp_, parameter_declaration_clause_, lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(requirement_body_, { return seq_({lit::lbc_, oom_(requirement_), lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(requirement_, { return or_({simple_requirement_, type_requirement_, compound_requirement_, nested_requirement_})->parse(nodes, source); });
+xxx_parser_impl(simple_requirement_, { return seq_({expression_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(type_requirement_, { return seq_({lit::typename_, opt_(nested_name_specifier_), type_name_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(compound_requirement_, { return seq_({lit::lbc_, expression_, lit::rbc_, opt_(lit::noexcept_), opt_(return_type_requirement_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(return_type_requirement_, { return seq_({lit::arrow_, type_constraint_})->parse(nodes, source); });
+xxx_parser_impl(nested_requirement_, { return seq_({lit::requires_, constraint_expression_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(postfix_expression_, {
+	return seq_({or_({primary_expression_, seq_({or_({typename_specifier_, simple_type_specifier_}), or_({seq_({lit::lp_, opt_(expression_list_), lit::rp_}), braced_init_list_})}), seq_({set_({"dynamic_cast", "static_cast", "reinterpret_cast", "const_cast"}), lit::lt_, type_id_, lit::gt_, lit::lp_, expression_, lit::rp_}), seq_({lit::typeid_, lit::lp_, or_({type_id_, expression_}), lit::rp_})}),
+				 zom_(or_({seq_({lit::lbk_, opt_(expression_list_), lit::rbk_}), seq_({lit::lp_, opt_(expression_list_), lit::rp_}), seq_({set_({"->", "."}), opt_(lit::template_), id_expression_}), set_({"++", "--"})}))})
+		->parse(nodes, source);
+});
+xxx_parser_impl(expression_list_, { return initializer_list_->parse(nodes, source); });
+xxx_parser_impl(unary_expression_, {
+	return or_({seq_({set_({"++", "--"}), cast_expression_}),
+				seq_({unary_operator_, cast_expression_}),
+				await_expression_,
+				noexcept_expression_,
+				new_expression_,
+				delete_expression_,
+				seq_({lit::alignof_, lit::lp_, type_id_, lit::rp_}),
+				seq_({lit::sizeof_, or_({seq_({lit::ellapsis_, lit::lp_, identifier_, lit::rp_}), seq_({lit::lp_, type_id_, lit::rp_}), unary_expression_})}),
+				postfix_expression_})
+		->parse(nodes, source);
+});
+xxx_parser_impl(unary_operator_, { return set_({"&", "*", "+", "-", "~", "!"})->parse(nodes, source); });
+xxx_parser_impl(await_expression_, { return seq_({lit::co_await_, cast_expression_})->parse(nodes, source); });
+xxx_parser_impl(noexcept_expression_, { return seq_({lit::noexcept_, lit::lp_, expression_, lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(new_expression_, {
+	return seq_({opt_(lit::scope_), lit::new_, opt_(new_placement_),
+				 or_({seq_({lit::lp_, type_id_, lit::rp_}), new_type_id_}),
+				 opt_(new_initializer_)})
+		->parse(nodes, source);
+});
+xxx_parser_impl(new_placement_, { return seq_({lit::lp_, expression_list_, lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(new_type_id_, { return seq_({oom_(type_specifier_), opt_(attribute_specifier_), opt_(new_declarator_)})->parse(nodes, source); });
+xxx_parser_impl(new_declarator_, { return seq_({zom_(ptr_operator_), opt_(noptr_new_declarator_)})->parse(nodes, source); });
+xxx_parser_impl(noptr_new_declarator_, { return seq_({zom_(seq_({lit::lbk_, opt_(expression_), lit::rbk_})), zom_(attribute_specifier_), lit::lbk_, constant_expression_, lit::rbk_, zom_(attribute_specifier_)})->parse(nodes, source); });
+xxx_parser_impl(new_initializer_, { return or_({seq_({lit::lp_, opt_(expression_list_), lit::rp_}), braced_init_list_})->parse(nodes, source); });
+xxx_parser_impl(delete_expression_, { return seq_({opt_(lit::scope_), lit::delete_, opt_(seq_({lit::lbk_, lit::rbk_})), cast_expression_})->parse(nodes, source); });
+xxx_parser_impl(cast_expression_, { return seq_({zom_(seq_({lit::lp_, type_id_, lit::rp_})), unary_expression_})->parse(nodes, source); });
+xxx_parser_impl(pm_expression_, { return seq_({cast_expression_, zom_(seq_({set_({"->*", ".*"}), cast_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(multiplicative_expression_, { return seq_({pm_expression_, zom_(seq_({set_({"*", "/", "%"}), pm_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(additive_expression_, { return seq_({multiplicative_expression_, zom_(seq_({set_({"+", "-"}), multiplicative_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(shift_expression_, { return seq_({additive_expression_, zom_(seq_({set_({">>", "<<"}), additive_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(compare_expression_, { return seq_({shift_expression_, zom_(seq_({lit::spaceship_, shift_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(relational_expression_, { return seq_({compare_expression_, zom_(seq_({set_({"<=", ">=", "<", ">"}), compare_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(equality_expression_, { return seq_({relational_expression_, zom_(seq_({set_({"!=", "=="}), relational_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(and_expression_, { return seq_({equality_expression_, zom_(seq_({lit::amp_, equality_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(exclusive_or_expression_, { return seq_({and_expression_, zom_(seq_({lit::hut_, and_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(inclusive_or_expression_, { return seq_({exclusive_or_expression_, zom_(seq_({lit::vl_, exclusive_or_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(logical_and_expression_, { return seq_({inclusive_or_expression_, zom_(seq_({lit::amp2_, inclusive_or_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(logical_or_expression_, { return seq_({logical_and_expression_, zom_(seq_({lit::vl2_, logical_and_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(conditional_expression_, { return seq_({logical_or_expression_, opt_(seq_({lit::q_, expression_, lit::col_, assignment_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(yield_expression_, { return seq_({lit::co_yield_, or_({braced_init_list_, assignment_expression_})})->parse(nodes, source); });
+xxx_parser_impl(throw_expression_, { return seq_({lit::throw_, opt_(assignment_expression_)})->parse(nodes, source); });
+xxx_parser_impl(assignment_expression_, { return or_({conditional_expression_, yield_expression_, throw_expression_, seq_({logical_or_expression_, assignment_operator_, initializer_clause_})})->parse(nodes, source); });
+xxx_parser_impl(assignment_operator_, { return set_({"=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "~=", "|="})->parse(nodes, source); });
+xxx_parser_impl(expression_, { return seq_({assignment_expression_, zom_(seq_({lit::comma_, assignment_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(constant_expression_, { return conditional_expression_->parse(nodes, source); });
+
+//	A.6 Statements
+
+xxx_parser_impl(statement_, {
+	return or_({
+				   labeled_statement_,
+				   seq_({zom_(attribute_specifier_), or_({expression_statement_, compound_statement_, selection_statement_, iteration_statement_, jump_statement_})}),
+				   seq_({zom_(attribute_specifier_), try_block_}),
+				   declaration_statement_,
+			   })
+		->parse(nodes, source);
+});
+xxx_parser_impl(init_statement_, { return or_({expression_statement_, simple_declaration_, alias_declaration_})->parse(nodes, source); });
+xxx_parser_impl(condition_, { return or_({seq_({zom_(attribute_specifier_), oom_(decl_specifier_), declarator_, brace_or_equal_initializer_}), expression_})->parse(nodes, source); });
+xxx_parser_impl(label_, { return seq_({zom_(attribute_specifier_), or_({lit::default_, seq_({lit::case_, constant_expression_}), identifier_}), lit::col_})->parse(nodes, source); });
+xxx_parser_impl(labeled_statement_, { return seq_({label_, statement_})->parse(nodes, source); });
+xxx_parser_impl(expression_statement_, { return seq_({opt_(expression_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(compound_statement_, { return seq_({lit::lbc_, zom_(statement_), zom_(label_), lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(selection_statement_, { return seq_({lit::lbc_, or_({seq_({lit::if_, opt_(lit::constexpr_), lit::lp_, opt_(init_statement_), condition_, lit::rp_, statement_, opt_(seq_({lit::else_, statement_}))}), seq_({lit::if_, opt_(lit::ex_), lit::consteval_, compound_statement_, opt_(seq_({lit::else_, statement_}))}), seq_({lit::switch_, lit::lp_, opt_(init_statement_), condition_, lit::rp_, statement_})}), lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(iteration_statement_, {
+	return or_({
+				   seq_({lit::while_, lit::lp_, condition_, lit::rp_, statement_}),
+				   seq_({lit::do_, statement_, lit::while_, lit::lp_, expression_, lit::rp_, lit::semi_}),
+				   seq_({lit::for_, lit::lp_, or_({seq_({init_statement_, opt_(condition_), lit::semi_, opt_(expression_)}), seq_({opt_(init_statement_), for_range_declaration_, lit::col_, for_range_initializer_})}), lit::rp_, statement_}),
+			   })
+		->parse(nodes, source);
+});
+xxx_parser_impl(for_range_declaration_, { return seq_({zom_(attribute_specifier_), decl_specifier_seq_, or_({seq_({opt_(ref_qualifier_), lit::lbk_, identifier_list_, lit::rbk_}), declarator_})})->parse(nodes, source); });
+xxx_parser_impl(for_range_initializer_, { return expr_or_braced_init_list_->parse(nodes, source); });
+xxx_parser_impl(jump_statement_, {
+	return or_({seq_({lit::break_, lit::semi_}),
+				seq_({lit::continue_, lit::semi_}),
+				seq_({lit::goto_, identifier_, lit::semi_}),
+				seq_({lit::return_, opt_(expr_or_braced_init_list_), lit::semi_}),
+				coroutine_return_statement_})
+		->parse(nodes, source);
+});
+xxx_parser_impl(coroutine_return_statement_, { return seq_({lit::co_return_, opt_(expr_or_braced_init_list_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(declaration_statement_, { return block_declaration_->parse(nodes, source); });
+
+//	A.7 Declarations
+
+xxx_parser_impl(declaration_, { return or_({special_declaration_, name_declaration_})->parse(nodes, source); });
+xxx_parser_impl(name_declaration_, {
+	return or_({
+				   block_declaration_,
+				   nodeclspec_function_declaration_,
+				   function_definition_,
+				   template_declaration_,
+				   deduction_guide_,
+				   linkage_specification_,
+				   namespace_definition_,
+				   empty_declaration_,
+				   attribute_declaration_,
+				   module_import_declaration_,
+
+			   })
+		->parse(nodes, source);
+});
+xxx_parser_impl(special_declaration_, { return or_({export_declaration_, explicit_instantiation_, explicit_specialization_})->parse(nodes, source); });
+xxx_parser_impl(block_declaration_, {
+	return or_({asm_declaration_,
+				namespace_alias_definition_,
+				using_declaration_,
+				using_enum_declaration_,
+				using_directive_,
+				static_assert_declaration_,
+				alias_declaration_,
+				opaque_enum_declaration_,
+				simple_declaration_})
+		->parse(nodes, source);
+});
+xxx_parser_impl(nodeclspec_function_declaration_, { return seq_({zom_(attribute_specifier_), declarator_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(alias_declaration_, { return seq_({lit::using_, identifier_, zom_(attribute_specifier_), lit::eq_, defining_type_id_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(simple_declaration_, {
+	return or_({seq_({oom_(decl_specifier_), opt_(init_declarator_list_), lit::semi_}),
+				seq_({oom_(attribute_specifier_), decl_specifier_seq_, init_declarator_list_, lit::semi_}),
+				seq_({zom_(attribute_specifier_), decl_specifier_seq_, opt_(ref_qualifier_), lit::lbk_, identifier_list_, lit::rbk_, initializer_, lit::semi_})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(static_assert_declaration_, { return seq_({lit::static_assert_, lit::lp_, constant_expression_, opt_(seq_({lit::comma_, string_literal_})), lit::rp_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(empty_declaration_, { return seq_({lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(attribute_declaration_, { return seq_({oom_(attribute_specifier_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(decl_specifier_, { return or_({lit::friend_, lit::typedef_, lit::constexpr_, lit::consteval_, lit::constinit_, lit::inline_, storage_class_specifier_, defining_type_specifier_, function_specifier_})->parse(nodes, source); });
+xxx_parser_impl(decl_specifier_seq_, { return seq_({oom_(decl_specifier_), zom_(attribute_specifier_)})->parse(nodes, source); });
+xxx_parser_impl(storage_class_specifier_, { return set_({"static", "thread_local", "extern", "mutable"})->parse(nodes, source); });
+xxx_parser_impl(function_specifier_, { return or_({lit::virtual_, explicit_specifier_})->parse(nodes, source); });
+xxx_parser_impl(explicit_specifier_, { return seq_({lit::explicit_, opt_(seq_({lit::lp_, constant_expression_, lit::rp_}))})->parse(nodes, source); });
+xxx_parser_impl(type_specifier_, { return or_({cv_qualifier_, typename_specifier_, simple_type_specifier_, elaborated_type_specifier_})->parse(nodes, source); });
+xxx_parser_impl(defining_type_specifier_, { return or_({type_specifier_, class_specifier_, enum_specifier_})->parse(nodes, source); });
+xxx_parser_impl(simple_type_specifier_, {
+	return or_({set_({"char", "char8_t", "char16_t", "char32_t", "wchar_t", "bool", "short", "int", "long", "signed", "unsigned", "float", "double", "void"}),
+				seq_({opt_(nested_name_specifier_), type_name_}),
+				seq_({nested_name_specifier_, lit::template_, simple_template_id_}),
+				decltype_specifier_,
+				placeholder_type_specifier_,
+				seq_({opt_(nested_name_specifier_), template_name_})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(type_name_, { return or_({class_name_, enum_name_, typedef_name_})->parse(nodes, source); });
+xxx_parser_impl(elaborated_type_specifier_, {
+	return or_({seq_({class_key_, or_({zom_(attribute_specifier_), opt_(nested_name_specifier_), identifier_}), seq_({nested_name_specifier_, opt_(lit::template_), simple_template_id_}), simple_template_id_}),
+				seq_({lit::enum_, opt_(nested_name_specifier_), identifier_})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(decltype_specifier_, { return seq_({lit::decltype_, lit::lp_, expression_, lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(placeholder_type_specifier_, { return seq_({opt_(type_constraint_), or_({lit::auto_, seq_({lit::decltype_, lit::lp_, lit::auto_, lit::rp_})})})->parse(nodes, source); });
+xxx_parser_impl(init_declarator_list_, { return seq_({init_declarator_, zom_(seq_({lit::comma_, init_declarator_}))})->parse(nodes, source); });
+xxx_parser_impl(init_declarator_, { return seq_({declarator_, or_({requires_clause_, opt_(initializer_)})})->parse(nodes, source); });
+xxx_parser_impl(declarator_, { return or_({ptr_declarator_, seq_({noptr_declarator_, parameters_and_qualifiers_, trailing_return_type_})})->parse(nodes, source); });
+xxx_parser_impl(ptr_declarator_, { return seq_({zom_(ptr_operator_), noptr_declarator_})->parse(nodes, source); });
+xxx_parser_impl(noptr_declarator_, {
+	return seq_({or_({seq_({lit::lp_, ptr_declarator_, lit::rp_}), seq_({declarator_id_, zom_(attribute_specifier_)})}),
+				 zom_(or_({seq_({lit::lbk_, opt_(constant_expression_), lit::rbk_, zom_(attribute_specifier_)}), parameters_and_qualifiers_}))})
+		->parse(nodes, source);
+});
+xxx_parser_impl(parameters_and_qualifiers_, {
+	return or_({
+				   seq_({lit::lp_, parameter_declaration_clause_, lit::rp_, zom_(cv_qualifier_)}),
+				   seq_({opt_(ref_qualifier_), opt_(noexcept_specifier_), zom_(attribute_specifier_)}),
+			   })
+		->parse(nodes, source);
+});
+xxx_parser_impl(trailing_return_type_, { return seq_({lit::arrow_, type_id_})->parse(nodes, source); });
+xxx_parser_impl(ptr_operator_, {
+	return or_({
+				   seq_({opt_(nested_name_specifier_), lit::star_, zom_(attribute_specifier_), zom_(cv_qualifier_)}),
+				   seq_({set_({"&&", "&"}), zom_(attribute_specifier_)}),
+			   })
+		->parse(nodes, source);
+});
+xxx_parser_impl(cv_qualifier_, { return set_({"const", "volatile"})->parse(nodes, source); });
+xxx_parser_impl(ref_qualifier_, { return set_({"&&", "&"})->parse(nodes, source); });
+xxx_parser_impl(declarator_id_, { return seq_({opt_(lit::ellapsis_), id_expression_})->parse(nodes, source); });
+xxx_parser_impl(type_id_, { return seq_({oom_(type_specifier_), opt_(abstract_declarator_)})->parse(nodes, source); });
+xxx_parser_impl(defining_type_id_, { return seq_({oom_(defining_type_specifier_), opt_(abstract_declarator_)})->parse(nodes, source); });
+xxx_parser_impl(abstract_declarator_, { return or_({ptr_abstract_declarator_, abstract_pack_declarator_, seq_({opt_(noptr_abstract_declarator_), parameters_and_qualifiers_, trailing_return_type_})})->parse(nodes, source); });
+xxx_parser_impl(ptr_abstract_declarator_, { return or_({seq_({ptr_operator_, opt_(ptr_abstract_declarator_)}), noptr_abstract_declarator_})->parse(nodes, source); });
+xxx_parser_impl(noptr_abstract_declarator_, { return seq_({opt_(seq_({lit::lp_, ptr_abstract_declarator_, lit::rp_})), or_({seq_({lit::lp_, opt_(constant_expression_), lit::rp_, zom_(attribute_specifier_)}), parameters_and_qualifiers_})})->parse(nodes, source); });
+xxx_parser_impl(abstract_pack_declarator_, { return seq_({oom_(ptr_operator_), noptr_abstract_pack_declarator_})->parse(nodes, source); });
+xxx_parser_impl(noptr_abstract_pack_declarator_, { return seq_({lit::ellapsis_, zom_(or_({seq_({lit::lbk_, opt_(constant_expression_), lit::rbk_, oom_(attribute_specifier_)}), parameters_and_qualifiers_}))})->parse(nodes, source); });
+xxx_parser_impl(parameter_declaration_clause_, { return or_({seq_({parameter_declaration_list_, lit::comma_, lit::ellapsis_}), seq_({opt_(parameter_declaration_list_), opt_(lit::ellapsis_)})})->parse(nodes, source); });
+xxx_parser_impl(parameter_declaration_list_, { return seq_({parameter_declaration_, zom_(seq_({lit::comma_, parameter_declaration_}))})->parse(nodes, source); });
+xxx_parser_impl(parameter_declaration_, { return seq_({zom_(attribute_specifier_), or_({seq_({opt_(lit::this_), oom_(decl_specifier_), or_({opt_(abstract_declarator_), declarator_})}), seq_({oom_(decl_specifier_), or_({opt_(abstract_declarator_), declarator_}), lit::eq_, initializer_clause_})})})->parse(nodes, source); });
+xxx_parser_impl(initializer_, { return or_({seq_({lit::lp_, expression_list_, lit::rp_}), brace_or_equal_initializer_})->parse(nodes, source); });
+xxx_parser_impl(brace_or_equal_initializer_, { return or_({seq_({lit::eq_, initializer_clause_}), braced_init_list_})->parse(nodes, source); });
+xxx_parser_impl(initializer_clause_, { return or_({assignment_expression_, braced_init_list_})->parse(nodes, source); });
+xxx_parser_impl(braced_init_list_, { return seq_({lit::lp_, opt_(seq_({or_({designated_initializer_list_, initializer_list_}), opt_(lit::comma_)})), lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(initializer_list_, { return seq_({initializer_clause_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, initializer_clause_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(designated_initializer_list_, { return seq_({designated_initializer_clause_, zom_(seq_({lit::comma_, designated_initializer_clause_}))})->parse(nodes, source); });
+xxx_parser_impl(designated_initializer_clause_, { return seq_({designator_, brace_or_equal_initializer_})->parse(nodes, source); });
+xxx_parser_impl(designator_, { return seq_({lit::dot_, identifier_})->parse(nodes, source); });
+xxx_parser_impl(expr_or_braced_init_list_, { return or_({expression_, braced_init_list_})->parse(nodes, source); });
+xxx_parser_impl(function_definition_, { return seq_({zom_(attribute_specifier_), zom_(decl_specifier_), declarator_, or_({requires_clause_, zom_(virt_specifier_)}), function_body_})->parse(nodes, source); });
+xxx_parser_impl(function_body_, { return or_({seq_({lit::eq_, set_({"default", "delete"}), lit::semi_}), function_try_block_, seq_({opt_(ctor_initializer_), compound_statement_})})->parse(nodes, source); });
+xxx_parser_impl(enum_specifier_, { return seq_({enum_head_, lit::lbc_, or_({seq_({enumerator_list_, lit::comma_}), opt_(enumerator_list_)}), lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(enum_head_, { return seq_({enum_key_, zom_(attribute_specifier_), opt_(enum_head_name_), opt_(enum_base_)})->parse(nodes, source); });
+xxx_parser_impl(enum_head_name_, { return seq_({opt_(nested_name_specifier_), identifier_})->parse(nodes, source); });
+xxx_parser_impl(opaque_enum_declaration_, { return seq_({enum_key_, zom_(attribute_specifier_), enum_head_name_, opt_(enum_base_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(enum_key_, { return seq_({lit::enum_, opt_(or_({lit::class_, lit::struct_}))})->parse(nodes, source); });
+xxx_parser_impl(enum_base_, { return seq_({lit::col_, oom_(type_specifier_)})->parse(nodes, source); });
+xxx_parser_impl(enumerator_list_, { return seq_({enumerator_definition_, oom_(seq_({lit::comma_, enumerator_definition_}))})->parse(nodes, source); });
+xxx_parser_impl(enumerator_definition_, { return seq_({enumerator_, opt_(seq_({lit::eq_, constant_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(enumerator_, { return seq_({identifier_, zom_(attribute_specifier_)})->parse(nodes, source); });
+xxx_parser_impl(using_enum_declaration_, { return seq_({lit::using_, lit::enum_, using_enum_declarator_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(using_enum_declarator_, { return seq_({opt_(nested_name_specifier_), or_({simple_template_id_, identifier_})})->parse(nodes, source); });
+xxx_parser_impl(namespace_definition_, { return or_({named_namespace_definition_, nested_namespace_definition_, unnamed_namespace_definition_})->parse(nodes, source); });
+xxx_parser_impl(named_namespace_definition_, { return seq_({opt_(lit::inline_), lit::namespace_, oom_(attribute_specifier_), identifier_, lit::lbc_, namespace_body_, lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(unnamed_namespace_definition_, { return seq_({opt_(lit::inline_), lit::namespace_, oom_(attribute_specifier_), lit::lbc_, namespace_body_, lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(nested_namespace_definition_, { return seq_({lit::namespace_, enclosing_namespace_specifier_, lit::scope_, opt_(lit::inline_), identifier_, lit::lbc_, namespace_body_, lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(enclosing_namespace_specifier_, { return or_({seq_({enclosing_namespace_specifier_, lit::scope_, opt_(lit::inline_), identifier_}), identifier_})->parse(nodes, source); });
+xxx_parser_impl(namespace_body_, { return oom_(declaration_)->parse(nodes, source); });
+xxx_parser_impl(namespace_alias_definition_, { return seq_({lit::namespace_, identifier_, lit::eq_, qualified_namespace_specifier_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(qualified_namespace_specifier_, { return seq_({opt_(nested_name_specifier_), namespace_name_})->parse(nodes, source); });
+xxx_parser_impl(using_directive_, { return seq_({zom_(attribute_specifier_), lit::using_, lit::namespace_, opt_(nested_name_specifier_), namespace_name_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(using_declaration_, { return seq_({lit::using_, using_declarator_list_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(using_declarator_list_, { return seq_({using_declarator_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, using_declarator_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(using_declarator_, { return seq_({opt_(lit::typename_), nested_name_specifier_, unqualified_id_})->parse(nodes, source); });
+xxx_parser_impl(asm_declaration_, { return seq_({zom_(attribute_specifier_), lit::asm_, lit::rp_, string_literal_, lit::rp_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(linkage_specification_, { return seq_({lit::extern_, string_literal_, or_({seq_({lit::lbc_, zom_(declaration_), lit::rbc_}), name_declaration_})})->parse(nodes, source); });
+xxx_parser_impl(attribute_specifier_, { return oom_(seq_({lit::lbk_, lit::lbk_, opt_(attribute_using_prefix_), attribute_list_, lit::rbk_, lit::rbk_}))->parse(nodes, source); });
+xxx_parser_impl(alignment_specifier_, { return seq_({lit::alignas_, lit::lp_, or_({constant_expression_, type_id_}), opt_(lit::ellapsis_), lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(attribute_using_prefix_, { return seq_({lit::using_, attribute_namespace_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(attribute_list_, { return seq_({or_({seq_({attribute_, lit::ellapsis_}), opt_(attribute_)}), zom_(seq_({lit::comma_, or_({seq_({attribute_, lit::ellapsis_}), opt_(attribute_)})}))})->parse(nodes, source); });
+xxx_parser_impl(attribute_, { return seq_({attribute_token_, opt_(attribute_argument_clause_)})->parse(nodes, source); });
+xxx_parser_impl(attribute_token_, { return or_({attribute_scoped_token_, identifier_})->parse(nodes, source); });
+xxx_parser_impl(attribute_scoped_token_, { return seq_({attribute_namespace_, lit::scope_, identifier_})->parse(nodes, source); });
+xxx_parser_impl(attribute_namespace_, { return identifier_->parse(nodes, source); });
+xxx_parser_impl(attribute_argument_clause_, { return seq_({lit::lp_, zom_(balanced_token_), lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(balanced_token_, {
+	return or_({seq_({lit::lp_, opt_(balanced_token_), lit::rp_}),
+				seq_({lit::lbk_, opt_(balanced_token_), lit::rbk_}),
+				seq_({lit::lbc_, opt_(balanced_token_), lit::rbc_})})
+		->parse(nodes, source);
+	// any token other than a parenthesis, a bracket, or a brace
+});
+
+//	A.8 Modules
+
+xxx_parser_impl(module_declaration_, { return seq_({opt_(export_keyword_), module_keyword_, module_name_, opt_(module_partition_), zom_(attribute_specifier_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(module_name_, { return seq_({opt_(module_name_qualifier_), identifier_})->parse(nodes, source); });
+xxx_parser_impl(module_partition_, { return seq_({lit::col_, opt_(module_name_qualifier_), identifier_})->parse(nodes, source); });
+xxx_parser_impl(module_name_qualifier_, { return seq_({opt_(module_name_qualifier_), identifier_, lit::dot_})->parse(nodes, source); });
+xxx_parser_impl(export_declaration_, { return or_({seq_({lit::export_, or_({seq_({lit::lbc_, zom_(declaration_), lit::rbc_}), name_declaration_})}), seq_({export_keyword_, module_import_declaration_})})->parse(nodes, source); });
+xxx_parser_impl(module_import_declaration_, { return seq_({import_keyword_, or_({header_name_, module_partition_, module_name_}), zom_(attribute_specifier_), lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(global_module_fragment_, { return seq_({module_keyword_, lit::semi_, zom_(declaration_)})->parse(nodes, source); });
+xxx_parser_impl(private_module_fragment_, { return seq_({module_keyword_, lit::col_, lit::private_, lit::semi_, zom_(declaration_)})->parse(nodes, source); });
+
+//	A.9 Classes [gram
+
+xxx_parser_impl(class_specifier_, { return seq_({class_head_, lit::lbc_, opt_(member_specification_), lit::rbc_})->parse(nodes, source); });
+xxx_parser_impl(class_head_, { return seq_({class_key_, zom_(attribute_specifier_), or_({opt_(base_clause_), seq_({class_head_name_, opt_(class_virt_specifier_), opt_(base_clause_)})})})->parse(nodes, source); });
+xxx_parser_impl(class_head_name_, { return seq_({opt_(nested_name_specifier_), class_name_})->parse(nodes, source); });
+xxx_parser_impl(class_virt_specifier_, { return lit::final_->parse(nodes, source); });
+xxx_parser_impl(class_key_, { return set_({"class", "struct", "union"})->parse(nodes, source); });
+xxx_parser_impl(member_specification_, { return seq_({or_({seq_({access_specifier_, lit::semi_}), member_declaration_}), opt_(member_specification_)})->parse(nodes, source); });
+xxx_parser_impl(member_declaration_, {
+	return or_({
+				   alias_declaration_,
+				   opaque_enum_declaration_,
+				   empty_declaration_,
+				   function_definition_,
+				   using_declaration_,
+				   using_enum_declaration_,
+				   static_assert_declaration_,
+				   template_declaration_,
+				   explicit_specialization_,
+				   deduction_guide_,
+				   seq_({zom_(attribute_specifier_), zom_(decl_specifier_), opt_(member_declarator_list_), lit::semi_}),
+			   })
+		->parse(nodes, source);
+});
+xxx_parser_impl(member_declarator_list_, { return seq_({member_declarator_, zom_(seq_({lit::comma_, member_declarator_}))})->parse(nodes, source); });
+xxx_parser_impl(member_declarator_, {
+	return or_({seq_({declarator_, or_({requires_clause_, seq_({zom_(virt_specifier_), opt_(pure_specifier_)}), opt_(brace_or_equal_initializer_)})}),
+				seq_({opt_(identifier_), zom_(attribute_specifier_), lit::col_, constant_expression_, opt_(brace_or_equal_initializer_)})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(virt_specifier_, { return set_({"override", "final"})->parse(nodes, source); });
+xxx_parser_impl(pure_specifier_, { return seq_({lit::eq_, lit::zero_})->parse(nodes, source); });
+xxx_parser_impl(conversion_function_id_, { return seq_({lit::operator_, conversion_type_id_})->parse(nodes, source); });
+xxx_parser_impl(conversion_type_id_, { return seq_({zom_(type_specifier_), opt_(conversion_declarator_)})->parse(nodes, source); });
+xxx_parser_impl(conversion_declarator_, { return seq_({ptr_operator_, opt_(conversion_declarator_)})->parse(nodes, source); });
+xxx_parser_impl(base_clause_, { return seq_({lit::col_, base_specifier_list_})->parse(nodes, source); });
+xxx_parser_impl(base_specifier_list_, { return seq_({base_specifier_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, base_specifier_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(base_specifier_, { return seq_({zom_(attribute_specifier_), opt_(or_({seq_({lit::virtual_, opt_(access_specifier_)}), seq_({access_specifier_, opt_(lit::virtual_)})})), class_or_decltype_})->parse(nodes, source); });
+xxx_parser_impl(class_or_decltype_, { return or_({seq_({nested_name_specifier_, lit::template_, simple_template_id_}), seq_({opt_(nested_name_specifier_), type_name_}), decltype_specifier_})->parse(nodes, source); });
+xxx_parser_impl(access_specifier_, { return set_({"private", "protected", "public"})->parse(nodes, source); });
+xxx_parser_impl(ctor_initializer_, { return seq_({lit::col_, mem_initializer_list_})->parse(nodes, source); });
+xxx_parser_impl(mem_initializer_list_, { return seq_({mem_initializer_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, mem_initializer_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(mem_initializer_, { return seq_({mem_initializer_id_, or_({seq_({lit::lp_, opt_(expression_list_), lit::rp_}), braced_init_list_})})->parse(nodes, source); });
+xxx_parser_impl(mem_initializer_id_, { return or_({class_or_decltype_, identifier_})->parse(nodes, source); });
+
+//	A.10 Overloading
+
+xxx_parser_impl(operator_function_id_, { return seq_({lit::operator_, operator_})->parse(nodes, source); });
+xxx_parser_impl(operator_, {
+	return or_({seq_({lit::new_, opt_(seq_({lit::lbk_, lit::rbk_}))}),
+				seq_({lit::delete_, opt_(seq_({lit::lbk_, lit::rbk_}))}),
+				seq_({opt_(seq_({lit::lbk_, lit::rbk_}))}),
+				seq_({opt_(seq_({lit::lp_, lit::rp_}))}),
+				set_({"co_await", "->*", "->", "+=", "-=", "*=", "/=", "%=", "^=", "&=", "|=", "==", "!=", "<=>", "<=", ">=", "++", "--", "&&", "||", "<<", ">>", "<<=", ">>=", "<", ">", ",", "|", "=", "~", "!", "+", "-", "*", "/", "%", "^", "&"})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(literal_operator_id_, { return seq_({lit::operator_, or_({seq_({string_literal_, identifier_}), user_defined_string_literal_})})->parse(nodes, source); });
+
+//	A.11 Templates
+
+xxx_parser_impl(template_declaration_, { return seq_({template_head_, or_({concept_definition_, declaration_})})->parse(nodes, source); });
+xxx_parser_impl(template_head_, { return seq_({lit::template_, lit::lt_, template_parameter_list_, lit::gt_, opt_(requires_clause_)})->parse(nodes, source); });
+xxx_parser_impl(template_parameter_list_, { return seq_({template_parameter_, zom_(seq_({lit::comma_, template_parameter_}))})->parse(nodes, source); });
+xxx_parser_impl(requires_clause_, { return seq_({lit::requires_, constraint_logical_or_expression_})->parse(nodes, source); });
+xxx_parser_impl(constraint_logical_or_expression_, { return seq_({constraint_logical_and_expression_, oom_(seq_({lit::vl2_, constraint_logical_and_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(constraint_logical_and_expression_, { return seq_({primary_expression_, oom_(seq_({lit::amp2_, primary_expression_}))})->parse(nodes, source); });
+xxx_parser_impl(template_parameter_, { return or_({type_parameter_, parameter_declaration_})->parse(nodes, source); });
+xxx_parser_impl(type_parameter_, {
+	return or_({seq_({or_({type_constraint_, type_parameter_key_}), or_({seq_({opt_(identifier_), lit::eq_, type_id_}), seq_({opt_(lit::ellapsis_), opt_(identifier_)})})}),
+				seq_({template_head_, type_parameter_key_, or_({seq_({opt_(identifier_), lit::eq_, id_expression_}), seq_({opt_(lit::ellapsis_), opt_(identifier_)})})})})
+		->parse(nodes, source);
+});
+xxx_parser_impl(type_parameter_key_, { return set_({"class", "typename"})->parse(nodes, source); });
+xxx_parser_impl(type_constraint_, { return seq_({opt_(nested_name_specifier_), concept_name_, opt_(seq_({lit::lt_, opt_(template_argument_list_), lit::gt_}))})->parse(nodes, source); });
+xxx_parser_impl(simple_template_id_, { return seq_({template_name_, lit::lt_, opt_(template_argument_list_), lit::gt_})->parse(nodes, source); });
+xxx_parser_impl(template_id_, { return or_({seq_({or_({literal_operator_id_, operator_function_id_}), lit::lt_, opt_(template_argument_list_), lit::gt_}), simple_template_id_})->parse(nodes, source); });
+xxx_parser_impl(template_argument_list_, { return seq_({seq_({template_argument_, opt_(lit::ellapsis_)}), zom_(seq_({lit::comma_, template_argument_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(template_argument_, { return or_({constant_expression_, type_id_, id_expression_})->parse(nodes, source); });
+xxx_parser_impl(constraint_expression_, { return logical_or_expression_->parse(nodes, source); });
+xxx_parser_impl(deduction_guide_, { return seq_({opt_(explicit_specifier_), template_name_, lit::lp_, parameter_declaration_clause_, lit::rp_, lit::arrow_, simple_template_id_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(concept_definition_, { return seq_({lit::concept_, concept_name_, zom_(attribute_specifier_), lit::eq_, constraint_expression_, lit::semi_})->parse(nodes, source); });
+xxx_parser_impl(concept_name_, { return identifier_->parse(nodes, source); });
+xxx_parser_impl(typename_specifier_, { return seq_({lit::typename_, nested_name_specifier_, or_({seq_({opt_(lit::template_), simple_template_id_}), identifier_})})->parse(nodes, source); });
+xxx_parser_impl(explicit_instantiation_, { return seq_({opt_(lit::extern_), lit::template_, declaration_})->parse(nodes, source); });
+xxx_parser_impl(explicit_specialization_, { return seq_({lit::template_, lit::lt_, lit::gt_, declaration_})->parse(nodes, source); });
+
+//	A.12 Exception handling
+
+xxx_parser_impl(try_block_, { return seq_({lit::try_, compound_statement_, oom_(handler_)})->parse(nodes, source); });
+xxx_parser_impl(function_try_block_, { return seq_({lit::try_, opt_(ctor_initializer_), compound_statement_, oom_(handler_)})->parse(nodes, source); });
+xxx_parser_impl(handler_, { return seq_({lit::catch_, lit::lp_, exception_declaration_, lit::rp_, compound_statement_})->parse(nodes, source); });
+xxx_parser_impl(exception_declaration_, { return or_({lit::ellapsis_, seq_({zom_(attribute_specifier_), oom_(type_specifier_), or_({declarator_, opt_(abstract_declarator_)})})})->parse(nodes, source); });
+xxx_parser_impl(noexcept_specifier_, { return seq_({lit::noexcept_, opt_(seq_({lit::lp_, constant_expression_, lit::rp_}))})->parse(nodes, source); });
+
+}	 // namespace stx
+
+std::shared_ptr<ast::node_t> parse(pp::tokens_t const& tokens) {
+	if (auto const [nodes, rest] = stx::translation_unit_->parse(stx::parser_t::nodes_t{}, tokens); ! rest) {
+		return nullptr;
+	} else if (! rest->empty()) {
+		return nullptr;
+	} else if (nodes.size() != 1u) {
+		return nullptr;
+	} else {
+		return nodes.at(0);
+	}
 }
 
 }	 // namespace cxx
@@ -1973,7 +3015,7 @@ public:
 	auto const& tokens() const noexcept { return paths_.tokens(); }
 	auto const& pp_tokens() const noexcept { return paths_.preprocessing_tokens(); }
 
-	std::shared_ptr<pp::node_t> compile() {
+	std::shared_ptr<cxx::ast::node_t> compile() {
 		log::tracer_t tr{{paths_.path().string()}};
 		if (! ! paths_.nodes()) return paths_.nodes();
 
@@ -1987,7 +3029,7 @@ public:
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::clog << " ---> " << xxx::lex::to_string(a) << "\n"; });	   // TODO:
 		paths_.preprocessing_tokens(xxx::pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
 		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::for_each(a.first, a.second, [](auto const& aa) { std::clog << " $---> " << xxx::lex::to_string(aa) << "\n"; }); });
-		paths_.node(cxx::parse(paths_.preprocessing_tokens()));
+		paths_.node(cxx::parse(paths_.tokens()));
 
 		return paths_.nodes();	  // TODO:
 	}

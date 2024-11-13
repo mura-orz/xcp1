@@ -47,6 +47,893 @@ $ ./xcp (options) sources
 - -L:{Path} Adds the linkage path {Path} to find.libraries.
 - -l:{name} Links the library {name}.
 
+## Grammar
+
+- simple-template-id:
+  - template-name < template-argument-list? >
+- identifier:
+
+  - identifier-start
+  - identifier identifier-continue
+
+### A.2 Keywords [gram.key]
+
+- typedef-name:
+  - identifier
+  - simple-template-id
+- namespace-name:
+  - identifier
+- namespace-name:
+  - identifier
+  - namespace-alias
+- class-name:
+  - identifier
+  - simple-template-id
+- enum-name:
+  - identifier
+- enumerator-name:
+  - identifier
+
+### A.3 Lexical conventions
+
+- token:
+  - identifier
+  - literal
+  - operator-or-punctuator
+- header-name:
+  - < h-char-sequence >
+  - " q-char-sequence "
+- keyword:
+  - any identifier listed in Table 5
+  - import-keyword
+  - module-keyword
+  - export-keyword
+- literal:
+  - integer-literal
+  - character-literal
+  - floating-point-literal
+  - string-literal
+  - boolean-literal
+  - pointer-literal
+  - user-defined-literal
+- integer-literal:
+  - binary-literal integer-suffix?
+  - octal-literal integer-suffix?
+  - decimal-literal integer-suffix?
+  - hexadecimal-literal integer-suffix?
+- binary-literal:
+  - 0b binary-digit
+  - 0B binary-digit
+  - binary-literal ’? binary-digit
+- octal-literal:
+  - 0o
+  - octal-literal ’? octal-digit
+- decimal-literal:
+  - nonzero-digit
+  - decimal-literal ’? digit
+- hexadecimal-literal:
+  - hexadecimal-prefix hexadecimal-digit-sequence
+- character-literal:
+  - encoding-prefix? ’ c-char-sequence ’
+- floating-point-literal:
+  - decimal-floating-point-literal
+  - hexadecimal-floating-point-literal
+- string-literal:
+  - encoding-prefix? " s-char-sequence? "
+  - encoding-prefix? R raw-string
+- boolean-literal:
+  - true
+  - false
+- pointer-literal:
+  - nullptr
+- user-defined-literal:
+  - user-defined-integer-literal
+  - user-defined-floating-point-literal
+  - user-defined-string-literal
+  - user-defined-character-literal
+- user-defined-integer-literal:
+  - decimal-literal ud-suffix
+  - octal-literal ud-suffix
+  - hexadecimal-literal ud-suffix
+  - binary-literal ud-suffix
+- user-defined-floating-point-literal:
+  - fractional-constant exponent-part? ud-suffix
+  - digit-sequence exponent-part ud-suffix
+  - hexadecimal-prefix hexadecimal-fractional-constant binary-exponent-part ud-suffix
+  - hexadecimal-prefix hexadecimal-digit-sequence binary-exponent-part ud-suffix
+- user-defined-string-literal:
+  - string-literal ud-suffix
+- user-defined-character-literal:
+  - character-literal ud-suffix
+
+### A.4 Basics [gram.basic]
+
+- translation-unit:
+  - declaration\*
+  - global-module-fragment? module-declaration declaration\* private-module-fragment?
+
+### A.5 Expressions
+
+- primary-expression:primary-expression:
+  - literal
+  - this
+  - ( expression )
+  - id-expression
+  - lambda-expression
+  - fold-expression
+  - requires-expression
+- id-expression:
+  - unqualified-id
+  - qualified-id
+- unqualified-id:
+  - identifier
+  - operator-function-id
+  - conversion-function-id
+  - literal-operator-id
+  - ~ type-name
+  - ~ decltype-specifier
+  - template-id
+- qualified-id:
+  - nested-name-specifier template? unqualified-id
+- nested-name-specifier:
+  - ::
+  - type-name ::
+  - namespace-name ::
+  - decltype-specifier ::
+  - nested-name-specifier identifier ::
+  - nested-name-specifier template? simple-template-id ::
+- lambda-expression:
+  - lambda-introducer attribute-specifier\* lambda-declarator compound-statement
+  - lambda-introducer < template-parameter-list > requires-clause? attribute-specifier\*
+  - lambda-declarator compound-statement
+- lambda-introducer:
+  - [ lambda-capture? ]
+- lambda-declarator:
+  - lambda-specifier+ noexcept-specifier? attribute-specifier\* trailing-return-type?
+  - noexcept-specifier attribute-specifier\* trailing-return-type?
+  - trailing-return-type?
+  - ( parameter-declaration-clause ) lambda-specifier* noexcept-specifier? attribute-specifie*
+  - trailing-return-type? requires-clause?
+- lambda-specifier:
+  - consteval
+  - constexpr
+  - mutable
+  - static
+- lambda-capture:
+  - capture-default
+  - capture-list
+  - capture-default , capture-list
+- capture-default:
+  - &
+  - =
+- capture-list:
+  - capture
+  - capture-list , capture
+- capture:
+  - simple-capture
+  - init-capture
+- simple-capture:
+  - identifier ...?
+  - & identifier ...?
+  - this
+  - ~ this
+- init-capture:
+  - ...? identifier initializer
+  - & ...? identifier initializer
+- fold-expression:
+  - ( cast-expression fold-operator ... )
+  - ( ... fold-operator cast-expression )
+  - ( cast-expression fold-operator ... fold-operator cast-expression )
+- fold-operator:
+  - one of + - _ / % ^ & | << >> += -= _= /= %= ^= &= |= <<= >>= = == != < > <= >= && || , ._ ->_
+- requires-expression:
+  - requires requirement-parameter-list? requirement-body
+- requirement-parameter-list:
+  - ( parameter-declaration-clause )
+- requirement-body:
+  - { requirement+ }
+- requirement:
+  - simple-requirement
+  - type-requirement
+  - compound-requirement
+  - nested-requirement
+- simple-requirement:
+  - expression ;
+- type-requirement:
+  - typename nested-name-specifier? type-name ;
+- compound-requirement:
+  - { expression } noexcept? return-type-requirement? ;
+- return-type-requirement:
+  - -> type-constraint
+- nested-requirement:
+  - requires constraint-expression ;
+- postfix-expression:
+  - primary-expression
+  - postfix-expression [ expression-list? ]
+  - postfix-expression ( expression-list? )
+  - simple-type-specifier ( expression-list? )
+  - typename-specifier ( expression-list? )
+  - simple-type-specifier braced-init-list
+  - typename-specifier braced-init-list
+  - postfix-expression . template? id-expression
+  - postfix-expression -> template? id-expression
+  - postfix-expression ++
+  - postfix-expression --
+  - dynamic_cast < type-id > ( expression )
+  - static_cast < type-id > ( expression )
+  - reinterpret_cast < type-id > ( expression )
+  - const_cast < type-id > ( expression )
+  - typeid ( expression )
+  - typeid ( type-id )
+- expression-list:
+  - initializer-list
+- unary-expression:
+  - postfix-expression
+  - unary-operator cast-expression
+  - ++ cast-expression
+  - -- cast-expression
+  - await-expression
+  - sizeof unary-expression
+  - sizeof ( type-id )
+  - sizeof ... ( identifier )
+  - alignof ( type-id )
+  - noexcept-expression
+  - new-expression
+  - delete-expression
+- unary-operator:
+  - unary-operator: one of \* & + - ! ~
+- await-expression:
+  - co_await cast-expression
+- noexcept-expression:
+  - noexcept ( expression )
+- new-expression:
+  - ::? new new-placement? new-type-id new-initializer?
+  - ::? new new-placement? ( type-id ) new-initializer?
+- new-placement:
+  - ( expression-list )
+- new-type-id:
+  - type-specifier+ new-declarator?
+- new-declarator:
+  - ptr-operator new-declarator?
+  - noptr-new-declarator
+- noptr-new-declarator:
+  - [ expression? ] attribute-specifier\*
+  - noptr-new-declarator [ constant-expression ] attribute-specifier\*
+- new-initializer:
+  - ( expression-list? )
+  - braced-init-list
+- delete-expression:
+  - ::? delete cast-expression
+  - ::? delete [ ] cast-expression
+- cast-expression:
+  - unary-expression
+  - ( type-id ) cast-expression
+- pm-expression:
+  - cast-expression
+  - pm-expression .\* cast-expression
+  - pm-expression ->\* cast-expression
+- multiplicative-expression:
+  - pm-expression
+  - multiplicative-expression \* pm-expression
+  - multiplicative-expression / pm-expression
+  - multiplicative-expression % pm-expression
+- additive-expression:
+  - multiplicative-expression
+  - additive-expression + multiplicative-expression
+  - additive-expression - multiplicative-expression
+- shift-expression:
+  - additive-expression
+  - shift-expression << additive-expression
+  - shift-expression >> additive-expression
+- compare-expression:
+  - shift-expression
+  - compare-expression <=> shift-expression
+- relational-expression:
+  - compare-expression
+  - relational-expression < compare-expression
+  - relational-expression > compare-expression
+  - relational-expression <= compare-expression
+  - relational-expression >= compare-expression
+- equality-expression:
+  - relational-expression
+  - equality-expression == relational-expression
+  - equality-expression != relational-expression
+- and-expression:
+  - equality-expression
+  - and-expression & equality-expression
+- exclusive-or-expression:
+  - and-expression
+  - exclusive-or-expression ^ and-expression
+- inclusive-or-expression:
+  - exclusive-or-expression
+  - inclusive-or-expression | exclusive-or-expression
+- logical-and-expression:
+  - inclusive-or-expression
+  - logical-and-expression && inclusive-or-expression
+- logical-or-expression:
+  - logical-and-expression
+  - logical-or-expression || logical-and-expression
+- conditional-expression:
+  - logical-or-expression
+  - logical-or-expression ? expression : assignment-expression
+- yield-expression:
+  - co_yield assignment-expression
+  - co_yield braced-init-list
+- throw-expression:
+  - throw assignment -expression?
+- assignment-expression:
+  - conditional-expression
+  - yield-expression
+  - throw-expression
+  - logical-or-expression assignment-operator initializer-clause
+- assignment-operator:
+  - one of = \*= /= %= += -= >>= <<= &= ^= |=
+- expression:
+  - assignment-expression
+  - expression , assignment-expression
+- constant-expression:
+  - conditional-expression
+
+### A.6 Statements
+
+- statement:
+  - labeled-statement
+  - attribute-specifier\* expression-statement
+  - attribute-specifier\* compound-statement
+  - attribute-specifier\* selection-statement
+  - attribute-specifier\* iteration-statement
+  - attribute-specifier\* jump-statement
+  - declaration-statement
+  - attribute-specifier\* try-block
+- init-statement:
+  - expression-statement
+  - simple-declaration
+  - alias-declaration
+- condition:
+  - expression
+  - attribute-specifier\* decl-specifier+ declarator brace-or-equal-initializer
+- label:
+  - attribute-specifier\* identifier :
+  - attribute-specifier\* case constant-expression :
+  - attribute-specifier\* default :
+- labeled-statement:
+  - label statement
+- expression-statement:
+  - expression? ;
+- compound-statement:
+  - { statement* label* }
+- selection-statement:
+  - if constexpr? ( init-statement? condition ) statement
+  - if constexpr? ( init-statement? condition ) statement else statement
+  - if !? consteval compound-statement
+  - if !? consteval compound-statement else statement
+  - switch ( init-statement? condition ) statement
+- iteration-statement:
+  - while ( condition ) statement
+  - do statement while ( expression ) ;
+  - for ( init-statement condition? ; expression? ) statement
+  - for ( init-statement? for-range-declaration : for-range-initializer ) statement
+- for-range-declaration:
+  - attribute-specifier\* decl-specifier+ declarator
+  - attribute-specifier\* decl-specifier+ ref-qualifier? [ identifier-list ]
+- for-range-initializer:
+  - expr-or-braced-init-list
+- jump-statement:
+  - break ;
+  - continue ;
+  - return expr-or-braced-init-list? ;
+  - coroutine-return-statement
+  - goto identifier ;
+- coroutine-return-statement:
+  - co_return expr-or-braced-init-list? ;
+- declaration-statement:
+  - block-declaration
+
+### A.7 Declarations
+
+- declaration:
+  - name-declaration
+  - special-declaration
+- name-declaration:
+  - block-declaration
+  - nodeclspec-function-declaration
+  - function-definition
+  - template-declaration
+  - deduction-guide
+  - linkage-specification
+  - namespace-definition
+  - empty-declaration
+  - attribute-declaration
+  - module-import-declaration
+- special-declaration:
+  - explicit-instantiation
+  - explicit-specialization
+  - export-declaration
+- block-declaration:
+  - simple-declaration
+  - asm-declaration
+  - namespace-alias-definition
+  - using-declaration
+  - using-enum-declaration
+  - using-directive
+  - static_assert-declaration
+  - alias-declaration
+  - opaque-enum-declaration
+- nodeclspec-function-declaration:
+  - attribute-specifier\* declarator ;
+- alias-declaration:
+  - using identifier attribute-specifier\* = defining-type-id ;
+- simple-declaration:
+  - decl-specifier+ init-declarator-list? ;
+  - attribute-specifier+ decl-specifier+ init-declarator-list ;
+  - attribute-specifier\* decl-specifier+ ref-qualifier? [ identifier-list ] initializer ;
+- static_assert-declaration:
+  - static_assert ( constant-expression ) ;
+  - static_assert ( constant-expression , string-literal ) ;
+- empty-declaration:
+  - ;
+- attribute-declaration:
+  - attribute-specifier+ ;
+- decl-specifier:
+  - storage-class-specifier
+  - defining-type-specifier
+  - function-specifier
+  - friend
+  - typedef
+  - constexpr
+  - consteval
+  - constinit
+  - inline
+- decl-specifier-seq:
+  - decl-specifier attribute-specifier-seq?
+  - decl-specifier decl-specifier-seq
+- storage-class-specifier:
+  - static
+  - thread_local
+  - extern
+  - mutable
+- function-specifier:
+  - virtual
+  - explicit-specifier
+- explicit-specifier:
+  - explicit ( constant-expression )
+  - explicit
+- type-specifier:
+  - simple-type-specifier
+  - elaborated-type-specifier
+  - typename-specifier
+  - cv-qualifier
+- defining-type-specifier:
+  - type-specifier
+  - class-specifier
+  - enum-specifier
+- simple-type-specifier:
+  - nested-name-specifier? type-name
+  - nested-name-specifier template simple-template-id
+  - decltype-specifier
+  - placeholder-type-specifier
+  - nested-name-specifier? template-name
+  - char
+  - char8_t
+  - char16_t
+  - char32_t
+  - wchar_t
+  - bool
+  - short
+  - int
+  - long
+  - signed
+  - unsigned
+  - float
+  - double
+  - void
+- type-name:
+  - class-name
+  - enum-name
+  - typedef-name
+- elaborated-type-specifier:
+  - class-key attribute-specifier\* nested-name-specifier? identifier
+  - class-key simple-template-id
+  - class-key nested-name-specifier template? simple-template-id
+  - enum nested-name-specifier? identifier
+- decltype-specifier:
+  - decltype ( expression )
+- placeholder-type-specifier:
+  - type-constraint? auto
+  - type-constraint? decltype ( auto )
+- init-declarator-list:
+  - init-declarator
+  - init-declarator-list , init-declarator
+- init-declarator:
+  - declarator initializer?
+  - declarator requires-clause
+- declarator:
+  - ptr-declarator
+  - noptr-declarator parameters-and-qualifiers trailing-return-type ;
+- ptr-declarator:
+  - noptr-declarator
+  - ptr-operator ptr-declarator
+- noptr-declarator:
+  - declarator-id attribute-specifier\*
+  - noptr-declarator parameters-and-qualifiers
+  - noptr-declarator [ constant-expression? ] attribute-specifier\*
+  - ( ptr-declarator )
+- parameters-and-qualifiers:
+  - ( vparameter-declaration-clause ) cv-qualifier\*
+  - ref-qualifier? noexcept-specifier? attribute-specifier\*
+- trailing-return-type:
+  - -> type-id
+- ptr-operator:
+  - - attribute-specifier* cv-qualifier*
+  - & attribute-specifier\*
+  - && attribute-specifier\*
+  - nested-name-specifier _ attribute-specifier_ cv-qualifier\*
+- cv-qualifier-seq:
+  - cv-qualifier cv-qualifier\*
+- cv-qualifier:
+  - const
+  - volatile
+- ref-qualifier:
+  - &
+  - &&
+- declarator-id:
+  - ...? id-expression
+- type-id:
+  - type-specifier+ abstract-declarator?
+- defining-type-id:
+  - defining-type-specifier+ abstract-declarator?
+- abstract-declarator:
+  - ptr-abstract-declarator
+  - noptr-abstract-declarator? parameters-and-qualifiers trailing-return-type
+  - abstract-pack-declarator
+- ptr-abstract-declarator:
+  - noptr-abstract-declarator
+  - ptr-operator ptr-abstract-declarator?
+- noptr-abstract-declarator:
+  - noptr-abstract-declarator? parameters-and-qualifiers
+  - noptr-abstract-declarator? [ constant-expression? ] attribute-specifier\*
+  - ( ptr-abstract-declarator )
+- abstract-pack-declarator:
+  - noptr-abstract-pack-declarator
+  - ptr-operator abstract-pack-declarator
+- noptr-abstract-pack-declarator:
+  - noptr-abstract-pack-declarator parameters-and-qualifiers
+  - noptr-abstract-pack-declarator [ constant-expression? ] attribute-specifier\*
+  - ...
+- parameter-declaration-clause:
+  - parameter-declaration-list? ...?
+  - parameter-declaration-list , ...
+- parameter-declaration-list:
+  - parameter-declaration
+  - parameter-declaration-list , parameter-declaration
+- parameter-declaration:
+  - attribute-specifier\* this? decl-specifier+ declarator
+  - attribute-specifier\* decl-specifier+ declarator = initializer-clause
+  - attribute-specifier\* this? decl-specifier+ abstract-declarator?
+  - attribute-specifier\* decl-specifier+ abstract-declarator? = initializer-clause
+- initializer:
+  - brace-or-equal-initializer
+  - ( expression-list )
+- brace-or-equal-initializer:
+  - = initializer-clause
+  - braced-init-list
+- initializer-clause:
+  - assignment-expression
+  - braced-init-list
+- braced-init-list:
+  - { initializer-list ,? }
+  - { designated-initializer-list ,? }
+  - { }
+- initializer-list:
+  - initializer-clause ...?
+  - initializer-list , initializer-clause ...?
+- designated-initializer-list:
+  - designated-initializer-clause
+  - designated-initializer-list , designated-initializer-clause
+- designated-initializer-clause:
+  - designator brace-or-equal-initializer
+- designator:
+  - . identifier
+- expr-or-braced-init-list:
+  - expression
+  - braced-init-list
+- function-definition:
+  - attribute-specifier* decl-specifier* declarator virt-specifier\* function-body
+  - attribute-specifier* decl-specifier* declarator requires-clause function-body
+- function-body:
+  - ctor-initializer? compound-statement
+  - function-try-block
+  - = default ;
+  - = delete ;
+- enum-specifier:
+  - enum-head { enumerator-list? }
+  - enum-head { enumerator-list , }
+- enum-head:
+  - enum-key attribute-specifier\* enum-head-name? enum-base?
+- enum-head-name:
+  - nested-name-specifier? identifier
+- opaque-enum-declaration:
+  - enum-key attribute-specifier\* enum-head-name enum-base? ;
+- enum-key:
+  - enum
+  - enum class
+  - enum struct
+- enum-base:
+  - : type-specifier+
+- enumerator-list:
+  - enumerator-definition
+  - enumerator-list , enumerator-definition
+- enumerator-definition:
+  - enumerator
+  - enumerator = constant-expression
+- enumerator:
+  - identifier attribute-specifier\*
+- using-enum-declaration:
+  - using enum using-enum-declarator ;
+- using-enum-declarator:
+  - nested-name-specifier? identifier
+  - nested-name-specifier? simple-template-id
+- namespace-definition:
+  - named-namespace-definition
+  - unnamed-namespace-definition
+  - nested-namespace-definition
+- named-namespace-definition:
+  - inline? namespace attribute-specifier\* identifier { namespace-body }
+- unnamed-namespace-definition:
+  - inline? namespace attribute-specifier\* { namespace-body }
+- nested-namespace-definition:
+  - namespace enclosing-namespace-specifier :: inline? identifier { namespace-body }
+- enclosing-namespace-specifier:
+  - identifier
+  - enclosing-namespace-specifier :: inline? identifier
+- namespace-body:
+  - declaration\*
+- namespace-alias-definition:
+  - namespace identifier = qualified-namespace-specifier ;
+- qualified-namespace-specifier:
+  - nested-name-specifier? namespace-name
+- using-directive:
+  - attribute-specifier\* using namespace nested-name-specifier? namespace-name ;
+- using-declaration:
+  - using using-declarator-list ;
+- using-declarator-list:
+  - using-declarator ...?
+  - using-declarator-list , using-declarator ...?
+- using-declarator:
+  - typename? nested-name-specifier unqualified-id
+- asm-declaration:
+  - attribute-specifier\* asm ( string-literal ) ;
+- linkage-specification:
+  - extern string-literal { declaration\* }
+  - extern string-literal name-declaration
+- attribute-specifier-seq:
+  - attribute-specifier\* attribute-specifier
+- attribute-specifier:
+  - [ [ attribute-using-prefix? attribute-list ] ]
+  - alignment-specifier
+- alignment-specifier:
+  - alignas ( type-id ...? )
+  - alignas ( constant-expression ...? )
+- attribute-using-prefix:
+  - using attribute-namespace :
+- attribute-list:
+  - attribute?
+  - attribute-list , attribute?
+  - attribute ...
+  - attribute-list , attribute ...
+- attribute:
+  - attribute-token attribute-argument-clause?
+- attribute-token:
+  - identifier
+  - attribute-scoped-token
+- attribute-scoped-token:
+  - attribute-namespace :: identifier
+- attribute-namespace:
+  - identifier
+- attribute-argument-clause:
+  - ( balanced-token\* )
+- balanced-token:
+  - ( balanced-token\* )
+  - [ balanced-token* ]
+  - { balanced-token\* }
+  - any token other than a parenthesis, a bracket, or a brace
+
+### A.8 Modules
+
+- module-declaration:
+  - export-keyword? module-keyword module-name module-partition? attribute-specifier\* ;
+- module-name:
+  - module-name-qualifier? identifier
+- module-partition:
+  - : module-name-qualifier? identifier
+- module-name-qualifier:
+  - identifier .
+  - module-name-qualifier identifier .
+- export-declaration:
+  - export name-declaration
+  - export { declaration\* }
+  - export-keyword module-import-declaration
+- module-import-declaration:
+  - import-keyword module-name attribute-specifier\* ;
+  - import-keyword module-partition attribute-specifier ;
+  - import-keyword header-name attribute-specifier\* ;
+- global-module-fragment:
+  - module-keyword ; declaration\*
+- private-module-fragment:
+  - module-keyword : private ; declaration\*
+
+### A.9 Classes
+
+- class-specifier:
+  - class-head { member-specification? }
+- class-head:
+  - class-key attribute-specifier\* class-head-name class-virt-specifier? base-clause?
+  - class-key attribute-spe/cifier\* base-clause?
+- class-head-name:
+  - nested-name-specifier? class-name
+- class-virt-specifier:
+  - final
+  - < final >
+- class-key:
+  - class
+  - struct
+  - union
+- member-specification:
+  - member-declaration member-specification?
+  - access-specifier : member-specification?
+- member-declaration:
+  - attribute-specifier* decl-specifier* member-declarator\* ;
+  - function-definition
+  - using-declaration
+  - using-enum-declaration
+  - static_assert-declaration
+  - template-declaration
+  - explicit-specialization
+  - deduction-guide
+  - alias-declaration
+  - opaque-enum-declaration
+  - empty-declaration
+- member-declarator-list:
+  - member-declarator
+  - member-declarator-list , member-declarator
+- member-declarator:
+  - declarator virt-specifier\* pure-specifier?
+  - declarator requires-clause
+  - declarator brace-or-equal-initializer?
+  - identifier? attribute-specifier\* : constant-expression brace-or-equal-initializer?
+- virt-specifier:
+  - override
+  - final
+- pure-specifier:
+  - = 0
+- conversion-function-id:
+  - operator conversion-type-id
+- conversion-type-id:
+  - type-specifier+ conversion-declarator?
+- conversion-declarator:
+  - ptr-operator conversion-declarator?
+- base-clause:
+  - : base-specifier-list
+- base-specifier-list:
+  - : base-specifier ...?
+  - base-specifier-list , base-specifier ...?
+- base-specifier:
+  - attribute-specifier\* class-or-decltype
+  - attribute-specifier\* virtual access-specifier? class-or-decltype
+  - attribute-specifier\* access-specifier virtual? class-or-decltype
+- class-or-decltype:
+  - nested-name-specifier? type-name
+  - nested-name-specifier template simple-template-id
+  - decltype-specifier
+- access-specifier:
+  - private
+  - protected
+  - public
+- ctor-initializer:
+  - : mem-initializer-list
+- mem-initializer-list:
+  - mem-initializer ...?
+  - mem-initializer-list , mem-initializer ...?
+- mem-initializer:
+  - mem-initializer-id ( expression-list? )
+  - mem-initializer-id braced-init-list
+- mem-initializer-id:
+  - class-or-decltype
+  - identifier
+
+### A.10 Overloading
+
+- operator-function-id:
+  - operator operator
+- operator: one of
+  - new delete new[] delete[] co*await ( ) [ ] -> ->*\*
+    ~ ! + - \_ / % ^ &
+    | = += -= \*= /= %= ^= &=
+    |= == != < > <= >= <=> &&
+    || << >> <<= >>= ++ -- ,
+- literal-operator-id:
+  - operator string-literal identifier
+  - operator user-defined-string-literal
+
+### A.11 Templates
+
+- template-declaration:
+  - template-head declaration
+  - template-head concept -definition
+- template-head:
+  - template < template-parameter-list > requires-clause?
+- template-parameter-list:
+  - template-parameter
+  - template-parameter-list , template-parameter
+- requires-clause:
+  - requires constraint-logical-or-expression
+- constraint-logical-or-expression:
+  - constraint-logical-and-expression
+  - constraint-logical-or-expression || constraint-logical-and-expression
+- constraint-logical-and-expression:
+  - primary-expression
+  - constraint-logical-and-expression && primary-expression
+- template-parameter:
+  - type-parameter
+  - parameter-declaration
+- type-parameter:
+  - type-parameter-key ...? identifier?
+  - type-parameter-key identifier? = type-id
+  - type-constraint ...? identifier?
+  - type-constraint identifier? = type-id
+  - template-head type-parameter-key ...? identifier?
+  - template-head type-parameter-key identifier? = id-expression
+- type-parameter-key:
+  - class
+  - typename
+- type-constraint:
+  - nested-name-specifier? concept-name
+  - nested-name-specifier? concept-name < template-argument-list? >
+- template-id:
+  - simple-template-id
+  - operator-function-id < template-argument-list? >
+  - literal-operator-id < template-argument-list? >
+- template-argument-list:
+  - template-argument ...?
+  - template-argument-list , template-argum? ...?
+- template-argument:
+  - constant-expression
+  - type-id
+  - id-expression
+- constraint-expression:
+  - logical-or-expression
+- deduction-guide:
+  - explicit-specifier? template-name ( parameter-declaration-clause ) -> simple-template-id ;
+- concept-definition:
+  - concept concept-name attribute-specifier\* = constraint-expression ;
+- concept-name:
+  - identifier
+- typename-specifier:
+  - typename nested-name-specifier identifier
+  - typename nested-name-specifier template? simple-template-id
+- explicit-instantiation:
+  - extern? template declaration
+- explicit-specialization:
+  - template < > declaration
+
+### A.12 Exception handling
+
+- try-block:
+  - try compound-statement handler-seq
+- function-try-block:
+  - try ctor-initializer? compound-statement handler-seq
+- handler-seq:
+  - handler handler\*
+- handler:
+  - catch ( exception-declaration ) compound-statement
+- exception-declaration:
+  - attribute-specifier\* type-specifier+ declarator
+  - attribute-specifier\* type-specifier+ abstract-declarator?
+  - ...
+- noexcept-specifier:
+  - noexcept ( constant-expression )
+  - noexcept
+
 ## Implementation defined
 
 - TODO: List of implementation-defined
