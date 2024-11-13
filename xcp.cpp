@@ -2143,7 +2143,7 @@ auto const comma_	   = op_(",");
 auto const hut_		   = op_("^");
 auto const sq_		   = op_("'");
 auto const dot_		   = op_(".");
-auto const ellapsis_   = op_("...");
+auto const ellipsis_   = op_("...");
 auto const arrow_	   = op_("->");
 auto const arrow_star_ = op_("->*");
 auto const star_	   = op_("*");
@@ -2590,9 +2590,9 @@ xxx_parser_impl(lambda_capture_, { return or_({seq_({capture_default_, opt_(seq_
 xxx_parser_impl(capture_default_, { return set_({"&", "="})->parse(nodes, source); });
 xxx_parser_impl(capture_list_, { return seq_({capture_, zom_(seq_({lit::comma_, capture_}))})->parse(nodes, source); });
 xxx_parser_impl(capture_, { return or_({simple_capture_, init_capture_})->parse(nodes, source); });
-xxx_parser_impl(simple_capture_, { return or_({seq_({identifier_, lit::ellapsis_}), seq_({lit::amp_, identifier_, lit::ellapsis_}), lit::this_, seq_({lit::star_, lit::this_})})->parse(nodes, source); });
-xxx_parser_impl(init_capture_, { return seq_({opt_(lit::amp_), opt_(lit::ellapsis_), identifier_, initializer_})->parse(nodes, source); });
-xxx_parser_impl(fold_expression_, { return seq_({lit::lp_, or_({seq_({lit::ellapsis_, fold_operator_, cast_expression_}), seq_({constant_expression_, fold_operator_, lit::ellapsis_, opt_(seq_({fold_operator_, cast_expression_}))})}), lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(simple_capture_, { return or_({seq_({identifier_, lit::ellipsis_}), seq_({lit::amp_, identifier_, lit::ellipsis_}), lit::this_, seq_({lit::star_, lit::this_})})->parse(nodes, source); });
+xxx_parser_impl(init_capture_, { return seq_({opt_(lit::amp_), opt_(lit::ellipsis_), identifier_, initializer_})->parse(nodes, source); });
+xxx_parser_impl(fold_expression_, { return seq_({lit::lp_, or_({seq_({lit::ellipsis_, fold_operator_, cast_expression_}), seq_({constant_expression_, fold_operator_, lit::ellipsis_, opt_(seq_({fold_operator_, cast_expression_}))})}), lit::rp_})->parse(nodes, source); });
 xxx_parser_impl(fold_operator_, {
 	return set_({"->*", "->",
 				 "==", "!=", "<=", ">=", "&&", "||", ",", ".*",
@@ -2624,7 +2624,7 @@ xxx_parser_impl(unary_expression_, {
 				new_expression_,
 				delete_expression_,
 				seq_({lit::alignof_, lit::lp_, type_id_, lit::rp_}),
-				seq_({lit::sizeof_, or_({seq_({lit::ellapsis_, lit::lp_, identifier_, lit::rp_}), seq_({lit::lp_, type_id_, lit::rp_}), unary_expression_})}),
+				seq_({lit::sizeof_, or_({seq_({lit::ellipsis_, lit::lp_, identifier_, lit::rp_}), seq_({lit::lp_, type_id_, lit::rp_}), unary_expression_})}),
 				postfix_expression_})
 		->parse(nodes, source);
 });
@@ -2796,22 +2796,22 @@ xxx_parser_impl(ptr_operator_, {
 });
 xxx_parser_impl(cv_qualifier_, { return set_({"const", "volatile"})->parse(nodes, source); });
 xxx_parser_impl(ref_qualifier_, { return set_({"&&", "&"})->parse(nodes, source); });
-xxx_parser_impl(declarator_id_, { return seq_({opt_(lit::ellapsis_), id_expression_})->parse(nodes, source); });
+xxx_parser_impl(declarator_id_, { return seq_({opt_(lit::ellipsis_), id_expression_})->parse(nodes, source); });
 xxx_parser_impl(type_id_, { return seq_({oom_(type_specifier_), opt_(abstract_declarator_)})->parse(nodes, source); });
 xxx_parser_impl(defining_type_id_, { return seq_({oom_(defining_type_specifier_), opt_(abstract_declarator_)})->parse(nodes, source); });
 xxx_parser_impl(abstract_declarator_, { return or_({ptr_abstract_declarator_, abstract_pack_declarator_, seq_({opt_(noptr_abstract_declarator_), parameters_and_qualifiers_, trailing_return_type_})})->parse(nodes, source); });
 xxx_parser_impl(ptr_abstract_declarator_, { return or_({seq_({ptr_operator_, opt_(ptr_abstract_declarator_)}), noptr_abstract_declarator_})->parse(nodes, source); });
 xxx_parser_impl(noptr_abstract_declarator_, { return seq_({opt_(seq_({lit::lp_, ptr_abstract_declarator_, lit::rp_})), or_({seq_({lit::lp_, opt_(constant_expression_), lit::rp_, zom_(attribute_specifier_)}), parameters_and_qualifiers_})})->parse(nodes, source); });
 xxx_parser_impl(abstract_pack_declarator_, { return seq_({oom_(ptr_operator_), noptr_abstract_pack_declarator_})->parse(nodes, source); });
-xxx_parser_impl(noptr_abstract_pack_declarator_, { return seq_({lit::ellapsis_, zom_(or_({seq_({lit::lbk_, opt_(constant_expression_), lit::rbk_, oom_(attribute_specifier_)}), parameters_and_qualifiers_}))})->parse(nodes, source); });
-xxx_parser_impl(parameter_declaration_clause_, { return or_({seq_({parameter_declaration_list_, lit::comma_, lit::ellapsis_}), seq_({opt_(parameter_declaration_list_), opt_(lit::ellapsis_)})})->parse(nodes, source); });
+xxx_parser_impl(noptr_abstract_pack_declarator_, { return seq_({lit::ellipsis_, zom_(or_({seq_({lit::lbk_, opt_(constant_expression_), lit::rbk_, oom_(attribute_specifier_)}), parameters_and_qualifiers_}))})->parse(nodes, source); });
+xxx_parser_impl(parameter_declaration_clause_, { return or_({seq_({parameter_declaration_list_, lit::comma_, lit::ellipsis_}), seq_({opt_(parameter_declaration_list_), opt_(lit::ellipsis_)})})->parse(nodes, source); });
 xxx_parser_impl(parameter_declaration_list_, { return seq_({parameter_declaration_, zom_(seq_({lit::comma_, parameter_declaration_}))})->parse(nodes, source); });
 xxx_parser_impl(parameter_declaration_, { return seq_({zom_(attribute_specifier_), or_({seq_({opt_(lit::this_), oom_(decl_specifier_), or_({opt_(abstract_declarator_), declarator_})}), seq_({oom_(decl_specifier_), or_({opt_(abstract_declarator_), declarator_}), lit::eq_, initializer_clause_})})})->parse(nodes, source); });
 xxx_parser_impl(initializer_, { return or_({seq_({lit::lp_, expression_list_, lit::rp_}), brace_or_equal_initializer_})->parse(nodes, source); });
 xxx_parser_impl(brace_or_equal_initializer_, { return or_({seq_({lit::eq_, initializer_clause_}), braced_init_list_})->parse(nodes, source); });
 xxx_parser_impl(initializer_clause_, { return or_({assignment_expression_, braced_init_list_})->parse(nodes, source); });
 xxx_parser_impl(braced_init_list_, { return seq_({lit::lp_, opt_(seq_({or_({designated_initializer_list_, initializer_list_}), opt_(lit::comma_)})), lit::rp_})->parse(nodes, source); });
-xxx_parser_impl(initializer_list_, { return seq_({initializer_clause_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, initializer_clause_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(initializer_list_, { return seq_({initializer_clause_, opt_(lit::ellipsis_), zom_(seq_({lit::comma_, initializer_clause_, opt_(lit::ellipsis_)}))})->parse(nodes, source); });
 xxx_parser_impl(designated_initializer_list_, { return seq_({designated_initializer_clause_, zom_(seq_({lit::comma_, designated_initializer_clause_}))})->parse(nodes, source); });
 xxx_parser_impl(designated_initializer_clause_, { return seq_({designator_, brace_or_equal_initializer_})->parse(nodes, source); });
 xxx_parser_impl(designator_, { return seq_({lit::dot_, identifier_})->parse(nodes, source); });
@@ -2839,14 +2839,14 @@ xxx_parser_impl(namespace_alias_definition_, { return seq_({lit::namespace_, ide
 xxx_parser_impl(qualified_namespace_specifier_, { return seq_({opt_(nested_name_specifier_), namespace_name_})->parse(nodes, source); });
 xxx_parser_impl(using_directive_, { return seq_({zom_(attribute_specifier_), lit::using_, lit::namespace_, opt_(nested_name_specifier_), namespace_name_, lit::semi_})->parse(nodes, source); });
 xxx_parser_impl(using_declaration_, { return seq_({lit::using_, using_declarator_list_, lit::semi_})->parse(nodes, source); });
-xxx_parser_impl(using_declarator_list_, { return seq_({using_declarator_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, using_declarator_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(using_declarator_list_, { return seq_({using_declarator_, opt_(lit::ellipsis_), zom_(seq_({lit::comma_, using_declarator_, opt_(lit::ellipsis_)}))})->parse(nodes, source); });
 xxx_parser_impl(using_declarator_, { return seq_({opt_(lit::typename_), nested_name_specifier_, unqualified_id_})->parse(nodes, source); });
 xxx_parser_impl(asm_declaration_, { return seq_({zom_(attribute_specifier_), lit::asm_, lit::rp_, string_literal_, lit::rp_, lit::semi_})->parse(nodes, source); });
 xxx_parser_impl(linkage_specification_, { return seq_({lit::extern_, string_literal_, or_({seq_({lit::lbc_, zom_(declaration_), lit::rbc_}), name_declaration_})})->parse(nodes, source); });
 xxx_parser_impl(attribute_specifier_, { return oom_(seq_({lit::lbk_, lit::lbk_, opt_(attribute_using_prefix_), attribute_list_, lit::rbk_, lit::rbk_}))->parse(nodes, source); });
-xxx_parser_impl(alignment_specifier_, { return seq_({lit::alignas_, lit::lp_, or_({constant_expression_, type_id_}), opt_(lit::ellapsis_), lit::rp_})->parse(nodes, source); });
+xxx_parser_impl(alignment_specifier_, { return seq_({lit::alignas_, lit::lp_, or_({constant_expression_, type_id_}), opt_(lit::ellipsis_), lit::rp_})->parse(nodes, source); });
 xxx_parser_impl(attribute_using_prefix_, { return seq_({lit::using_, attribute_namespace_, lit::semi_})->parse(nodes, source); });
-xxx_parser_impl(attribute_list_, { return seq_({or_({seq_({attribute_, lit::ellapsis_}), opt_(attribute_)}), zom_(seq_({lit::comma_, or_({seq_({attribute_, lit::ellapsis_}), opt_(attribute_)})}))})->parse(nodes, source); });
+xxx_parser_impl(attribute_list_, { return seq_({or_({seq_({attribute_, lit::ellipsis_}), opt_(attribute_)}), zom_(seq_({lit::comma_, or_({seq_({attribute_, lit::ellipsis_}), opt_(attribute_)})}))})->parse(nodes, source); });
 xxx_parser_impl(attribute_, { return seq_({attribute_token_, opt_(attribute_argument_clause_)})->parse(nodes, source); });
 xxx_parser_impl(attribute_token_, { return or_({attribute_scoped_token_, identifier_})->parse(nodes, source); });
 xxx_parser_impl(attribute_scoped_token_, { return seq_({attribute_namespace_, lit::scope_, identifier_})->parse(nodes, source); });
@@ -2907,12 +2907,12 @@ xxx_parser_impl(conversion_function_id_, { return seq_({lit::operator_, conversi
 xxx_parser_impl(conversion_type_id_, { return seq_({zom_(type_specifier_), opt_(conversion_declarator_)})->parse(nodes, source); });
 xxx_parser_impl(conversion_declarator_, { return seq_({ptr_operator_, opt_(conversion_declarator_)})->parse(nodes, source); });
 xxx_parser_impl(base_clause_, { return seq_({lit::col_, base_specifier_list_})->parse(nodes, source); });
-xxx_parser_impl(base_specifier_list_, { return seq_({base_specifier_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, base_specifier_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(base_specifier_list_, { return seq_({base_specifier_, opt_(lit::ellipsis_), zom_(seq_({lit::comma_, base_specifier_, opt_(lit::ellipsis_)}))})->parse(nodes, source); });
 xxx_parser_impl(base_specifier_, { return seq_({zom_(attribute_specifier_), opt_(or_({seq_({lit::virtual_, opt_(access_specifier_)}), seq_({access_specifier_, opt_(lit::virtual_)})})), class_or_decltype_})->parse(nodes, source); });
 xxx_parser_impl(class_or_decltype_, { return or_({seq_({nested_name_specifier_, lit::template_, simple_template_id_}), seq_({opt_(nested_name_specifier_), type_name_}), decltype_specifier_})->parse(nodes, source); });
 xxx_parser_impl(access_specifier_, { return set_({"private", "protected", "public"})->parse(nodes, source); });
 xxx_parser_impl(ctor_initializer_, { return seq_({lit::col_, mem_initializer_list_})->parse(nodes, source); });
-xxx_parser_impl(mem_initializer_list_, { return seq_({mem_initializer_, opt_(lit::ellapsis_), zom_(seq_({lit::comma_, mem_initializer_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(mem_initializer_list_, { return seq_({mem_initializer_, opt_(lit::ellipsis_), zom_(seq_({lit::comma_, mem_initializer_, opt_(lit::ellipsis_)}))})->parse(nodes, source); });
 xxx_parser_impl(mem_initializer_, { return seq_({mem_initializer_id_, or_({seq_({lit::lp_, opt_(expression_list_), lit::rp_}), braced_init_list_})})->parse(nodes, source); });
 xxx_parser_impl(mem_initializer_id_, { return or_({class_or_decltype_, identifier_})->parse(nodes, source); });
 
@@ -2939,15 +2939,15 @@ xxx_parser_impl(constraint_logical_or_expression_, { return seq_({constraint_log
 xxx_parser_impl(constraint_logical_and_expression_, { return seq_({primary_expression_, oom_(seq_({lit::amp2_, primary_expression_}))})->parse(nodes, source); });
 xxx_parser_impl(template_parameter_, { return or_({type_parameter_, parameter_declaration_})->parse(nodes, source); });
 xxx_parser_impl(type_parameter_, {
-	return or_({seq_({or_({type_constraint_, type_parameter_key_}), or_({seq_({opt_(identifier_), lit::eq_, type_id_}), seq_({opt_(lit::ellapsis_), opt_(identifier_)})})}),
-				seq_({template_head_, type_parameter_key_, or_({seq_({opt_(identifier_), lit::eq_, id_expression_}), seq_({opt_(lit::ellapsis_), opt_(identifier_)})})})})
+	return or_({seq_({or_({type_constraint_, type_parameter_key_}), or_({seq_({opt_(identifier_), lit::eq_, type_id_}), seq_({opt_(lit::ellipsis_), opt_(identifier_)})})}),
+				seq_({template_head_, type_parameter_key_, or_({seq_({opt_(identifier_), lit::eq_, id_expression_}), seq_({opt_(lit::ellipsis_), opt_(identifier_)})})})})
 		->parse(nodes, source);
 });
 xxx_parser_impl(type_parameter_key_, { return set_({"class", "typename"})->parse(nodes, source); });
 xxx_parser_impl(type_constraint_, { return seq_({opt_(nested_name_specifier_), concept_name_, opt_(seq_({lit::lt_, opt_(template_argument_list_), lit::gt_}))})->parse(nodes, source); });
 xxx_parser_impl(simple_template_id_, { return seq_({template_name_, lit::lt_, opt_(template_argument_list_), lit::gt_})->parse(nodes, source); });
 xxx_parser_impl(template_id_, { return or_({seq_({or_({literal_operator_id_, operator_function_id_}), lit::lt_, opt_(template_argument_list_), lit::gt_}), simple_template_id_})->parse(nodes, source); });
-xxx_parser_impl(template_argument_list_, { return seq_({seq_({template_argument_, opt_(lit::ellapsis_)}), zom_(seq_({lit::comma_, template_argument_, opt_(lit::ellapsis_)}))})->parse(nodes, source); });
+xxx_parser_impl(template_argument_list_, { return seq_({seq_({template_argument_, opt_(lit::ellipsis_)}), zom_(seq_({lit::comma_, template_argument_, opt_(lit::ellipsis_)}))})->parse(nodes, source); });
 xxx_parser_impl(template_argument_, { return or_({constant_expression_, type_id_, id_expression_})->parse(nodes, source); });
 xxx_parser_impl(constraint_expression_, { return logical_or_expression_->parse(nodes, source); });
 xxx_parser_impl(deduction_guide_, { return seq_({opt_(explicit_specifier_), template_name_, lit::lp_, parameter_declaration_clause_, lit::rp_, lit::arrow_, simple_template_id_, lit::semi_})->parse(nodes, source); });
@@ -2962,7 +2962,7 @@ xxx_parser_impl(explicit_specialization_, { return seq_({lit::template_, lit::lt
 xxx_parser_impl(try_block_, { return seq_({lit::try_, compound_statement_, oom_(handler_)})->parse(nodes, source); });
 xxx_parser_impl(function_try_block_, { return seq_({lit::try_, opt_(ctor_initializer_), compound_statement_, oom_(handler_)})->parse(nodes, source); });
 xxx_parser_impl(handler_, { return seq_({lit::catch_, lit::lp_, exception_declaration_, lit::rp_, compound_statement_})->parse(nodes, source); });
-xxx_parser_impl(exception_declaration_, { return or_({lit::ellapsis_, seq_({zom_(attribute_specifier_), oom_(type_specifier_), or_({declarator_, opt_(abstract_declarator_)})})})->parse(nodes, source); });
+xxx_parser_impl(exception_declaration_, { return or_({lit::ellipsis_, seq_({zom_(attribute_specifier_), oom_(type_specifier_), or_({declarator_, opt_(abstract_declarator_)})})})->parse(nodes, source); });
 xxx_parser_impl(noexcept_specifier_, { return seq_({lit::noexcept_, opt_(seq_({lit::lp_, constant_expression_, lit::rp_}))})->parse(nodes, source); });
 
 }	 // namespace stx
