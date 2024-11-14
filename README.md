@@ -49,13 +49,6 @@ $ ./xcp (options) sources
 
 ## Grammar
 
-- simple-template-id:
-  - template-name < template-argument-list? >
-- identifier:
-
-  - identifier-start
-  - identifier identifier-continue
-
 ### A.2 Keywords [gram.key]
 
 - typedef-name:
@@ -76,6 +69,37 @@ $ ./xcp (options) sources
 
 ### A.3 Lexical conventions
 
+- n-char: one of
+  - any member of the translation character set except the u+007d right curly bracket or new-line
+  - character
+- n-char-sequence:
+  - n-char
+  - n-char-sequence n-char
+- named-universal-character:
+  - \N{ n-char-sequence }
+- hex-quad:
+  - hexadecimal-digit hexadecimal-digit hexadecimal-digit hexadecimal-digit
+- simple-hexadecimal-digit-sequence:
+  - hexadecimal-digit
+  - simple-hexadecimal-digit-sequence hexadecimal-digit
+- universal-character-name:
+  - \u hex-quad
+  - \U hex-quad hex-quad
+  - \u{ simple-hexadecimal-digit-sequence }
+  - named-universal-character
+- preprocessing-token:
+  - header-name
+  - import-keyword
+  - module-keyword
+  - export-keyword
+  - identifier
+  - pp-number
+  - character-literal
+  - user-defined-character-literal
+  - string-literal
+  - user-defined-string-literal
+  - preprocessing-op-or-punc
+  - each non-whitespace character that cannot be one of the above
 - token:
   - identifier
   - literal
@@ -83,11 +107,53 @@ $ ./xcp (options) sources
 - header-name:
   - < h-char-sequence >
   - " q-char-sequence "
+- h-char-sequence:
+  - h-char
+  - h-char-sequence h-char
+- h-char:
+  - any member of the translation character set except new-line and u+003e greater-than sign
+- q-char-sequence:
+  - q-char
+  - q-char-sequence q-char
+- q-char:
+  - any member of the translation character set except new-line and u+0022 quotation mark
+- pp-number:
+  - digit
+  - . digit
+  - pp-number identifier-continue
+  - pp-number ’ digit
+  - pp-number ’ nondigit
+  - pp-number e sign
+  - pp-number E sign
+  - pp-number p sign
+  - pp-number P sign
+  - pp-number .
+- identifier:
+  - identifier-start
+  - identifier identifier-continue
+- identifier-start:
+  - nondigit
+  - an element of the translation character set with the Unicode property XID_Start
+- identifier-continue:
+  - digit
+  - nondigit
+  - an element of the translation character set with the Unicode property XID_Continue
+- nondigit: one of
+  - a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z \_
+- digit: one of
+  - 0 1 2 3 4 5 6 7 8 9
 - keyword:
   - any identifier listed in Table 5
   - import-keyword
   - module-keyword
   - export-keyword
+- preprocessing-op-or-punc:
+  - preprocessing-operator
+  - operator-or-punctuator
+- preprocessing-operator: one of
+  - # ## %: %:%:
+- operator-or-punctuator: one of
+  - { } [ ] ( ) <: :> <% %> ; : ... ? :: . ._ -> ->_ ~ ! + - _ / % ^ & | = += -= _= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- , and or xor not bitand bitor compl and_eq or_eq xor_eq not_eq
 - literal:
   - integer-literal
   - character-literal
@@ -113,14 +179,126 @@ $ ./xcp (options) sources
   - decimal-literal ’? digit
 - hexadecimal-literal:
   - hexadecimal-prefix hexadecimal-digit-sequence
+- binary-digit: one of
+  - 0 1
+- octal-digit: one of
+  - 0 1 2 3 4 5 6 7
+- nonzero-digit: one of
+  - 1 2 3 4 5 6 7 8 9
+- hexadecimal-prefix: one of
+  - 0x 0X
+- hexadecimal-digit-sequence:
+  - hexadecimal-digit
+  - hexadecimal-digit-sequence ’? hexadecimal-digit
+- hexadecimal-digit: one of
+  - 0 1 2 3 4 5 6 7 8 9 a b c d e f A B C D E F
+- integer-suffix:
+  - unsigned-suffix long-suffix?
+  - unsigned-suffix long-long-suffix?
+  - unsigned-suffix size-suffix?
+  - long-suffix unsigned-suffix?
+  - long-long-suffix unsigned-suffix?
+  - size-suffix unsigned-suffix?
+- unsigned-suffix: one of
+  - u U
+- long-suffix: one of
+  - l L
+- long-long-suffix: one of
+  - ll LL
+- size-suffix: one of
+  - z Z
 - character-literal:
   - encoding-prefix? ’ c-char-sequence ’
+- encoding-prefix: one of
+  - u8 u U L
+- c-char-sequence:
+  - c-char
+  - c-char-sequence c-char
+- c-char:
+  - basic-c-char
+  - escape-sequence
+  - universal-character-name
+- basic-c-char:
+  - any member of the translation character set except the u+0027 apostrophe, u+005c reverse solidus, or new-line character
+- escape-sequence:
+  - simple-escape-sequence
+  - numeric-escape-sequence
+  - conditional-escape-sequence
+- simple-escape-sequence:
+  - \ simple-escape-sequence-char
+- simple-escape-sequence-char: one of
+  - ’ " ? \ a b f n r t v
+- numeric-escape-sequence:
+  - octal-escape-sequence
+  - hexadecimal-escape-sequence
+- simple-octal-digit-sequence:
+  - octal-digit
+  - simple-octal-digit-sequence octal-digit
+- octal-escape-sequence:
+  - \ octal-digit
+  - \ octal-digit octal-digit
+  - \ octal-digit octal-digit octal-digit
+  - \o{ simple-octal-digit-sequence }
+- hexadecimal-escape-sequence:
+  - \x simple-hexadecimal-digit-sequence
+  - \x{ simple-hexadecimal-digit-sequence }
+- conditional-escape-sequence:
+  - \ conditional-escape-sequence-char
+- conditional-escape-sequence-char:
+  - any member of the basic character set that is not an octal-digit, a simple-escape-sequence-char, or the characters N, o, u, U, or x
 - floating-point-literal:
   - decimal-floating-point-literal
   - hexadecimal-floating-point-literal
+- decimal-floating-point-literal:
+  - fractional-constant exponent-part? floating-point-suffix?
+  - digit-sequence exponent-part floating-point-suffix?
+- hexadecimal-floating-point-literal:
+  - hexadecimal-prefix hexadecimal-fractional-constant binary-exponent-part floating-point-suffix?
+  - hexadecimal-prefix hexadecimal-digit-sequence binary-exponent-part floating-point-suffix?
+- fractional-constant:
+  - digit-sequence? . digit-sequence
+  - digit-sequence .
+- hexadecimal-fractional-constant:
+  - hexadecimal-digit-sequence? . hexadecimal-digit-sequence
+  - hexadecimal-digit-sequence .
+- exponent-part:
+  - e sign? digit-sequence
+  - E sign? digit-sequence
+- binary-exponent-part:
+  - p sign? digit-sequence
+  - P sign? digit-sequence
+- sign: one of
+  ***
+- digit-sequence:
+  - digit
+  - digit-sequence ’? digit
+- floating-point-suffix: one of
+  - f l f16 f32 f64 f128 bf16 F L F16 F32 F64 F128 BF16
 - string-literal:
   - encoding-prefix? " s-char-sequence? "
   - encoding-prefix? R raw-string
+- s-char-sequence:
+  - s-char
+  - s-char-sequence s-char
+- s-char:
+  - basic-s-char
+  - escape-sequence
+  - universal-character-name
+- basic-s-char:
+  - any member of the translation character set except the u+0022 quotation mark, u+005c reverse solidus, or new-line character
+- raw-string:
+  - " d-char-sequence? ( r-char-sequence? ) d-char-sequence? "
+- r-char-sequence:
+  - r-char
+  - r-char-sequence r-char
+- r-char:
+  - any member of the translation character set, except a u+0029 right parenthesis followed by the initial d-char-sequence (which may be empty) followed by a u+0022 quotation mark
+- d-char-sequence:
+  - d-char
+  - d-char-sequence d-char
+- d-char:
+  - any member of the basic character set except:
+    - u+0020 space, u+0028 left parenthesis, u+0029 right parenthesis, u+005c reverse solidus, u+0009 character tabulation, u+000b line tabulation, u+000c form feed, and new-line
 - boolean-literal:
   - true
   - false
@@ -184,16 +362,14 @@ $ ./xcp (options) sources
   - nested-name-specifier template? simple-template-id ::
 - lambda-expression:
   - lambda-introducer attribute-specifier\* lambda-declarator compound-statement
-  - lambda-introducer < template-parameter-list > requires-clause? attribute-specifier\*
-  - lambda-declarator compound-statement
+  - lambda-introducer < template-parameter-list > requires-clause? attribute-specifier\* lambda-declarator compound-statement
 - lambda-introducer:
   - [ lambda-capture? ]
 - lambda-declarator:
   - lambda-specifier+ noexcept-specifier? attribute-specifier\* trailing-return-type?
   - noexcept-specifier attribute-specifier\* trailing-return-type?
   - trailing-return-type?
-  - ( parameter-declaration-clause ) lambda-specifier* noexcept-specifier? attribute-specifie*
-  - trailing-return-type? requires-clause?
+  - ( parameter-declaration-clause ) lambda-specifier* noexcept-specifier? attribute-specifie* trailing-return-type? requires-clause?
 - lambda-specifier:
   - consteval
   - constexpr
@@ -281,7 +457,7 @@ $ ./xcp (options) sources
   - new-expression
   - delete-expression
 - unary-operator:
-  - unary-operator: one of \* & + - ! ~
+  - one of \* & + - ! ~
 - await-expression:
   - co_await cast-expression
 - noexcept-expression:
@@ -559,8 +735,7 @@ $ ./xcp (options) sources
   - noptr-declarator [ constant-expression? ] attribute-specifier\*
   - ( ptr-declarator )
 - parameters-and-qualifiers:
-  - ( vparameter-declaration-clause ) cv-qualifier\*
-  - ref-qualifier? noexcept-specifier? attribute-specifier\*
+  - ( parameter-declaration-clause ) cv-qualifier\* ref-qualifier? noexcept-specifier? attribute-specifier\*
 - trailing-return-type:
   - -> type-id
 - ptr-operator:
@@ -768,7 +943,7 @@ $ ./xcp (options) sources
   - class-head { member-specification? }
 - class-head:
   - class-key attribute-specifier\* class-head-name class-virt-specifier? base-clause?
-  - class-key attribute-spe/cifier\* base-clause?
+  - class-key attribute-specifier\* base-clause?
 - class-head-name:
   - nested-name-specifier? class-name
 - class-virt-specifier:
@@ -846,11 +1021,7 @@ $ ./xcp (options) sources
 - operator-function-id:
   - operator operator
 - operator: one of
-  - new delete new[] delete[] co*await ( ) [ ] -> ->*\*
-    ~ ! + - \_ / % ^ &
-    | = += -= \*= /= %= ^= &=
-    |= == != < > <= >= <=> &&
-    || << >> <<= >>= ++ -- ,
+  - new delete new[] delete[] co*await ( ) [ ] -> ->*\* ~ ! + - \_ / % ^ & | = += -= \*= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- ,
 - literal-operator-id:
   - operator string-literal identifier
   - operator user-defined-string-literal
@@ -895,7 +1066,7 @@ $ ./xcp (options) sources
   - literal-operator-id < template-argument-list? >
 - template-argument-list:
   - template-argument ...?
-  - template-argument-list , template-argum? ...?
+  - template-argument-list , template-argument? ...?
 - template-argument:
   - constant-expression
   - type-id
@@ -933,6 +1104,96 @@ $ ./xcp (options) sources
 - noexcept-specifier:
   - noexcept ( constant-expression )
   - noexcept
+
+### A.13 Preprocessing directives
+
+- preprocessing-file:
+  - group?
+  - module-file
+- module-file:
+  - pp-global-module-fragment? pp-module group? pp-private-module-fragment?
+  - pp-global-module-fragment:
+  - module ; new-line group?
+- pp-private-module-fragment:
+  - module : private ; new-line group?
+- group:
+  - group-part
+  - group group-part
+- group-part:
+  - control-line
+  - if-section
+  - text-line
+  - # conditionally-supported-directive
+- control-line:
+  - # include pp-tokens new-line
+  - pp-import
+  - # define identifier replacement-list new-line
+  - # define identifier lparen identifier-list? ) replacement-list new-line
+  - # define identifier lparen ... ) replacement-list new-line
+  - # define identifier lparen identifier-list , ... ) replacement-list new-line
+  - # undef identifier new-line
+  - # line pp-tokens new-line
+  - # error pp-tokens? new-line
+  - # warning pp-tokens? new-line
+  - # pragma pp-tokens? new-line
+  - # new-line
+- if-section:
+  - if-group elif-groups? else-group? endif-line
+- if-group:
+  - # if constant-expression new-line group?
+  - # ifdef identifier new-line group?
+  - # ifndef identifier new-line group?
+- elif-groups:
+  - elif-group
+  - elif-groups elif-group
+- elif-group:
+  - # elif constant-expression new-line group?
+  - # elifdef identifier new-line group?
+  - # elifndef identifier new-line group?
+- else-group:
+  - # else new-line group?
+- endif-line:
+  - # endif new-line
+- text-line:
+  - pp-tokens? new-line
+- conditionally-supported-directive:
+  - pp-tokens new-line
+- lparen:
+  - a ( character not immediately preceded by whitespace
+- identifier-list:
+  - identifier
+  - identifier-list , identifier
+- replacement-list:
+  - pp-tokens?
+- pp-tokens:
+  - preprocessing-token
+  - pp-tokens preprocessing-token
+- new-line:
+  - the new-line character
+- defined-macro-expression:
+  - defined identifier
+  - defined ( identifier )
+- h-preprocessing-token:
+  - any preprocessing-token other than >
+- h-pp-tokens:
+  - h-preprocessing-token
+  - h-pp-tokens h-preprocessing-token
+- header-name-tokens:
+  - string-literal
+  - < h-pp-tokens >
+- has-include-expression:
+  - \_\_has_include ( header-name )
+  - \_\_has_include ( header-name-tokens )
+- has-attribute-expression:
+  - \_\_has_cpp_attribute ( pp-tokens )
+- pp-module:
+  - export? module pp-tokens? ; new-line
+- pp-import:
+  - export? import header-name pp-tokens? ; new-line
+  - export? import header-name-tokens pp-tokens? ; new-line
+  - export? import pp-tokens ; new-line
+- va-opt-replacement:
+  - \_\_VA_OPT\_\_ ( pp-tokens? )
 
 ## Implementation defined
 
