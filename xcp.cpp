@@ -223,143 +223,197 @@ std::string load_file(std::filesystem::path const& path) {
 namespace lex {
 namespace def {
 
-auto const and_s_="and"s;
-auto const and_eq_s_="and_eq"s;
-auto const or_s_="or"s;
-auto const or_eq_s_="or_eq"s;
-auto const xor_s_="xor"s;
-auto const xor_eq_s_="xor_eq"s;
-auto const not_s_="not"s;
-auto const not_eq_s_="not_eq"s;
-auto const compl_s_="compl"s;
-auto const bitand_s_="bitand"s;
-auto const bitor_s_="bitor"s;
+auto const and_s_	 = "and"s;
+auto const and_eq_s_ = "and_eq"s;
+auto const or_s_	 = "or"s;
+auto const or_eq_s_	 = "or_eq"s;
+auto const xor_s_	 = "xor"s;
+auto const xor_eq_s_ = "xor_eq"s;
+auto const not_s_	 = "not"s;
+auto const not_eq_s_ = "not_eq"s;
+auto const compl_s_	 = "compl"s;
+auto const bitand_s_ = "bitand"s;
+auto const bitor_s_	 = "bitor"s;
 
-auto const  alignas_s_=	"alignas"s;
-auto const  alignof_s_=	"alignof"s;
-auto const  asm_s_=	"asm"s;
-auto const  auto_s_=	"auto"s;
-auto const  bool_s_=	"bool"s;
-auto const  break_s_=	"break"s;
-auto const  case_s_=	"case"s;
-auto const  catch_s_=	"catch"s;
-auto const  char_s_=	"char"s;
-auto const  char8_t_s_=	"char8_t"s;
-auto const  char16_t_s_=	"char16_t"s;
-auto const  char32_t_s_=	"char32_t"s;
-auto const  class_s_=	"class"s;
-auto const  concept_s_=	"concept"s;
-auto const  const_s_=	"const"s;
-auto const  constexpr_s_=	"constexpr"s;
-auto const  consteval_s_=	"consteval"s;
-auto const  constinit_s_=	"constinit"s;
-auto const  const_cast_s_=	"const_cast"s;
-auto const  co_await_s_=	"co_await"s;
-auto const  co_return_s_=	"co_return"s;
-auto const  co_yield_s_=	"co_yield"s;
-auto const  continue_s_=	"continue"s;
-auto const  decltype_s_=	"decltype"s;
-auto const  default_s_=	"default"s;
-auto const  do_s_=	"do"s;
-auto const  delete_s_=	"delete"s;
-auto const  double_s_=	"double"s;
-auto const  dynamic_cast_s_=	"dynamic_cast"s;
-auto const  else_s_=	"else"s;
-auto const  enum_s_=	"enum"s;
-auto const  explicit_s_=	"explicit"s;
-auto const  export_s_=	"export"s;
-auto const  extern_s_=	"extern"s;
-auto const  false_s_=	"false"s;
-auto const  float_s_=	"float"s;
-auto const  for_s_=	"for"s;
-auto const  friend_s_=	"friend"s;
-auto const  goto_s_=	"goto"s;
-auto const  if_s_=	"if"s;
-auto const  inline_s_=	"inline"s;
-auto const  int_s_=	"int"s;
-auto const  long_s_=	"long"s;
-auto const  mutable_s_=	"mutable"s;
-auto const  namespace_s_=	"namespace"s;
-auto const  new_s_=	"new"s;
-auto const  noexcept_s_=	"noexcept"s;
-auto const  nullptr_s_=	"nullptr"s;
-auto const  operator_s_=	"operator"s;
-auto const  private_s_=	"private"s;
-auto const  protected_s_=	"protected"s;
-auto const  public_s_=	"public"s;
-auto const  reinterpret_cast_s_=	"reinterpret_cast"s;
-auto const  requires_s_=	"requires"s;
-auto const  return_s_=	"return"s;
-auto const  register_s_=	"register"s;
-auto const  short_s_=	"short"s;
-auto const  signed_s_=	"signed"s;
-auto const  sizeof_s_=	"sizeof"s;
-auto const  static_s_=	"static"s;
-auto const  static_assert_s_=	"static_assert"s;
-auto const  static_cast_s_=	"static_cast"s;
-auto const  struct_s_=	"struct"s;
-auto const  switch_s_=	"switch"s;
-auto const  template_s_=	"template"s;
-auto const  this_s_=	"this"s;
-auto const  thread_local_s_=	"thread_local"s;
-auto const  throw_s_=	"throw"s;
-auto const  typedef_s_=	"typedef"s;
-auto const  typeid_s_=	"typeid"s;
-auto const  typename_s_=	"typename"s;
-auto const  try_s_=	"try"s;
-auto const  true_s_=	"true"s;
-auto const  union_s_=	"union"s;
-auto const  unsigned_s_=	"unsigned"s;
-auto const  using_s_=	"using"s;
-auto const  virtual_s_=	"virtual"s;
-auto const  void_s_=	"void"s;
-auto const  volatile_s_=	"volatile"s;
-auto const  wchar_t_s_=	"wchar_t"s;
-auto const  while_s_=	"while"s;
+auto const alignas_s_		   = "alignas"s;
+auto const alignof_s_		   = "alignof"s;
+auto const asm_s_			   = "asm"s;
+auto const auto_s_			   = "auto"s;
+auto const bool_s_			   = "bool"s;
+auto const break_s_			   = "break"s;
+auto const case_s_			   = "case"s;
+auto const catch_s_			   = "catch"s;
+auto const char_s_			   = "char"s;
+auto const char8_t_s_		   = "char8_t"s;
+auto const char16_t_s_		   = "char16_t"s;
+auto const char32_t_s_		   = "char32_t"s;
+auto const class_s_			   = "class"s;
+auto const concept_s_		   = "concept"s;
+auto const const_s_			   = "const"s;
+auto const constexpr_s_		   = "constexpr"s;
+auto const consteval_s_		   = "consteval"s;
+auto const constinit_s_		   = "constinit"s;
+auto const const_cast_s_	   = "const_cast"s;
+auto const co_await_s_		   = "co_await"s;
+auto const co_return_s_		   = "co_return"s;
+auto const co_yield_s_		   = "co_yield"s;
+auto const continue_s_		   = "continue"s;
+auto const decltype_s_		   = "decltype"s;
+auto const default_s_		   = "default"s;
+auto const do_s_			   = "do"s;
+auto const delete_s_		   = "delete"s;
+auto const double_s_		   = "double"s;
+auto const dynamic_cast_s_	   = "dynamic_cast"s;
+auto const else_s_			   = "else"s;
+auto const enum_s_			   = "enum"s;
+auto const explicit_s_		   = "explicit"s;
+auto const export_s_		   = "export"s;
+auto const extern_s_		   = "extern"s;
+auto const false_s_			   = "false"s;
+auto const float_s_			   = "float"s;
+auto const for_s_			   = "for"s;
+auto const friend_s_		   = "friend"s;
+auto const goto_s_			   = "goto"s;
+auto const if_s_			   = "if"s;
+auto const inline_s_		   = "inline"s;
+auto const int_s_			   = "int"s;
+auto const long_s_			   = "long"s;
+auto const mutable_s_		   = "mutable"s;
+auto const namespace_s_		   = "namespace"s;
+auto const new_s_			   = "new"s;
+auto const noexcept_s_		   = "noexcept"s;
+auto const nullptr_s_		   = "nullptr"s;
+auto const operator_s_		   = "operator"s;
+auto const private_s_		   = "private"s;
+auto const protected_s_		   = "protected"s;
+auto const public_s_		   = "public"s;
+auto const reinterpret_cast_s_ = "reinterpret_cast"s;
+auto const requires_s_		   = "requires"s;
+auto const return_s_		   = "return"s;
+auto const register_s_		   = "register"s;
+auto const short_s_			   = "short"s;
+auto const signed_s_		   = "signed"s;
+auto const sizeof_s_		   = "sizeof"s;
+auto const static_s_		   = "static"s;
+auto const static_assert_s_	   = "static_assert"s;
+auto const static_cast_s_	   = "static_cast"s;
+auto const struct_s_		   = "struct"s;
+auto const switch_s_		   = "switch"s;
+auto const template_s_		   = "template"s;
+auto const this_s_			   = "this"s;
+auto const thread_local_s_	   = "thread_local"s;
+auto const throw_s_			   = "throw"s;
+auto const typedef_s_		   = "typedef"s;
+auto const typeid_s_		   = "typeid"s;
+auto const typename_s_		   = "typename"s;
+auto const try_s_			   = "try"s;
+auto const true_s_			   = "true"s;
+auto const union_s_			   = "union"s;
+auto const unsigned_s_		   = "unsigned"s;
+auto const using_s_			   = "using"s;
+auto const virtual_s_		   = "virtual"s;
+auto const void_s_			   = "void"s;
+auto const volatile_s_		   = "volatile"s;
+auto const wchar_t_s_		   = "wchar_t"s;
+auto const while_s_			   = "while"s;
 
-auto const  override_s_=	"override"s;
-auto const  final_s_=	"final"s;
+auto const override_s_ = "override"s;
+auto const final_s_	   = "final"s;
 
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
 std::unordered_set<std::string_view> const keywords{
-	alignas_s_, alignof_s_, asm_s_, auto_s_,
+	alignas_s_,
+	alignof_s_,
+	asm_s_,
+	auto_s_,
 
-	bool_s_, break_s_,
+	bool_s_,
+	break_s_,
 
-	case_s_, catch_s_, char_s_, char16_t_s_, char32_t_s_, class_s_, const_s_, constexpr_s_, const_cast_s_, continue_s_,
+	case_s_,
+	catch_s_,
+	char_s_,
+	char16_t_s_,
+	char32_t_s_,
+	class_s_,
+	const_s_,
+	constexpr_s_,
+	const_cast_s_,
+	continue_s_,
 
-	decltype_s_, default_s_, do_s_, delete_s_, double_s_, dynamic_cast_s_,
+	decltype_s_,
+	default_s_,
+	do_s_,
+	delete_s_,
+	double_s_,
+	dynamic_cast_s_,
 
-	else_s_, enum_s_, explicit_s_, export_s_, extern_s_,
+	else_s_,
+	enum_s_,
+	explicit_s_,
+	export_s_,
+	extern_s_,
 
-	false_s_, float_s_, for_s_, friend_s_,
+	false_s_,
+	float_s_,
+	for_s_,
+	friend_s_,
 
 	goto_s_,
 
-	if_s_, inline_s_, int_s_,
+	if_s_,
+	inline_s_,
+	int_s_,
 
 	long_s_,
 
 	mutable_s_,
 
-	namespace_s_, new_s_, noexcept_s_, nullptr_s_,
+	namespace_s_,
+	new_s_,
+	noexcept_s_,
+	nullptr_s_,
 
 	operator_s_,
 
-	private_s_, protected_s_, public_s_,
+	private_s_,
+	protected_s_,
+	public_s_,
 
-	return_s_, reinterpret_cast_s_, register_s_,
+	return_s_,
+	reinterpret_cast_s_,
+	register_s_,
 
-	short_s_, signed_s_, sizeof_s_, static_s_, static_assert_s_, static_cast_s_, struct_s_, switch_s_,
+	short_s_,
+	signed_s_,
+	sizeof_s_,
+	static_s_,
+	static_assert_s_,
+	static_cast_s_,
+	struct_s_,
+	switch_s_,
 
-	template_s_, this_s_, thread_local_s_, throw_s_, typedef_s_, typeid_s_, typename_s_, try_s_, true_s_,
+	template_s_,
+	this_s_,
+	thread_local_s_,
+	throw_s_,
+	typedef_s_,
+	typeid_s_,
+	typename_s_,
+	try_s_,
+	true_s_,
 
-	union_s_, unsigned_s_, using_s_,
+	union_s_,
+	unsigned_s_,
+	using_s_,
 
-	virtual_s_, void_s_, volatile_s_,
+	virtual_s_,
+	void_s_,
+	volatile_s_,
 
-	wchar_t_s_, while_s_,
+	wchar_t_s_,
+	while_s_,
 };
 
 // regex rules
@@ -2638,10 +2692,10 @@ xxx_parser_impl(init_capture_, { return seq_({opt_(lit::amp_), opt_(lit::ellipsi
 xxx_parser_impl(fold_expression_, { return seq_({lit::lp_, or_({seq_({lit::ellipsis_, fold_operator_, cast_expression_}), seq_({constant_expression_, fold_operator_, lit::ellipsis_, opt_(seq_({fold_operator_, cast_expression_}))})}), lit::rp_})->parse(nodes, source); });
 xxx_parser_impl(fold_operator_, {
 	return op_set_({"->*", "->",
-				 "==", "!=", "<=", ">=", "&&", "||", ",", ".*",
-				 "*=", "/=", "%=", "+=", "-=", "^", "&=", "!", "<<=", ">>=",
-				 "*", "/", "%", "+", "-", "^=", "&", "|=", "<<", ">>",
-				 "<", ">"})
+					"==", "!=", "<=", ">=", "&&", "||", ",", ".*",
+					"*=", "/=", "%=", "+=", "-=", "^", "&=", "!", "<<=", ">>=",
+					"*", "/", "%", "+", "-", "^=", "&", "|=", "<<", ">>",
+					"<", ">"})
 		->parse(nodes, source);
 });
 xxx_parser_impl(requires_expression_, { return seq_({lit::requires_, opt_(requirement_parameter_list_), requirement_body_})->parse(nodes, source); });
@@ -2653,11 +2707,7 @@ xxx_parser_impl(type_requirement_, { return seq_({lit::typename_, opt_(nested_na
 xxx_parser_impl(compound_requirement_, { return seq_({lit::lbc_, expression_, lit::rbc_, opt_(lit::noexcept_), opt_(return_type_requirement_), lit::semi_})->parse(nodes, source); });
 xxx_parser_impl(return_type_requirement_, { return seq_({lit::arrow_, type_constraint_})->parse(nodes, source); });
 xxx_parser_impl(nested_requirement_, { return seq_({lit::requires_, constraint_expression_, lit::semi_})->parse(nodes, source); });
-xxx_parser_impl(postfix_expression_, {
-	return seq_({or_({primary_expression_, seq_({or_({typename_specifier_, simple_type_specifier_}), or_({seq_({lit::lp_, opt_(expression_list_), lit::rp_}), braced_init_list_})}), seq_({kw_set_({lex::def::dynamic_cast_s_, lex::def::static_cast_s_, lex::def::reinterpret_cast_s_, lex::def::const_cast_s_}), lit::lt_, type_id_, lit::gt_, lit::lp_, expression_, lit::rp_}), seq_({lit::typeid_, lit::lp_, or_({type_id_, expression_}), lit::rp_})}),
-				 zom_(or_({seq_({lit::lbk_, opt_(expression_list_), lit::rbk_}), seq_({lit::lp_, opt_(expression_list_), lit::rp_}), seq_({op_set_({"->", "."}), opt_(lit::template_), id_expression_}), op_set_({"++", "--"})}))})
-		->parse(nodes, source);
-});
+xxx_parser_impl(postfix_expression_, { return seq_({or_({primary_expression_, seq_({or_({typename_specifier_, simple_type_specifier_}), or_({seq_({lit::lp_, opt_(expression_list_), lit::rp_}), braced_init_list_})}), seq_({kw_set_({lex::def::dynamic_cast_s_, lex::def::static_cast_s_, lex::def::reinterpret_cast_s_, lex::def::const_cast_s_}), lit::lt_, type_id_, lit::gt_, lit::lp_, expression_, lit::rp_}), seq_({lit::typeid_, lit::lp_, or_({type_id_, expression_}), lit::rp_})}), zom_(or_({seq_({lit::lbk_, opt_(expression_list_), lit::rbk_}), seq_({lit::lp_, opt_(expression_list_), lit::rp_}), seq_({op_set_({"->", "."}), opt_(lit::template_), id_expression_}), op_set_({"++", "--"})}))})->parse(nodes, source); });
 xxx_parser_impl(expression_list_, { return initializer_list_->parse(nodes, source); });
 xxx_parser_impl(unary_expression_, {
 	return or_({seq_({op_set_({"++", "--"}), cast_expression_}),
@@ -2674,12 +2724,7 @@ xxx_parser_impl(unary_expression_, {
 xxx_parser_impl(unary_operator_, { return op_set_({"&", "*", "+", "-", "~", "!"})->parse(nodes, source); });
 xxx_parser_impl(await_expression_, { return seq_({lit::co_await_, cast_expression_})->parse(nodes, source); });
 xxx_parser_impl(noexcept_expression_, { return seq_({lit::noexcept_, lit::lp_, expression_, lit::rp_})->parse(nodes, source); });
-xxx_parser_impl(new_expression_, {
-	return seq_({opt_(lit::scope_), lit::new_, opt_(new_placement_),
-				 or_({seq_({lit::lp_, type_id_, lit::rp_}), new_type_id_}),
-				 opt_(new_initializer_)})
-		->parse(nodes, source);
-});
+xxx_parser_impl(new_expression_, { return seq_({opt_(lit::scope_), lit::new_, opt_(new_placement_), or_({seq_({lit::lp_, type_id_, lit::rp_}), new_type_id_}), opt_(new_initializer_)})->parse(nodes, source); });
 xxx_parser_impl(new_placement_, { return seq_({lit::lp_, expression_list_, lit::rp_})->parse(nodes, source); });
 xxx_parser_impl(new_type_id_, { return seq_({oom_(type_specifier_), opt_(attribute_specifier_), opt_(new_declarator_)})->parse(nodes, source); });
 xxx_parser_impl(new_declarator_, { return seq_({zom_(ptr_operator_), opt_(noptr_new_declarator_)})->parse(nodes, source); });
@@ -2817,11 +2862,7 @@ xxx_parser_impl(init_declarator_list_, { return seq_({init_declarator_, zom_(seq
 xxx_parser_impl(init_declarator_, { return seq_({declarator_, or_({requires_clause_, opt_(initializer_)})})->parse(nodes, source); });
 xxx_parser_impl(declarator_, { return or_({ptr_declarator_, seq_({noptr_declarator_, parameters_and_qualifiers_, trailing_return_type_})})->parse(nodes, source); });
 xxx_parser_impl(ptr_declarator_, { return seq_({zom_(ptr_operator_), noptr_declarator_})->parse(nodes, source); });
-xxx_parser_impl(noptr_declarator_, {
-	return seq_({or_({seq_({lit::lp_, ptr_declarator_, lit::rp_}), seq_({declarator_id_, zom_(attribute_specifier_)})}),
-				 zom_(or_({seq_({lit::lbk_, opt_(constant_expression_), lit::rbk_, zom_(attribute_specifier_)}), parameters_and_qualifiers_}))})
-		->parse(nodes, source);
-});
+xxx_parser_impl(noptr_declarator_, { return seq_({or_({seq_({lit::lp_, ptr_declarator_, lit::rp_}), seq_({declarator_id_, zom_(attribute_specifier_)})}), zom_(or_({seq_({lit::lbk_, opt_(constant_expression_), lit::rbk_, zom_(attribute_specifier_)}), parameters_and_qualifiers_}))})->parse(nodes, source); });
 xxx_parser_impl(parameters_and_qualifiers_, {
 	return or_({
 				   seq_({lit::lp_, parameter_declaration_clause_, lit::rp_, zom_(cv_qualifier_)}),
@@ -2939,11 +2980,7 @@ xxx_parser_impl(member_declaration_, {
 		->parse(nodes, source);
 });
 xxx_parser_impl(member_declarator_list_, { return seq_({member_declarator_, zom_(seq_({lit::comma_, member_declarator_}))})->parse(nodes, source); });
-xxx_parser_impl(member_declarator_, {
-	return or_({seq_({declarator_, or_({requires_clause_, seq_({zom_(virt_specifier_), opt_(pure_specifier_)}), opt_(brace_or_equal_initializer_)})}),
-				seq_({opt_(identifier_), zom_(attribute_specifier_), lit::col_, constant_expression_, opt_(brace_or_equal_initializer_)})})
-		->parse(nodes, source);
-});
+xxx_parser_impl(member_declarator_, { return or_({seq_({declarator_, or_({requires_clause_, seq_({zom_(virt_specifier_), opt_(pure_specifier_)}), opt_(brace_or_equal_initializer_)})}), seq_({opt_(identifier_), zom_(attribute_specifier_), lit::col_, constant_expression_, opt_(brace_or_equal_initializer_)})})->parse(nodes, source); });
 xxx_parser_impl(virt_specifier_, { return kw_set_({lex::def::override_s_, lex::def::final_s_})->parse(nodes, source); });
 xxx_parser_impl(pure_specifier_, { return seq_({lit::eq_, lit::zero_})->parse(nodes, source); });
 xxx_parser_impl(conversion_function_id_, { return seq_({lit::operator_, conversion_type_id_})->parse(nodes, source); });
@@ -2982,11 +3019,7 @@ xxx_parser_impl(requires_clause_, { return seq_({lit::requires_, constraint_logi
 xxx_parser_impl(constraint_logical_or_expression_, { return seq_({constraint_logical_and_expression_, oom_(seq_({lit::vl2_, constraint_logical_and_expression_}))})->parse(nodes, source); });
 xxx_parser_impl(constraint_logical_and_expression_, { return seq_({primary_expression_, oom_(seq_({lit::amp2_, primary_expression_}))})->parse(nodes, source); });
 xxx_parser_impl(template_parameter_, { return or_({type_parameter_, parameter_declaration_})->parse(nodes, source); });
-xxx_parser_impl(type_parameter_, {
-	return or_({seq_({or_({type_constraint_, type_parameter_key_}), or_({seq_({opt_(identifier_), lit::eq_, type_id_}), seq_({opt_(lit::ellipsis_), opt_(identifier_)})})}),
-				seq_({template_head_, type_parameter_key_, or_({seq_({opt_(identifier_), lit::eq_, id_expression_}), seq_({opt_(lit::ellipsis_), opt_(identifier_)})})})})
-		->parse(nodes, source);
-});
+xxx_parser_impl(type_parameter_, { return or_({seq_({or_({type_constraint_, type_parameter_key_}), or_({seq_({opt_(identifier_), lit::eq_, type_id_}), seq_({opt_(lit::ellipsis_), opt_(identifier_)})})}), seq_({template_head_, type_parameter_key_, or_({seq_({opt_(identifier_), lit::eq_, id_expression_}), seq_({opt_(lit::ellipsis_), opt_(identifier_)})})})})->parse(nodes, source); });
 xxx_parser_impl(type_parameter_key_, { return or_({lit::class_, lit::typename_})->parse(nodes, source); });
 xxx_parser_impl(type_constraint_, { return seq_({opt_(nested_name_specifier_), concept_name_, opt_(seq_({lit::lt_, opt_(template_argument_list_), lit::gt_}))})->parse(nodes, source); });
 xxx_parser_impl(simple_template_id_, { return seq_({template_name_, lit::lt_, opt_(template_argument_list_), lit::gt_})->parse(nodes, source); });
