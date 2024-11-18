@@ -14,7 +14,7 @@
 - It designates to simple use of modern C++20.
 - It cannot always satisfy all the requirements on actual usages.
 - It is not efficient for actual purpose.
-- It is just "as is" and no warranty and no garranty for any use and damage of any one.
+- It is just "as is" and no warranty and no guarantee for any use and damage of any one.
 - It complies with the laws and regulations of Japan.
 
 ## Environments
@@ -25,7 +25,7 @@
   - GNU g++ / libstdc++
   - LLVM clang++ / libc++ (It fails to compile currently because it has not supported std::source_location well yet.)
   - Visual C++
-- It can be built on the "hosted" environtments. e.g.,
+- It can be built on the "hosted" environments. e.g.,
   - 32/64bit Windows
   - 32/64bit Linux
 
