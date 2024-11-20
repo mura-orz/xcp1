@@ -6,8 +6,17 @@
 #ifndef __XXX_version
 #define __XXX_version
 
+#ifndef __cpp_lib_adaptor_iterator_pair_constructor
+#define __cpp_lib_adaptor_iterator_pair_constructor (202106L)	 // C++23
+#endif
 #ifndef __cpp_lib_addressof_constexpr
 #define __cpp_lib_addressof_constexpr (201603L)
+#endif
+#ifndef __cpp_lib_algorithm_iterator_requirements
+#define __cpp_lib_algorithm_iterator_requirements (202207L)	   // C++23
+#endif
+#ifndef __cpp_lib_allocate_at_least
+#define __cpp_lib_allocate_at_least (202302L)	 // C++23
 #endif
 #ifndef __cpp_lib_allocator_traits_is_always_equal
 #define __cpp_lib_allocator_traits_is_always_equal (201411L)
@@ -39,6 +48,24 @@
 #ifndef __cpp_lib_atomic_lock_free_type_aliases
 #define __cpp_lib_atomic_lock_free_type_aliases (201907L)
 #endif
+#ifndef __cpp_lib_associative_heterogeneous_erasure
+#define __cpp_lib_associative_heterogeneous_erasure (202110L)	 // C++23
+#endif
+#ifndef __cpp_lib_assume_aligned
+#define __cpp_lib_assume_aligned (201811L)	  // C++23
+#endif
+#ifndef __cpp_lib_atomic_flag_test
+#define __cpp_lib_atomic_flag_test (201907L)	// C++23
+#endif
+#ifndef __cpp_lib_atomic_float
+#define __cpp_lib_atomic_float (201711L)	// C++23
+#endif
+#ifndef __cpp_lib_atomic_is_always_lock_free
+#define __cpp_lib_atomic_is_always_lock_free (201603L)	  // C++23
+#endif
+#ifndef __cpp_lib_atomic_lock_free_type_aliases
+#define __cpp_lib_atomic_lock_free_type_aliases (201907L)	 // C++23
+#endif
 #ifndef __cpp_lib_atomic_ref
 #define __cpp_lib_atomic_ref (201806L)
 #endif
@@ -52,7 +79,10 @@
 #define __cpp_lib_atomic_wait (201907L)
 #endif
 #ifndef __cpp_lib_barrier
-#define __cpp_lib_barrier (201907L)
+#define __cpp_lib_barrier (202302L)	   // C++23 (updated)
+#endif
+#ifndef __cpp_lib_bind_back
+#define __cpp_lib_bind_back (201907L)	 // C++23
 #endif
 #ifndef __cpp_lib_bind_front
 #define __cpp_lib_bind_front (201907L)
@@ -75,6 +105,9 @@
 #ifndef __cpp_lib_byte
 #define __cpp_lib_byte (201603L)
 #endif
+#ifndef __cpp_lib_byteswap
+#define __cpp_lib_byteswap (202110L)	// C++23 (updated)
+#endif
 #ifndef __cpp_lib_char8_t
 #define __cpp_lib_char8_t (201907L)
 #endif
@@ -87,6 +120,12 @@
 #ifndef __cpp_lib_clamp
 #define __cpp_lib_clamp (201603L)
 #endif
+#ifndef __cpp_lib_common_reference
+#define __cpp_lib_common_reference (202302L)	// C++23
+#endif
+#ifndef __cpp_lib_common_reference_wrapper
+#define __cpp_lib_common_reference_wrapper (202302L)	// C++23
+#endif
 #ifndef __cpp_lib_complex_udls
 #define __cpp_lib_complex_udls (201309L)
 #endif
@@ -96,13 +135,21 @@
 #ifndef __cpp_lib_constexpr_algorithms
 #define __cpp_lib_constexpr_algorithms (201806L)
 #endif
+#ifndef __cpp_lib_constexpr_bitset
+#define __cpp_lib_constexpr_bitset (202207L)	// C++23
+#endif
+#ifndef __cpp_lib_constexpr_charconv
+#define __cpp_lib_constexpr_charconv (202207L)	  // C++23
+#endif
+#ifndef __cpp_lib_constexpr_cmath
+#define __cpp_lib_constexpr_cmath (202207L)	   // C++23
+#endif
 #ifndef __cpp_lib_constexpr_complex
 #define __cpp_lib_constexpr_complex (201711L)
 #endif
 #ifndef __cpp_lib_constexpr_dynamic_alloc
 #define __cpp_lib_constexpr_dynamic_alloc (201907L)
 #endif
-
 #ifndef __cpp_lib_constexpr_functional
 #define __cpp_lib_constexpr_functional (201907L)
 #endif
@@ -110,7 +157,7 @@
 #define __cpp_lib_constexpr_iterator (201811L)
 #endif
 #ifndef __cpp_lib_constexpr_memory
-#define __cpp_lib_constexpr_memory (201811L)
+#define __cpp_lib_constexpr_memory (202202L)	// C++23 (updated)
 #endif
 #ifndef __cpp_lib_constexpr_numeric
 #define __cpp_lib_constexpr_numeric (201911L)
@@ -124,11 +171,17 @@
 #ifndef __cpp_lib_constexpr_tuple
 #define __cpp_lib_constexpr_tuple (201811L)
 #endif
+#ifndef __cpp_lib_constexpr_typeinfo
+#define __cpp_lib_constexpr_typeinfo (202106L)	  // C++23
+#endif
 #ifndef __cpp_lib_constexpr_utility
 #define __cpp_lib_constexpr_utility (201811L)
 #endif
 #ifndef __cpp_lib_constexpr_vector
 #define __cpp_lib_constexpr_vector (201907L)
+#endif
+#ifndef __cpp_lib_containers_ranges
+#define __cpp_lib_containers_ranges (202202L)	 // C++23
 #endif
 #ifndef __cpp_lib_coroutine
 #define __cpp_lib_coroutine (201902L)
@@ -151,14 +204,35 @@
 #ifndef __cpp_lib_execution
 #define __cpp_lib_execution (201902L)
 #endif
+#ifndef __cpp_lib_expected
+#define __cpp_lib_expected (202211L)	// C++23
+#endif
 #ifndef __cpp_lib_filesystem
 #define __cpp_lib_filesystem (201703L)
+#endif
+#ifndef __cpp_lib_flat_map
+#define __cpp_lib_flat_map (202207L)	// C++23
+#endif
+#ifndef __cpp_lib_flat_set
+#define __cpp_lib_flat_set (202207L)	// C++23
 #endif
 #ifndef __cpp_lib_format
 #define __cpp_lib_format (201907L)
 #endif
+#ifndef __cpp_lib_format_ranges
+#define __cpp_lib_format_ranges (202207L)	 // C++23
+#endif
+#ifndef __cpp_lib_formatters
+#define __cpp_lib_formatters (202302L)	  // C++23
+#endif
+#ifndef __cpp_lib_forward_like
+#define __cpp_lib_forward_like (202207L)	// C++23
+#endif
 #ifndef __cpp_lib_gcd_lcm
 #define __cpp_lib_gcd_lcm (201606L)
+#endif
+#ifndef __cpp_lib_generator
+#define __cpp_lib_generator (202207L)	 // C++23
 #endif
 #ifndef __cpp_lib_generic_associative_lookup
 #define __cpp_lib_generic_associative_lookup (201304L)
@@ -196,6 +270,12 @@
 #ifndef __cpp_lib_invoke
 #define __cpp_lib_invoke (201411L)
 #endif
+#ifndef __cpp_lib_invoke_r
+#define __cpp_lib_invoke_r (202106L)	// C++23
+#endif
+#ifndef __cpp_lib_ios_noreplace
+#define __cpp_lib_ios_noreplace (202207L)	 // C++23
+#endif
 #ifndef __cpp_lib_is_aggregate
 #define __cpp_lib_is_aggregate (201703L)
 #endif
@@ -204,6 +284,9 @@
 #endif
 #ifndef __cpp_lib_is_final
 #define __cpp_lib_is_final (201402L)
+#endif
+#ifndef __cpp_lib_is_implicit_lifetime
+#define __cpp_lib_is_implicit_lifetime (202302L)	// C++23
 #endif
 #ifndef __cpp_lib_is_invocable
 #define __cpp_lib_is_invocable (201703L)
@@ -219,6 +302,9 @@
 #endif
 #ifndef __cpp_lib_is_pointer_interconvertible
 #define __cpp_lib_is_pointer_interconvertible (201907L)
+#endif
+#ifndef __cpp_lib_is_scoped_enum
+#define __cpp_lib_is_scoped_enum (202011L)	  // C++23
 #endif
 #ifndef __cpp_lib_is_swappable
 #define __cpp_lib_is_swappable (201603L)
@@ -256,8 +342,20 @@
 #ifndef __cpp_lib_math_special_functions
 #define __cpp_lib_math_special_functions (201603L)
 #endif
+#ifndef __cpp_lib_mdspan
+#define __cpp_lib_mdspan (202207L)	  // C++23
+#endif
 #ifndef __cpp_lib_memory_resource
 #define __cpp_lib_memory_resource (201603L)
+#endif
+#ifndef __cpp_lib_modules
+#define __cpp_lib_modules (202207L)
+#endif
+#ifndef __cpp_lib_move_iterator_concept
+#define __cpp_lib_move_iterator_concept (202207L)	 // C++23
+#endif
+#ifndef __cpp_lib_move_only_function
+#define __cpp_lib_move_only_function (202110L)	  // C++23
 #endif
 #ifndef __cpp_lib_node_extract
 #define __cpp_lib_node_extract (201606L)
@@ -274,12 +372,17 @@
 #ifndef __cpp_lib_optional
 #define __cpp_lib_optional (201606L)
 #endif
-
+#ifndef __cpp_lib_out_ptr
+#define __cpp_lib_out_ptr (202106L)	   // C++23
+#endif
 #ifndef __cpp_lib_parallel_algorithm
 #define __cpp_lib_parallel_algorithm (201603L)
 #endif
 #ifndef __cpp_lib_polymorphic_allocator
 #define __cpp_lib_polymorphic_allocator (201902L)
+#endif
+#ifndef __cpp_lib_print
+#define __cpp_lib_print (202207L)	 // C++23
 #endif
 #ifndef __cpp_lib_quoted_string_io
 #define __cpp_lib_quoted_string_io (201304L)
@@ -287,8 +390,63 @@
 #ifndef __cpp_lib_ranges
 #define __cpp_lib_ranges (201911L)
 #endif
+
+#ifndef __cpp_lib_ranges_as_const
+#define __cpp_lib_ranges_as_const (202207L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_as_rvalue
+#define __cpp_lib_ranges_as_rvalue (202207L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_cartesian_product
+#define __cpp_lib_ranges_cartesian_product (202207L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_chunk
+#define __cpp_lib_ranges_chunk (202202L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_chunk_by
+#define __cpp_lib_ranges_chunk_by (202202L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_contains
+#define __cpp_lib_ranges_contains (202207L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_enumerate
+#define __cpp_lib_ranges_enumerate (202302L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_find_last
+#define __cpp_lib_ranges_find_last (202207L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_fold
+#define __cpp_lib_ranges_fold (202207L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_iota
+#define __cpp_lib_ranges_iota (202202L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_join_with
+#define __cpp_lib_ranges_join_with (202202L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_repeat
+#define __cpp_lib_ranges_repeat (202207L)	 // C++23
+#endif
+#ifndef __cpp_lib_ranges_slide
+#define __cpp_lib_ranges_slide (202202L)	// C++23
+#endif
+#ifndef __cpp_lib_ranges_starts_ends_with
+#define __cpp_lib_ranges_starts_ends_with (202106L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_stride
+#define __cpp_lib_ranges_stride (202207L)	 // C++23
+#endif
+#ifndef __cpp_lib_ranges_to_container
+#define __cpp_lib_ranges_to_container (202202L)	   // C++23
+#endif
+#ifndef __cpp_lib_ranges_zip
+#define __cpp_lib_ranges_zip (202110L)	  // C++23
+#endif
 #ifndef __cpp_lib_raw_memory_algorithms
 #define __cpp_lib_raw_memory_algorithms (201606L)
+#endif
+#ifndef __cpp_lib_reference_from_temporary
+#define __cpp_lib_reference_from_temporary (202202L)
 #endif
 #ifndef __cpp_lib_remove_cvref
 #define __cpp_lib_remove_cvref (201711L)
@@ -335,8 +493,23 @@
 #ifndef __cpp_lib_ssize
 #define __cpp_lib_ssize (201902L)
 #endif
+#ifndef __cpp_lib_stacktrace
+#define __cpp_lib_stacktrace (202011L)	  // C++23
+#endif
+#ifndef __cpp_lib_start_lifetime_as
+#define __cpp_lib_start_lifetime_as (202207L)	 // C++23
+#endif
 #ifndef __cpp_lib_starts_ends_with
 #define __cpp_lib_starts_ends_with (201711L)
+#endif
+#ifndef __cpp_lib_stdatomic_h
+#define __cpp_lib_stdatomic_h (202011L)	   // C++23
+#endif
+#ifndef __cpp_lib_string_contains
+#define __cpp_lib_string_contains (202011L)	   // C++23
+#endif
+#ifndef __cpp_lib_string_resize_and_overwrite
+#define __cpp_lib_string_resize_and_overwrite (202011L)	   // C++23
 #endif
 #ifndef __cpp_lib_string_udls
 #define __cpp_lib_string_udls (201304L)
@@ -359,6 +532,9 @@
 #ifndef __cpp_lib_to_chars
 #define __cpp_lib_to_chars (201611L)
 #endif
+#ifndef __cpp_lib_to_underlying
+#define __cpp_lib_to_underlying (202102L)	 // C++23
+#endif
 #ifndef __cpp_lib_transformation_trait_aliases
 #define __cpp_lib_transformation_trait_aliases (201304L)
 #endif
@@ -367,6 +543,9 @@
 #endif
 #ifndef __cpp_lib_tuple_element_t
 #define __cpp_lib_tuple_element_t (201402L)
+#endif
+#ifndef __cpp_lib_tuple_like
+#define __cpp_lib_tuple_like (202207L)	  // C++23
 #endif
 #ifndef __cpp_lib_tuples_by_type
 #define __cpp_lib_tuples_by_type (201304L)
@@ -383,11 +562,14 @@
 #ifndef __cpp_lib_unordered_map_try_emplace
 #define __cpp_lib_unordered_map_try_emplace (201411L)
 #endif
+#ifndef __cpp_lib_unreachable
+#define __cpp_lib_unreachable (202202L)	   // C++23
+#endif
 #ifndef __cpp_lib_unwrap_ref
 #define __cpp_lib_unwrap_ref (201811L)
 #endif
 #ifndef __cpp_lib_variant
-#define __cpp_lib_variant (201606L)
+#define __cpp_lib_variant (202106L)	   // C++23 (updated)
 #endif
 #ifndef __cpp_lib_void_t
 #define __cpp_lib_void_t (201411L)
