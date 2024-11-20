@@ -3068,7 +3068,7 @@ inline std::vector<T> get(config_t const& config, std::string const& key, std::v
 		result.reserve(itr->second.size());
 
 		// -------------------------------
-		// Converts returing types if necessary.
+		// Converts returning types if necessary.
 		if constexpr (std::is_same_v<T, std::string>) {
 			return itr->second;
 		} else if constexpr (std::is_same_v<T, bool>) {
