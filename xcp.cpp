@@ -424,8 +424,8 @@ std::regex const block_comment_re{R"(^(/[*](?:[^*]|[*][^/]|^|$|[\r\n])*[*]/))"};
 std::regex const inline_whitespaces_re{R"(^([ \t\v\f]+))"};
 std::regex const identifier_re{R"(^([a-zA-Z_][a-zA-Z_0-9]*))"};
 std::regex const pp_number_re{R"(^([-+]?[.]?\d(?:\d|')*(?:['a-zA-Z_0-9]+|[eEpP][-+]|[.])?))"};
-std::regex const string_literal_re{R"(^((?:u8?|[UL])?"(?:\\(?:[?'"abfnrtv\\]|u[0-9a-fA-f]{4}|U[0-9a-fA-f]{8})|[^"\r\n])*"[a-zA-Z_0-9]*))"};
-std::regex const character_literal_re{R"(^((?:u8?|[UL])?'(?:\\(?:[?'"abfnrtv\\]|u[0-9a-fA-f]{4}|U[0-9a-fA-f]{8})|[^'\r\n])'))"};
+std::regex const string_literal_re{R"(^((?:u8?|[UL])?"(?:\\(?:[?'"abfnrtv\\]|x[0-9a-fA-F{1,2}|[0-7]{1,3}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})|[^"\r\n])*"[a-zA-Z_0-9]*))"};
+std::regex const character_literal_re{R"(^((?:u8?|[UL])?'(?:\\(?:[?'"abfnrtv\\]|x[0-9a-fA-F{1,2}|[0-7]{1,3}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})|[^'\r\n])'))"};
 
 std::regex const header_name_re{R"(^(<[^>\r\n]+>))"};
 // The "..." (double-quoted literal) is also matched by string_literal_re, so there is not defined here.
