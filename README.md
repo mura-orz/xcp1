@@ -3,7 +3,7 @@
 ## Introduction
 
 - It may become a simple and tiny C++ compiler in future.
-- It confirms to C++ of ISO/IEC 14882:2020 (C++20).
+- It confirms to C++ of ISO/IEC 14882:2024 (C++23).
 
 ## Concepts & Notice of disclaimer
 
@@ -11,7 +11,7 @@
 - It is not Free Software.
 - It is not granted for any use to any others.
 - It is just only for my hobby.
-- It designates to simple use of modern C++20.
+- It designates to simple use of modern C++23.
 - It cannot always satisfy all the requirements on actual usages.
 - It is not efficient for actual purpose.
 - It is just "as is" and no warranty and no guarantee for any use and damage of any one.
@@ -21,7 +21,7 @@
 
 ### Build environments
 
-- It can be built by modern C++20 compilers and standard libraries: e.g.,
+- It can be built by modern C++23 compilers and standard libraries: e.g.,
   - GNU g++ / libstdc++
   - LLVM clang++ / libc++ (It fails to compile currently because it has not supported std::source_location well yet.)
   - Visual C++
@@ -35,7 +35,7 @@
 
 ## Usage
 
-$ ./xcp (options) sources
+> $ ./xcp (options) sources
 
 ### Options
 
