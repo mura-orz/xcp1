@@ -451,8 +451,8 @@ std::regex const preprocessing_punc_re{
 // character set
 std::string_view const basic_source_character_set{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_{}[]#()<>%:;.?*+-/^&|~!=,\\\"’ \t\v\f\r\n"};
 
-std::unordered_set<std::string_view> const unary_op_set{"+", "-", "~", "*", "&", "#", "%:", "++", "--", "compl", "not"};
-std::unordered_set<std::string_view> const binary_op_set{"##", "%:%:", "&&", "&", "||", "|", "-", "+", "+=", "-=", ">>=", "<<=", ">>", "<<", "<=", ">=", ">", "<", "*=", "/=", "%=", "^=", "&=", "|=", "~=", "!=", "==", "*", "/", "%", "^", "&", "=", "and", "and_eq", "bitand", "bitor", "not_eq", "or", "or_eq", "xor", "xor_eq"};
+std::unordered_set<std::string_view> const unary_op_set{"+", "-", "~", "*", "&", "#", "%:", "++", "--", def::compl_s_, def::not_s_};
+std::unordered_set<std::string_view> const binary_op_set{"##", "%:%:", "&&", "&", "||", "|", "-", "+", "+=", "-=", ">>=", "<<=", ">>", "<<", "<=", ">=", ">", "<", "*=", "/=", "%=", "^=", "&=", "|=", "~=", "!=", "==", "*", "/", "%", "^", "&", "=", def::and_s_, def::and_eq_s_, def::bitand_s_, def::bitor_s_, def::not_eq_s_, def::or_s_, def::or_eq_s_, def::xor_s_, def::xor_eq_s_};
 std::unordered_set<std::string_view> const trinary_op_set{"?", ":"};
 
 }	 // namespace def
@@ -1383,7 +1383,7 @@ struct op_t {
 		if (o_ == "+") return v;
 		if (o_ == "-") return v * -1;
 		if (o_ == "&") return 1;	// TODO:
-		if (o_ == "~" || o_ == "compl") return ~v;
+		if (o_ == "~" || o_ == def::compl_s_) return ~v;
 		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
 		throw std::invalid_argument(__func__);
 	}
@@ -1496,13 +1496,13 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 		// -------------------------------
 		// Only literals are dealt as value.
 		case Keyword:
-			if (itr->token() == "true") value.push(1);
-			if (itr->token() == "false") value.push(0);
-			if (itr->token() == "nullptr") value.push(nullptr);
-			if (itr->token() == "sizeof") {
+			if (itr->token() == def::true_s_) value.push(1);
+			if (itr->token() == def::false_s_) value.push(0);
+			if (itr->token() == def::nullptr_s_) value.push(nullptr);
+			if (itr->token() == def::sizeof_s_) {
 				value.push(nullptr);	// TODO:
 			}
-			if (itr->token() == "alignof") {
+			if (itr->token() == def::alignof_s_) {
 				value.push(nullptr);	// TODO:
 			}
 			break;
@@ -2964,7 +2964,7 @@ inline std::vector<T> get(config_t const& config, std::string const& key, std::v
 		if constexpr (std::is_same_v<T, std::string>) {
 			return itr->second;
 		} else if constexpr (std::is_same_v<T, bool>) {
-			std::ranges::transform(itr->second, std::back_inserter(result), [](auto const& a) { return ! a.empty() && a != "0" && a != "false" && a != "no"; });
+			std::ranges::transform(itr->second, std::back_inserter(result), [](auto const& a) { return ! a.empty() && a != "0" && a != def::false_s_ && a != "no"; });
 		} else {
 			std::ranges::transform(itr->second, std::back_inserter(result), [](auto const& a) { T t{}; std::istringstream iss{a}; iss >> t; return t; });
 		}
