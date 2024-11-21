@@ -55,16 +55,16 @@ inline std::string escape(std::string_view const& s, std::string_view::size_type
 		{'\\', "$$"sv},
 	};
 	if (limit == std::string_view::npos) {
-		return std::accumulate(std::ranges::begin(s), std::ranges::end(s), std::move(std::ostringstream()), [&escaped](auto&& o, auto const& a) { if (escaped.contains(a)) { o << escaped.at(a); } else { o << a; } return std::move(o); }).str();
+		return std::accumulate(s.begin(), s.end(), std::move(std::ostringstream()), [&escaped](auto&& o, auto const& a) { if (escaped.contains(a)) { o << escaped.at(a); } else { o << a; } return std::move(o); }).str();
 	} else {
 		auto const str = s | std::views::take(std::min(limit, s.length()));
-		return std::accumulate(std::ranges::begin(str), std::ranges::end(str), std::move(std::ostringstream()), [&escaped](auto&& o, auto const& a) { if (escaped.contains(a)) { o << escaped.at(a); } else { o << a; } return std::move(o); }).str();
+		return std::accumulate(str.begin(), str.end(), std::move(std::ostringstream()), [&escaped](auto&& o, auto const& a) { if (escaped.contains(a)) { o << escaped.at(a); } else { o << a; } return std::move(o); }).str();
 	}
 }
 
 template<typename C, typename T>
 inline bool contains(C& container, T const& value) {
-	return std::ranges::find(container, value) != std::ranges::end(container);
+	return std::ranges::find(container, value) != container.end();
 }
 
 namespace log {
@@ -134,7 +134,7 @@ public:
 		tracer_t(level_t::Trace, args, silent, sl) {}
 	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		level_{level}, sl_{sl}, result_{}, silent_{silent} {
-		if (! silent_ && level_s <= level_) log(level_, ">>>>(" + std::reduce(std::ranges::begin(args), std::ranges::end(args), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
+		if (! silent_ && level_s <= level_) log(level_, ">>>>(" + std::reduce(args.begin(), args.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
 	}
 	~tracer_t() {
 		if (! silent_ && level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
@@ -177,7 +177,7 @@ template<>
 inline void tracer_t::set_result(std::string_view const& v) { result_ = std::string{v}; }
 template<>
 inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
-	result_ = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+	result_ = std::reduce(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
 }
 
 template<>
@@ -193,7 +193,7 @@ inline void tracer_t::trace(std::string_view const& v, bool force, std::source_l
 template<>
 inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, std::source_location sl) {
 	if (! force && (silent_ || level_ < level_s)) return;
-	auto const vs = std::reduce(std::ranges::begin(v), std::ranges::end(v), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+	auto const vs = std::reduce(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
 	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
 }
 
@@ -652,7 +652,7 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		// -------------------------------
 		// pp-number
 		tr.trace(ch);
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
 	} else if (std::isalpha(ch) || ch == '_') {
 		// -------------------------------
 		// maybe identifier, keyword, or prefix.
@@ -661,7 +661,7 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		// -------------------------------
 		// raw-string-literal
 		case 'R':
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::raw_string_literal_prefix_re)) {
+			if (std::regex_search(str.begin(), str.end(), result, def::raw_string_literal_prefix_re)) {
 				auto const suffix = ")" + result.str(1) + "\"";
 				if (auto const pos = str.find(suffix, result.length(0)); pos != std::string_view::npos) return {Raw_string, str.substr(0, pos + suffix.length())};
 				return {Failure, str.substr(0, 0)};
@@ -672,18 +672,18 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		case 'u': [[fallthrough]];
 		case 'U': [[fallthrough]];
 		case 'L':
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::raw_string_literal_prefix_re)) {
+			if (std::regex_search(str.begin(), str.end(), result, def::raw_string_literal_prefix_re)) {
 				auto const suffix = ")" + result.str(1) + "\"";
 				if (auto const pos = str.find(suffix, result.length(0)); pos != std::string_view::npos) return {Raw_string, str.substr(0, pos + suffix.length())};
 				return {Failure, str.substr(0, 0)};
 			}
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
+			if (std::regex_search(str.begin(), str.end(), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
+			if (std::regex_search(str.begin(), str.end(), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
 			break;
 		}
 		// -------------------------------
 		// identifier or keyword (including alternative token)
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::identifier_re)) {
+		if (std::regex_search(str.begin(), str.end(), result, def::identifier_re)) {
 			if (def::alternative_expressions.contains(result.str())) return {Operator, str.substr(0, result.length(1))};
 			if (def::keywords.contains(result.str(1))) return {Keyword, str.substr(0, result.length(1))};
 			return {Identifier, str.substr(0, result.length(1))};
@@ -692,17 +692,17 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		// -------------------------------
 		// white-spaces regardless of escape
 		tr.trace(ch);
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::newline_re)) return {Newline, str.substr(0, result.length(1))};
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::inline_whitespaces_re)) return {Whitespace, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::newline_re)) return {Newline, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::inline_whitespaces_re)) return {Whitespace, str.substr(0, result.length(1))};
 	} else if (ch == '/') {
 		// -------------------------------
 		// comments or operator
 		tr.trace(ch);
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::block_comment_re)) return {Block_comment, str.substr(0, result.length(1))};
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::line_comment_re)) return {Line_comment, str.substr(0, result.length(1))};
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_op_re)) return {Operator, str.substr(0, result.length(1))};
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_punc_re)) return {Separator, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::block_comment_re)) return {Block_comment, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::line_comment_re)) return {Line_comment, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::preprocessing_op_re)) return {Operator, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::preprocessing_punc_re)) return {Separator, str.substr(0, result.length(1))};
 	} else {
 		// -------------------------------
 		// string, character, (header), or pp-number
@@ -710,24 +710,24 @@ inline std::tuple<token_type_t, std::string_view> next_token(std::string_view co
 		tr.trace(ch);
 		switch (ch) {
 		case '"':
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
+			if (std::regex_search(str.begin(), str.end(), result, def::string_literal_re)) return {String, str.substr(0, result.length(1))};
 			break;
 		case '<':
-			if (! noheader && std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};
+			if (! noheader && std::regex_search(str.begin(), str.end(), result, def::header_name_re)) return {Header, str.substr(0, result.length(1))};
 			break;
 		case '\'':
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
+			if (std::regex_search(str.begin(), str.end(), result, def::character_literal_re)) return {Character, str.substr(0, result.length(1))};
 			break;
 		case '+': [[fallthrough]];
 		case '-': [[fallthrough]];
 		case '.':
-			if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
+			if (std::regex_search(str.begin(), str.end(), result, def::pp_number_re)) return {Number, str.substr(0, result.length(1))};
 			break;
 		}
 		// -------------------------------
 		// separator
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_op_re)) return {Operator, str.substr(0, result.length(1))};
-		if (std::regex_search(std::ranges::begin(str), std::ranges::end(str), result, def::preprocessing_punc_re)) return {Separator, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::preprocessing_op_re)) return {Operator, str.substr(0, result.length(1))};
+		if (std::regex_search(str.begin(), str.end(), result, def::preprocessing_punc_re)) return {Separator, str.substr(0, result.length(1))};
 	}
 	// -------------------------------
 	// Other character, for example Japanese.
@@ -820,7 +820,7 @@ lines_t split_lines(tokens_t const& tokens) {
 	lines_t lines;
 	lines.reserve(tokens.back().line() + 1u);
 	// Source is always terminated by the LF.
-	for (auto itr = std::ranges::begin(tokens), end = std::ranges::end(tokens), next = std::find_if(itr, end, newline); itr != end && next != end; itr = ++next, next = std::find_if(itr, end, newline)) {
+	for (auto itr = tokens.begin(), end = tokens.end(), next = std::find_if(itr, end, newline); itr != end && next != end; itr = ++next, next = std::find_if(itr, end, newline)) {
 		lines.emplace_back(std::make_pair(itr, next));
 	}
 
@@ -858,7 +858,7 @@ public:
 		dir.remove_filename();
 		if (includes_current_path && std::filesystem::exists(dir / header)) return dir / header;
 		auto const paths = includes_ | std::views::transform([&header](auto const& a) { return a / header; });
-		if (auto const itr = std::ranges::find_if(paths, [](auto const& a) { return std::filesystem::exists(a); }); itr != std::ranges::end(paths)) { return *itr; }
+		if (auto const itr = std::ranges::find_if(paths, [](auto const& a) { return std::filesystem::exists(a); }); itr != paths.end()) { return *itr; }
 		return std::nullopt;
 	}
 	void push(std::filesystem::path const& hpath) {
@@ -965,14 +965,14 @@ using hideset_t	   = std::set<lex::token_t>;
 
 inline tokens_t operator+(tokens_t const& lhs, tokens_t const& rhs) {
 	tokens_t ts;
-	std::ranges::copy(lhs, std::inserter(ts, std::ranges::end(ts)));
-	std::ranges::copy(rhs, std::inserter(ts, std::ranges::end(ts)));
+	std::ranges::copy(lhs, std::inserter(ts, ts.end()));
+	std::ranges::copy(rhs, std::inserter(ts, ts.end()));
 	return ts;
 }
 inline hideset_t operator+(hideset_t const& lhs, hideset_t const& rhs) {
 	hideset_t hs;
-	std::ranges::copy(lhs, std::inserter(hs, std::ranges::end(hs)));
-	std::ranges::copy(rhs, std::inserter(hs, std::ranges::end(hs)));
+	std::ranges::copy(lhs, std::inserter(hs, hs.end()));
+	std::ranges::copy(rhs, std::inserter(hs, hs.end()));
 	return hs;
 }
 
@@ -1064,13 +1064,13 @@ private:
 
 private:
 	static auto follows(tokens_t const& ts) {
-		return tokens_t(++std::ranges::begin(ts), std::ranges::end(ts));
+		return tokens_t(++ts.begin(), ts.end());
 	}
 	static bool matched(tokens_t const& tokens, std::size_t offset, std::string const& token) {
 		if (std::ranges::size(tokens) <= offset) {
 			return false;
 		}
-		auto itr = std::ranges::begin(tokens);
+		auto itr = tokens.begin();
 		std::advance(itr, offset);
 		return itr->token() == token;
 	}
@@ -1078,14 +1078,14 @@ private:
 		if (std::ranges::size(tokens) <= offset) {
 			throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 		}
-		auto itr = std::ranges::begin(tokens);
+		auto itr = tokens.begin();
 		std::advance(itr, offset);
 		return *itr;
 	}
 	static std::optional<std::size_t> find_at(tokens_t const& tokens, lex::token_t const& token) {
-		auto const itr	 = std::ranges::begin(tokens);
+		auto const itr	 = tokens.begin();
 		auto const found = std::ranges::find(tokens, token);
-		if (found == std::ranges::end(tokens)) {
+		if (found == tokens.end()) {
 			return std::nullopt;
 		} else {
 			return std::distance(itr, found);
@@ -1098,19 +1098,19 @@ private:
 		for (auto const& t: ts) {
 			using enum lex::token_type_t;
 			if (t.matched(String)) {	// TODO:
-				tokens.insert(std::ranges::end(tokens), t);
+				tokens.insert(tokens.end(), t);
 			} else if (t.matched(Operator, "(")) {	  // TODO: {
-				tokens.insert(std::ranges::end(tokens), t);
+				tokens.insert(tokens.end(), t);
 				++nest;
 			} else if (t.matched(Operator, ")")) {	  // TODO: }
 				if (--nest < 0) {
 					if (n != i) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 					return tokens;
 				}
-				tokens.insert(std::ranges::end(tokens), t);
+				tokens.insert(tokens.end(), t);
 			} else if (t.matched(Operator, ",")) {
 				if (0 < nest) {
-					tokens.insert(std::ranges::end(tokens), t);
+					tokens.insert(tokens.end(), t);
 				} else {
 					if (n++ == i) {
 						return tokens;
@@ -1125,7 +1125,7 @@ private:
 	}
 	static tokens_citr_t actuals(tokens_t const& ts) {
 		int nest = 0;	 // SPEC: max of nest
-		for (auto itr = std::ranges::begin(ts), end = std::ranges::end(ts); itr != end; ++itr) {
+		for (auto itr = ts.begin(), end = ts.end(); itr != end; ++itr) {
 			using enum lex::token_type_t;
 			if (itr->matched(Operator, "(")) {	  // TODO: {
 				++nest;
@@ -1139,7 +1139,7 @@ private:
 
 	static lex::token_t stringize(tokens_t const& ts) {
 		log::tracer_t tr{{std::to_string(ts.size())}};
-		return lex::token_t{lex::token_type_t::String, std::accumulate(std::ranges::begin(ts), std::ranges::end(ts), std::move(std::ostringstream{}), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); }).str()};
+		return lex::token_t{lex::token_type_t::String, std::accumulate(ts.begin(), ts.end(), std::move(std::ostringstream{}), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); }).str()};
 	}
 
 	bool is_simple_macro(lex::token_t const& token) const noexcept { return false; }	  // TODO:
@@ -1156,8 +1156,8 @@ private:
 			{
 				auto const& lhs = ls.front().hideset();
 				auto const& rhs = rs.front().hideset();
-				hs.insert(std::ranges::begin(lhs), std::ranges::end(lhs));
-				hs.insert(std::ranges::begin(rhs), std::ranges::end(rhs));
+				hs.insert(lhs.begin(), lhs.end());
+				hs.insert(rhs.begin(), rhs.end());
 			}
 			auto const& l = ls.front();
 			auto const& r = rs.front();
@@ -1174,7 +1174,7 @@ private:
 		if (! std::ranges::empty(ts)) {
 			auto t	 = ts.front();
 			auto hs_ = t.hideset();
-			{ hs_.insert(std::ranges::begin(hs), std::ranges::end(hs)); }
+			{ hs_.insert(hs.begin(), hs.end()); }
 
 			return tokens_t{t} + hs_add(hs, follows(ts));
 		} else {
@@ -1229,7 +1229,7 @@ public:
 		if (std::ranges::empty(ts)) {
 			return {};	  // There is no more token. So, the token sequence might have been terminated.
 		}
-		auto const& t	= *std::ranges::begin(ts);
+		auto const& t	= *ts.begin();
 		auto const	ts_ = follows(ts);
 		if (hideset_t const& hs = t.hideset(); hs.contains(t)) {
 			// The token has been hidden. The token does not need more expansion.
@@ -1240,7 +1240,7 @@ public:
 			{
 				auto const& h  = t.hideset();
 				auto const& t_ = std::views::single(t);
-				std::set_union(std::ranges::begin(h), std::ranges::end(h), std::ranges::begin(t_), std::ranges::end(t_), std::inserter(hs, std::ranges::end(hs)));
+				std::set_union(h.begin(), h.end(), t_.begin(), t_.end(), std::inserter(hs, hs.end()));
 			}
 			return expand(subst(value(t), {}, {}, hs, {}) + ts_);
 		} else if (is_function_macro(t)) {
@@ -1249,19 +1249,19 @@ public:
 
 			tokens_t ap;
 			{
-				auto li = std::ranges::begin(ts_);
+				auto li = ts_.begin();
 				auto ri = rp;
 				++li;	 // (
 				--ri;	 // )
-				ap.insert(std::ranges::end(ap), li, ri);
+				ap.insert(ap.end(), li, ri);
 			}
 
 			hideset_t h;
 			{
 				auto const& hs	= t.hideset();
 				auto const& hs_ = rp->hideset();
-				h.insert(std::ranges::begin(hs), std::ranges::end(hs));
-				h.insert(std::ranges::begin(hs_), std::ranges::end(hs_));
+				h.insert(hs.begin(), hs.end());
+				h.insert(hs_.begin(), hs_.end());
 			}
 			return expand(subst(value(t), function(t).first, ap, hs + hideset_t{t}, {}) + ts_);
 		} else {
@@ -1743,7 +1743,7 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	if (message != line.second) {
 		tokens_t messages(message, line.second);
 		auto	 msg = messages | std::views::transform([](lex::token_t const& token) { return std::string{token.token()}; });
-		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
+		oss << " - " << std::reduce(msg.begin(), msg.end());
 	}
 	std::clog << oss.str() << std::endl;
 	tr.set_result(oss.str());
@@ -1763,7 +1763,7 @@ bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	if (message != line.second) {
 		tokens_t messages(message, line.second);
 		auto	 msg = messages | std::views::transform([](lex::token_t const& token) { return std::string{token.token()}; });
-		oss << " - " << std::reduce(std::ranges::begin(msg), std::ranges::end(msg));
+		oss << " - " << std::reduce(msg.begin(), msg.end());
 	}
 	std::clog << oss.str() << std::endl;
 	tr.set_result(oss.str());
@@ -1778,9 +1778,9 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 		long long current_line = line.first->line();
 		// Gets non-const iterator of tokens to relocate these positions.
 		auto& tokens = paths.mutable_tokens();
-		auto  itr	 = std::ranges::begin(tokens);
-		auto  end	 = std::ranges::end(tokens);
-		std::advance(itr, std::distance(std::ranges::begin(paths.tokens()), line.first));
+		auto  itr	 = tokens.begin();
+		auto  end	 = tokens.end();
+		std::advance(itr, std::distance(paths.tokens().begin(), line.first));
 
 		auto const filename = (! file.empty()) ? std::make_shared<std::filesystem::path const>(file) : line.first->file();
 		std::for_each(itr, end, [&filename, current_line, lineno](auto& a) {	if (a.file()) {a.pos(lineno + (a.line() - current_line), filename);	} });
@@ -1827,7 +1827,7 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 			tr.trace(lex::to_string(token->pos()) + "#if " + std::to_string(condition), true);
 			conditions.push(condition);
 			auto const [r, itr] = preprocess_conditions(conditions, macros, paths, ++line, end, source);
-			if (! std::ranges::empty(r)) { result.insert(std::ranges::end(result), std::ranges::begin(r), std::ranges::end(r)); }
+			if (! std::ranges::empty(r)) { result.insert(result.end(), r.begin(), r.end()); }
 			if (itr == end) break;
 			line = itr;
 		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, {token, line->second}); matched) {
@@ -1864,14 +1864,14 @@ std::tuple<lines_t, lines_t::const_iterator> preprocess_conditions(cm::condition
 					auto const	 ex = macros.expand(tokens);
 					auto&		 mt = paths.mutable_tokens();
 					mt.erase(line.first, line.second);
-					auto pos = std::ranges::begin(mt);
-					int	 tmp = std::distance(std::ranges::begin(paths.tokens()), line.first) - 1;
+					auto pos = mt.begin();
+					int	 tmp = std::distance(paths.tokens().begin(), line.first) - 1;
 					std::clog << tmp << "---" << std::endl;
 					std::advance(pos, tmp);
-					auto i	   = mt.insert(pos, std::ranges::begin(ex), std::ranges::end(ex));
+					auto i	   = mt.insert(pos, ex.begin(), ex.end());
 					line.first = i;
 				});
-				std::ranges::copy(lines, std::inserter(result, std::ranges::end(result)));
+				std::ranges::copy(lines, std::inserter(result, result.end()));
 			}
 		}	 // else skips whole
 	}
@@ -1889,8 +1889,8 @@ lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& mac
 	// -------------------------------
 	// Proceeds line by line.
 	auto const lines		 = impl::split_lines(tokens);
-	auto const [result, itr] = impl::preprocess_conditions(conditions, macros, paths, std::ranges::begin(lines), std::ranges::end(lines), source);
-	if (itr != std::ranges::end(lines)) throw std::runtime_error("unexpected line");
+	auto const [result, itr] = impl::preprocess_conditions(conditions, macros, paths, lines.begin(), lines.end(), source);
+	if (itr != lines.end()) throw std::runtime_error("unexpected line");
 	return result;
 }
 
@@ -1960,7 +1960,7 @@ struct seq_t : parser_t {
 		pp::tokens_t t = source;
 		for (auto const& parser: parsers_) {
 			if (auto const [ns, rest] = parser->parse(r, t); rest) {
-				r.insert(std::ranges::end(r), std::ranges::begin(ns), std::ranges::end(ns));
+				r.insert(r.end(), ns.begin(), ns.end());
 				t = *rest;
 			} else {
 				return {};
@@ -1991,7 +1991,7 @@ struct zom_t : parser_t {
 		pp::tokens_t t = source;
 		for (;;) {
 			if (auto const [ns, rest] = parser_->parse(r, t); rest) {
-				r.insert(std::ranges::end(r), std::ranges::begin(ns), std::ranges::end(ns));
+				r.insert(r.end(), ns.begin(), ns.end());
 				t = *rest;
 			} else {
 				break;
@@ -3111,7 +3111,7 @@ int main(int ac, char* av[]) {
 		xxx::conf::config_t configurations;
 		std::ranges::for_each(options, [&configurations](auto const& a) {
 			std::regex const re{R"(^-([A-Za-z])(?:[=:](.*))$)"};
-			if (std::match_results<std::string_view::const_iterator> m; std::regex_match(std::ranges::begin(a), std::ranges::end(a), m, re)) { configurations[m.str(1)].push_back(1 < m.size() ? m.str(2) : ""); }
+			if (std::match_results<std::string_view::const_iterator> m; std::regex_match(a.begin(), a.end(), m, re)) { configurations[m.str(1)].push_back(1 < m.size() ? m.str(2) : ""); }
 		});
 
 		// -------------------------------
