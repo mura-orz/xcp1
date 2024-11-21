@@ -1142,8 +1142,9 @@ private:
 		return lex::token_t{lex::token_type_t::String, std::accumulate(ts.begin(), ts.end(), std::move(std::ostringstream{}), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); }).str()};
 	}
 
-	bool is_simple_macro(lex::token_t const& token) const noexcept { return false; }	  // TODO:
-	bool is_function_macro(lex::token_t const& token) const noexcept { return false; }	  // TODO:
+	bool is_simple_macro(lex::token_t const& token) const noexcept { return simple_macros_.contains(token.token()); }
+	bool is_function_macro(lex::token_t const& token) const noexcept { return function_macros_.contains(token.token()); }
+	bool is_macro(lex::token_t const& token) const noexcept { return is_simple_macro(token) || is_function_macro(token); }
 
 	tokens_t					  value(lex::token_t const& t) { return {}; }		// TODO: value of simple macro
 	std::pair<tokens_t, tokens_t> function(lex::token_t const& t) { return {}; }	// TODO: value of simple macro
