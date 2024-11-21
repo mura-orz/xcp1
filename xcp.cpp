@@ -1375,14 +1375,14 @@ struct op_t {
 		o_{o} {}
 
 	pp_value_t operator()(void const* const& v) {
-		if (o_ == "*") return 1;						// TODO:
+		if (o_ == "*") return 1LL;						// TODO:
 		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
 		throw std::invalid_argument(__func__);
 	}
 	pp_value_t operator()(long long v) {
 		if (o_ == "+") return v;
 		if (o_ == "-") return v * -1;
-		if (o_ == "&") return 1;	// TODO:
+		if (o_ == "&") return 1LL;	// TODO:
 		if (o_ == "~" || o_ == lex::def::compl_s_) return ~v;
 		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
 		throw std::invalid_argument(__func__);
@@ -1390,7 +1390,7 @@ struct op_t {
 	pp_value_t operator()(long double v) {
 		if (o_ == "+") return v;
 		if (o_ == "-") return v * -1;
-		if (o_ == "&") return 1;						// TODO:
+		if (o_ == "&") return 1LL;						// TODO:
 		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
 		throw std::invalid_argument(__func__);
 	}
