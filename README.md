@@ -47,6 +47,25 @@
 - -L:{Path} Adds the linkage path {Path} to find.libraries.
 - -l:{name} Links the library {name}.
 
+## Design
+
+- It expects source code is formatted in UTF-8.
+- All the source codes are loaded on memory once.
+- Lexical parsing uses regex simply even if it is too slower than tuned parser.
+- The source codes are held as string and are referred as string_view while syntax parsing.
+- Predefined macros are also held as another string and are referred as string_view while syntax parsing.
+- These strings are read only. But macro expansion should modify them.
+  For that, the macro expansion generates another modified string.
+- Position of tokens are stored during lexical parsing. The #line directive also modifies them.
+  For that, the #line modifies all the tokens directly because #line directive is assumed to rarely in typical usage.
+- The lexical parser parses raw string to flat sequence of the tokens at first.
+  After that, the lexer splits the flat sequence to nested sequence as 'lines' for preprocessing.
+- Preprocessor executes directives and expands macros for each line.
+  preprocessing should be applied for each line and line sequentially
+  because such directives as #define,#undef,and #include affects results of macro expansion after the line.
+- Preprocessing has been completed, the tokens become flat sequence again.
+- Then syntax parser makes an abstract syntax tree (AST) using PEG-like parsers.
+
 ## Grammar
 
 ### A.2 Keywords [gram.key]
