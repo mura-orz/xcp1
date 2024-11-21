@@ -1383,7 +1383,7 @@ struct op_t {
 		if (o_ == "+") return v;
 		if (o_ == "-") return v * -1;
 		if (o_ == "&") return 1;	// TODO:
-		if (o_ == "~" || o_ == def::compl_s_) return ~v;
+		if (o_ == "~" || o_ == lex::def::compl_s_) return ~v;
 		if (o_ == "#" || o_ == "%:") return "TODO:";	// TODO:
 		throw std::invalid_argument(__func__);
 	}
@@ -1496,13 +1496,13 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 		// -------------------------------
 		// Only literals are dealt as value.
 		case Keyword:
-			if (itr->token() == def::true_s_) value.push(1);
-			if (itr->token() == def::false_s_) value.push(0);
-			if (itr->token() == def::nullptr_s_) value.push(nullptr);
-			if (itr->token() == def::sizeof_s_) {
+			if (itr->token() == lex::def::true_s_) value.push(1);
+			if (itr->token() == lex::def::false_s_) value.push(0);
+			if (itr->token() == lex::def::nullptr_s_) value.push(nullptr);
+			if (itr->token() == lex::def::sizeof_s_) {
 				value.push(nullptr);	// TODO:
 			}
-			if (itr->token() == def::alignof_s_) {
+			if (itr->token() == lex::def::alignof_s_) {
 				value.push(nullptr);	// TODO:
 			}
 			break;
@@ -2964,7 +2964,7 @@ inline std::vector<T> get(config_t const& config, std::string const& key, std::v
 		if constexpr (std::is_same_v<T, std::string>) {
 			return itr->second;
 		} else if constexpr (std::is_same_v<T, bool>) {
-			std::ranges::transform(itr->second, std::back_inserter(result), [](auto const& a) { return ! a.empty() && a != "0" && a != def::false_s_ && a != "no"; });
+			std::ranges::transform(itr->second, std::back_inserter(result), [](auto const& a) { return ! a.empty() && a != "0" && a != lex::def::false_s_ && a != "no"; });
 		} else {
 			std::ranges::transform(itr->second, std::back_inserter(result), [](auto const& a) { T t{}; std::istringstream iss{a}; iss >> t; return t; });
 		}
