@@ -287,7 +287,7 @@
   - p sign? digit-sequence
   - P sign? digit-sequence
 - sign: one of
-  ***
+  - + -
 - digit-sequence:
   - digit
   - digit-sequence ’? digit
