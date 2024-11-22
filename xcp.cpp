@@ -1038,11 +1038,18 @@ private:
 		}
 
 		// Static compile-time values
-		simple_macros_["__cplusplus"]					   = def::macro_202302;
+		simple_macros_["__cplusplus"]					   = def::macro_202302;	  // C++23
 		simple_macros_["__FILE__"]						   = def::macro_empty;	  // placeholder
 		simple_macros_["__LINE__"]						   = def::macro_empty;	  // placeholder
 		simple_macros_["__STDC_HOSTED__"]				   = def::macro_1;
 		simple_macros_["__STDCPP_DEFAULT_NEW_ALIGNMENT__"] = def::macro_4;
+		simple_macros_["__STDCPP_FLOAT16_T__"]			   = def::macro_1;	// C++23
+		simple_macros_["__STDCPP_FLOAT32_T__"]			   = def::macro_1;	// C++23
+		simple_macros_["__STDCPP_FLOAT64_T__"]			   = def::macro_1;	// C++23
+		simple_macros_["__STDCPP_FLOAT128_T__"]			   = def::macro_1;	// C++23
+		simple_macros_["__STDCPP_BFLOAT16_T__"]			   = def::macro_1;	// C++23
+		simple_macros_["__STDCPP_THREADS__"]			   = def::macro_1;	// C++23
+
 
 		// C-compatibilities
 		simple_macros_["__STDC__"]						   = def::macro_1;
