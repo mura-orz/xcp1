@@ -6,6 +6,8 @@
 #ifndef __XXX_version
 #define __XXX_version
 
+// TODO: Most of features have been unsupported yet.
+
 #ifndef __cpp_lib_adaptor_iterator_pair_constructor
 #define __cpp_lib_adaptor_iterator_pair_constructor (202106L)	 // C++23
 #endif
