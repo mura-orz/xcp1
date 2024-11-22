@@ -25,9 +25,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         build_type: [Release]
-      # TODO: Currently, clang++ & libc++ are unsupported because several standard fetures such as source_location have not been supported yet.
-      # c_compiler: [gcc, clang, cl]
-        c_compiler: [gcc, cl]
+        c_compiler: [gcc, clang, cl]
         include:
           - os: windows-latest
             c_compiler: cl
@@ -35,16 +33,14 @@ jobs:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
-        # TODO: Currently, clang++ & libc++ are unsupported because several standard fetures such as source_location have not been supported yet.
-        # - os: ubuntu-latest
-        #   c_compiler: clang
-        #   cpp_compiler: clang++
+          - os: ubuntu-latest
+            c_compiler: clang
+            cpp_compiler: clang++
         exclude:
           - os: windows-latest
             c_compiler: gcc
-        # TODO: Currently, clang++ & libc++ are unsupported because several standard fetures such as source_location have not been supported yet.
-        # - os: windows-latest
-        #   c_compiler: clang
+          - os: windows-latest
+            c_compiler: clang
           - os: ubuntu-latest
             c_compiler: cl
 
