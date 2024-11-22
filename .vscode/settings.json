@@ -75,6 +75,7 @@
         "climits": "cpp",
         "coroutine": "cpp",
         "list": "cpp",
-        "set": "cpp"
+        "set": "cpp",
+        "version": "cpp"
     }
 }
