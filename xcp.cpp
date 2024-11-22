@@ -941,7 +941,7 @@ static auto const value_1 = pp::tokens_t{{lex::token_type_t::Number, "1"}};
 static auto const value_4 = pp::tokens_t{{lex::token_type_t::Number, "4"}};
 
 static auto const value_199901 = pp::tokens_t{{lex::token_type_t::Number, "199901L"}};
-static auto const value_202002 = pp::tokens_t{{lex::token_type_t::Number, "202002L"}};
+static auto const value_202302 = pp::tokens_t{{lex::token_type_t::Number, "202302L"}};
 
 inline pp::line_tokens_t to_line_tokens(pp::tokens_t const& tokens) {
 	return std::make_pair(tokens.begin(), tokens.end());
@@ -955,7 +955,7 @@ static auto const macro_1 = to_line_tokens(value_1);
 static auto const macro_4 = to_line_tokens(value_4);
 
 static auto const macro_199901 = to_line_tokens(value_199901);
-static auto const macro_202002 = to_line_tokens(value_202002);
+static auto const macro_202302 = to_line_tokens(value_202302);
 
 }	 // namespace def
 
@@ -1038,7 +1038,7 @@ private:
 		}
 
 		// Static compile-time values
-		simple_macros_["__cplusplus"]					   = def::macro_202002;
+		simple_macros_["__cplusplus"]					   = def::macro_202302;
 		simple_macros_["__FILE__"]						   = def::macro_empty;	  // placeholder
 		simple_macros_["__LINE__"]						   = def::macro_empty;	  // placeholder
 		simple_macros_["__STDC_HOSTED__"]				   = def::macro_1;
