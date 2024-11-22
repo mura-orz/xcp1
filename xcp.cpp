@@ -223,6 +223,19 @@ std::string load_file(std::filesystem::path const& path) {
 namespace lex {
 namespace def {
 
+auto const include_s_ = "include"s;
+auto const ifdef_s_ = "ifdef"s;
+auto const ifndef_s_ = "ifndef"s;
+auto const elif_s_ = "elif"s;
+auto const endif_s_ = "endif"s;
+auto const define_s_ = "define"s;
+auto const defined_s_ = "defined"s;
+auto const undef_s_ = "undef"s;
+auto const line_s_ = "line"s;
+auto const error_s_ = "error"s;
+auto const pragma_s_ = "pragma"s;
+auto const Pragma_s_ = "_Pragma"s;
+
 auto const and_s_	 = "and"s;
 auto const and_eq_s_ = "and_eq"s;
 auto const or_s_	 = "or"s;
@@ -322,6 +335,7 @@ auto const final_s_	   = "final"s;
 
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
+std::unordered_set<std::string_view> const preprocessing_directives{ include_s_, if_s_, ifdef_s_, ifndef_s_, elif_s_, else_s_, endif_s_, define_s_, defined_s_, undef_s_, line_s_, pragma_s_, };
 std::unordered_set<std::string_view> const keywords{
 	alignas_s_,
 	alignof_s_,
@@ -829,6 +843,62 @@ lines_t split_lines(tokens_t const& tokens) {
 }
 
 inline tokens_citr_t next_nonws(tokens_citr_t pos, tokens_citr_t end) { return pos == end ? end : lex::skip_ws(++pos, end); }
+
+inline std::tuple<std::vector<tokens_citr_t>, tokens_citr_t> seq_match(tokens_citr_t itr, tokens_citr_t const& end, std::vector<std::function<bool(lex::token_t const&)>> const& expected) {
+	log::tracer_t tracer{{}, true};
+	std::vector<tokens_citr_t> matched;
+	for (auto const& check: expected) {
+		tracer.trace(lex::to_string(itr->type()));
+		itr = lex::skip_ws(itr, end);
+		if (itr == end) return {std::vector<tokens_citr_t>{}, itr};
+		if (! check(*itr)) return {std::vector<tokens_citr_t>{}, itr};
+		matched.push_back(itr);
+		++itr;
+	}
+	return {matched, itr};
+}
+
+class is_ {
+public:
+	bool operator() (lex::token_t const& a) const { return check(a); }
+
+	explicit is_(lex::token_type_t type) : type_{type}, s_{} {}
+	is_(lex::token_type_t type, std::string s) :  type_{type}, s_{s} {}
+	virtual ~is_() = default;
+protected:
+	virtual bool check(lex::token_t const& a) const { return a.matched(type_, s_); }
+private:
+	lex::token_type_t type_;
+	std::string s_;
+};
+
+class is_kw : public is_ {
+public:
+	explicit is_kw(std::string s) : is_(lex::token_type_t::Keyword, s) {}
+};
+class is_op : public is_ {
+public:
+	explicit is_op(std::string s) : is_(lex::token_type_t::Operator, s) {}
+};
+class is_id : public is_ {
+public:
+	explicit is_id(std::string s) : is_(lex::token_type_t::Identifier, s) {}
+};
+
+	//auto const pound_	= [](lex::token_t const& a) { return is_op(a, "#"); };
+	//auto const include_ = [](pp_token_t const& a) { return is_identifier(a, "include"); };
+	//auto const ifdef_	= [](pp_token_t const& a) { return is_identifier(a, "ifdef"); };
+	//auto const ifndef_	= [](pp_token_t const& a) { return is_identifier(a, "ifndef"); };
+	//auto const if_		= [](pp_token_t const& a) { return is_identifier(a, "if"); };
+	//auto const elif_	= [](pp_token_t const& a) { return is_identifier(a, "elif"); };
+	//auto const else_	= [](pp_token_t const& a) { return is_identifier(a, "else"); };
+	//auto const endif_	= [](pp_token_t const& a) { return is_identifier(a, "endif"); };
+	//auto const define_	= [](pp_token_t const& a) { return is_identifier(a, "define"); };
+	//auto const undef_	= [](pp_token_t const& a) { return is_identifier(a, "undef"); };
+	//auto const line_	= [](pp_token_t const& a) { return is_identifier(a, "line"); };
+	//auto const error_	= [](pp_token_t const& a) { return is_identifier(a, "error"); };
+	//auto const pragma_	= [](pp_token_t const& a) { return is_identifier(a, "pragma"); };
+
 
 }	 // namespace impl
 namespace pm {
@@ -1553,42 +1623,33 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
-	auto const directive = impl::next_nonws(marker, line.second);
-
-	if (directive == line.second) return {false, false};
-	if (directive->matched(lex::token_type_t::Keyword, "if")) {
-		auto const conditions = impl::next_nonws(directive, line.second);
-		if (conditions == line.second) return {false, false};
-		std::stack<std::string_view> ops;
-		std::stack<pp_value_t>		 values;
-
-		auto const result = evaluate(ops, values, macros, std::make_pair(conditions, line.second));
-		return {true, std::visit([](auto const& a) { return a != 0; }, result)};
-	} else if (directive->matched(lex::token_type_t::Identifier, "ifdef")) {
-		auto const macro = impl::next_nonws(directive, line.second);
-		if (macro == line.second) return {false, false};
-		auto const result = macros.defined(macro->token());
-		return {next_nonws(macro, line.second) == line.second, result};
-	} else if (directive->matched(lex::token_type_t::Identifier, "ifndef")) {
-		auto const macro = impl::next_nonws(directive, line.second);
-		if (macro == line.second) return {false, false};
-		auto const result = macros.defined(macro->token());
-		return {next_nonws(macro, line.second) == line.second, ! result};
-	} else {
-		return {false, false};
+	using enum lex::token_type_t;
+	if (auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_(Identifier), is_(Identifier)}); !tokens.empty()) {
+		if (auto const is_ifdef = tokens.at(2)->matched(Identifier, lex::def::ifdef_s_); is_ifdef || tokens.at(2)->matched(Identifier, lex::def::ifndef_s_)) {
+			if (impl::next_nonws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+			auto const macro = tokens.at(2)->token();
+			auto const result = macros.defined(macro);
+			return {true, is_ifdef ? result : !result};
+		}
 	}
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::if_s_)});
+	if (tokens.empty()) return {false, false};
+
+	auto const conditions = impl::next_nonws(rest, line.second);
+	if (conditions == line.second) return {false, false};
+	std::stack<std::string_view> ops;
+	std::stack<pp_value_t>		 values;
+
+	auto const result = evaluate(ops, values, macros, std::make_pair(conditions, line.second));
+	return {true, std::visit([](auto const& a) { return a != 0; }, result)};
 }
 std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
-	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "elif")) return {false, false};
-	auto const conditions = impl::next_nonws(directive, line.second);
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::elif_s_)});
+	if (tokens.empty()) return {false, false};
+
+	auto const conditions = impl::next_nonws(rest, line.second);
 	if (conditions == line.second) return {false, false};
 	std::stack<std::string_view> ops;
 	std::stack<pp_value_t>		 values;
@@ -1599,20 +1660,18 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 bool parse_preprocessing_else_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
-	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Keyword, "else")) return false;
-	return next_nonws(directive, line.second) == line.second;
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::else_s_)});
+	if (tokens.empty()) return false;
+	if (impl::next_nonws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	return true;
 }
 bool parse_preprocessing_endif_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
-	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "endif")) return false;
-	return next_nonws(directive, line.second) == line.second;
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::endif_s_)});
+	if (tokens.empty()) return false;
+	if (impl::next_nonws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	return true;
 }
 
 mm::macro_manager_t::macro_parameters_t enclosed_parameters(tokens_citr_t itr, tokens_citr_t const& end) {
@@ -1638,19 +1697,17 @@ mm::macro_manager_t::macro_parameters_t enclosed_parameters(tokens_citr_t itr, t
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
-	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || directive->matched(lex::token_type_t::Identifier, "define")) return {false, false};
-	auto const macro = impl::next_nonws(directive, line.second);
-	if (macro == line.second) return {false, false};
-	auto lp = macro;
-	lp++;	 // If there is left parenthesis without whitespace, it is function macro.
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::define_s_), is_(lex::token_type_t::Identifier)});
+	if (tokens.empty()) return {false, false};
+
+	auto const& macro = tokens.at(3)->token();
+
+	auto lp = rest; // If there is left parenthesis without whitespace, it is function macro.
 	if (lp == line.second) {
 		// -------------------------------
 		// Simple macro without value.
-		macros.define_simple_macro(macro->token(), mm::def::macro_1);
-		tr.set_result(escape(macro->token()));
+		macros.define_simple_macro(macro, mm::def::macro_1);
+		tr.set_result(escape(macro));
 	} else if (lp->matched(lex::token_type_t::Separator, "(")) {
 		// -------------------------------
 		// Function macro
@@ -1663,49 +1720,41 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 		itr = lex::skip_ws(itr, line.second);
 		if (itr == line.second) return {true, false};
 		auto const body = std::make_pair(itr, line.second);
-		macros.define_faction_macro(macro->token(), parameters, body);
-		tr.set_result(escape(macro->token()));
+		macros.define_faction_macro(macro, parameters, body);
+		tr.set_result(escape(macro));
 	} else {
 		// -------------------------------
 		// Simple macro
-		macros.define_simple_macro(macro->token(), std::make_pair(lp, line.second));
-		tr.set_result(escape(macro->token()));
+		macros.define_simple_macro(macro, std::make_pair(lp, line.second));
+		tr.set_result(escape(macro));
 	}
 	return {true, true};
 }
 std::tuple<bool, bool> parse_preprocessing_undef_line(mm::macro_manager_t& macros, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, false};
-	auto const directive = next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "undef")) return {false, false};
-	auto const macro = next_nonws(directive, line.second);
-	if (macro == line.second) return {false, false};
-	auto const extra = next_nonws(macro, line.second);
-	if (extra != line.second) return {false, false};
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id("undef"), is_(lex::token_type_t::Identifier)});
+	if (tokens.empty()) return {false, false};
 
-	if (! macros.defined(macro->token())) return {true, false};
-	macros.undefine_macro(macro->token());
-	tr.set_result(escape(macro->token()));
+	auto const& macro = tokens.at(3)->token();
+
+	if (! macros.defined(macro)) return {true, false};
+	macros.undefine_macro(macro);
+	tr.set_result(escape(macro));
 	return {true, true};
 }
 std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	tr.trace(lex::to_string(*marker));
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, {}, {}};
-	auto const directive = next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "include")) return {false, {}, {}};
-	auto const path_token = next_nonws(directive, line.second);
-	if (path_token == line.second || (path_token->matched(lex::token_type_t::Header) && path_token->matched(lex::token_type_t::String))) return {false, {}, {}};
-	auto const extra = next_nonws(path_token, line.second);
-	if (extra != line.second) return {false, {}, {}};
+	auto const [tokens, followes] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::include_s_), is_(lex::token_type_t::Header)});	// TODO:string 
+	if (tokens.empty()) return {false, std::filesystem::path{}, {}};
 
-	std::filesystem::path const path{std::string{path_token->token().substr(1, path_token->token().length() - 2)}};
+	auto const token = tokens.at(3)->token();
+	std::filesystem::path const path{std::string{token.substr(1, token.length() - 2)}};
 
-	auto const fullpath = paths.find(path, path_token->matched(lex::token_type_t::String));
+	auto const systems = token.starts_with("<");
+
+	auto const fullpath = paths.find(path, systems);
 	if (! fullpath) return {false, path, {}};
 
 	tr.set_result(fullpath->string());
@@ -1727,24 +1776,24 @@ std::tuple<bool, std::filesystem::path, lines_t> parse_preprocessing_include_lin
 std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_line(mm::macro_manager_t&, line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return {false, "", 0ull};
-	auto const directive = next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "line")) return {false, "", 0ull};
-	auto const lineno = next_nonws(directive, line.second);
-	if (lineno == line.second || ! lineno->matched(lex::token_type_t::Number)) return {false, "", 0ull};
-	auto const no		= lexical_cast<unsigned long long>(lineno->token());
-	auto const filename = next_nonws(lineno, line.second);
-	return {true, filename == line.second ? ""sv : filename->token(), no};
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::line_s_), is_(lex::token_type_t::Number)});
+	if (tokens.empty()) return {false, {}, 0LL};
+
+	auto const lineno	= tokens.at(3)->token();
+	auto const no		= lexical_cast<unsigned long long>(lineno);
+	auto const filename = next_nonws(rest, line.second);
+	auto const path		= filename == line.second ? ""sv : filename->token();
+	auto extra = filename;
+	if (impl::next_nonws(++extra, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	return {true, path, no};
 }
 bool parse_preprocessing_error_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
-	auto const directive = next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "error")) return false;
-	auto const message = next_nonws(directive, line.second);
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::error_s_)});
+	if (tokens.empty()) return false;
+
+	auto const message = next_nonws(rest, line.second);
 
 	std::ostringstream oss;
 	oss << "#error";
@@ -1760,11 +1809,10 @@ bool parse_preprocessing_error_line(line_tokens_t const& line) {
 bool parse_preprocessing_pragma_line(line_tokens_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
-	auto const marker = lex::skip_ws(line.first, line.second);
-	if (marker == line.second || ! marker->matched(lex::token_type_t::Operator, "#")) return false;
-	auto const directive = impl::next_nonws(marker, line.second);
-	if (directive == line.second || ! directive->matched(lex::token_type_t::Identifier, "pragma")) return false;
-	auto const message = lex::skip_ws(directive, line.second);
+	auto const [tokens, rest] = seq_match(line.first, line.second, {is_op("#"), is_id(lex::def::pragma_s_)});
+	if (tokens.empty()) return false;
+
+	auto const message = lex::skip_ws(rest, line.second);
 
 	std::ostringstream oss;
 	oss << "unknown pragma is ignored ";	// TODO: _Pragma
@@ -1796,10 +1844,6 @@ std::tuple<bool, lines_t> parse_preprocessing_line(cm::condition_manager_t& cond
 	} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, line); matched) {
 		// -------------------------------
 		// #include <...> or "..."
-		return {true, lines};
-	} else if (parse_preprocessing_error_line(line)) {
-		// -------------------------------
-		// #error ...
 		// TODO: failed to compile
 		return {true, {}};
 	} else if (parse_preprocessing_pragma_line(line)) {
