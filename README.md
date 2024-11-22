@@ -170,7 +170,7 @@
   - preprocessing-operator
   - operator-or-punctuator
 - preprocessing-operator: one of
-  - # ## %: %:%:
+  - \# ## %: %:%:
 - operator-or-punctuator: one of
   - { } [ ] ( ) <: :> <% %> ; : ... ? :: . ._ -> ->_ ~ ! + - _ / % ^ & | = += -= _= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- , and or xor not bitand bitor compl and_eq or_eq xor_eq not_eq
 - literal:
@@ -1142,37 +1142,37 @@
   - control-line
   - if-section
   - text-line
-  - # conditionally-supported-directive
+  - \# conditionally-supported-directive
 - control-line:
-  - # include pp-tokens new-line
+  - \# include pp-tokens new-line
   - pp-import
-  - # define identifier replacement-list new-line
-  - # define identifier lparen identifier-list? ) replacement-list new-line
-  - # define identifier lparen ... ) replacement-list new-line
-  - # define identifier lparen identifier-list , ... ) replacement-list new-line
-  - # undef identifier new-line
-  - # line pp-tokens new-line
-  - # error pp-tokens? new-line
-  - # warning pp-tokens? new-line
-  - # pragma pp-tokens? new-line
-  - # new-line
+  - \# define identifier replacement-list new-line
+  - \# define identifier lparen identifier-list? ) replacement-list new-line
+  - \# define identifier lparen ... ) replacement-list new-line
+  - \# define identifier lparen identifier-list , ... ) replacement-list new-line
+  - \# undef identifier new-line
+  - \# line pp-tokens new-line
+  - \# error pp-tokens? new-line
+  - \# warning pp-tokens? new-line
+  - \# pragma pp-tokens? new-line
+  - \# new-line
 - if-section:
   - if-group elif-groups? else-group? endif-line
 - if-group:
-  - # if constant-expression new-line group?
-  - # ifdef identifier new-line group?
-  - # ifndef identifier new-line group?
+  - \# if constant-expression new-line group?
+  - \# ifdef identifier new-line group?
+  - \# ifndef identifier new-line group?
 - elif-groups:
   - elif-group
   - elif-groups elif-group
 - elif-group:
-  - # elif constant-expression new-line group?
-  - # elifdef identifier new-line group?
-  - # elifndef identifier new-line group?
+  - \# elif constant-expression new-line group?
+  - \# elifdef identifier new-line group?
+  - \# elifndef identifier new-line group?
 - else-group:
-  - # else new-line group?
+  - \# else new-line group?
 - endif-line:
-  - # endif new-line
+  - \# endif new-line
 - text-line:
   - pp-tokens? new-line
 - conditionally-supported-directive:
@@ -1218,7 +1218,7 @@
 
 - TODO: List of implementation-defined
 
-- #pragma: Ignores any #pragma directive currently.
+- \#pragma: Ignores any #pragma directive currently.
 - additional execution policies supported by parallel algorithms: Nothing
 - additional file_type enumerators for file systems supporting additional types of file: Defined by library.
 - additional formats for time_get::do_get_date: Defined by library.
