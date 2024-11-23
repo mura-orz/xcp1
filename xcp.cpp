@@ -965,6 +965,17 @@ public:
 
 private:
 	void set_default_paths() {
+		// TODO:
+		// - VC: msvcrt.lib
+		//	 - C:/Program Files/Microsoft Visual Studio/{2022}/{Community}/VC/Tools/MSVC/{version}/include
+		//	 - C:/Program Files/Microsoft Visual Studio/{2022}/{Community}/VC/Tools/MSVC/{version}/lib/{x64}
+		// - LLVM: libc++, libc++-fs
+		//	 - /usr/lib/llvm-{18}/include/c++/{v1}
+		//	 - /usr/lib/llvm-{18}/lib
+		// - GCC: libstdc++, libstdc++fs
+		//	 - /usr/include/c++/{14}
+		//	 - /usr/lib/gcc/{x86_64}-linux-gnu/{14}
+
 		// -------------------------------
 		// Default path to search including headers.
 		includes_.emplace_back("/usr/include");
@@ -977,8 +988,8 @@ private:
 
 		// -------------------------------
 		// Standard libraries.
-		libraries_.emplace_back("c++");		   // libc++
-		libraries_.emplace_back("pthread");	   // libpthread
+		libraries_.emplace_back("c++");		   // TODO: libc++
+		libraries_.emplace_back("pthread");	   // libpthread (TODO: -pthread)
 	}
 
 private:
