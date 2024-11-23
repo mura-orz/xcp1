@@ -39,6 +39,25 @@ using namespace std::string_view_literals;
 
 using svmatch = std::match_results<std::string_view::const_iterator>;
 
+class finalizer_t {
+public:
+	template<typename T>
+	explicit finalizer_t(T&& t) :
+		t_(std::move(t)) {}
+	~finalizer_t() {
+		if constexpr (noexcept(t_())) {
+			t_();
+		} else {
+			try {
+				t_();
+			} catch (...) {}
+		}
+	}
+
+private:
+	std::function<void()> t_;
+};
+
 template<typename E = std::invalid_argument>
 inline void check(bool result, std::string const& message = std::string{}, std::source_location const& sl = std::source_location::current()) {
 	if (! result) throw E{sl.function_name() + std::to_string(sl.line()) + message};
@@ -68,6 +87,29 @@ inline bool contains(C& container, T const& value) {
 	return std::ranges::find(container, value) != container.end();
 }
 
+namespace uc {
+
+inline std::string to_utf8(char32_t ch) {
+	std::string s;
+	if (ch < 0x80) {
+		s.push_back(static_cast<char>(ch));
+	} else if (ch < 0x800) {
+		s.push_back(static_cast<char>(0xC0 | (ch >> 6)));
+		s.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+	} else if (ch < 0x10000) {
+		s.push_back(static_cast<char>(0xE0 | (ch >> 12)));
+		s.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
+		s.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+	} else if (ch < 0x110000) {
+		s.push_back(static_cast<char>(0xF0 | (ch >> 18)));
+		s.push_back(static_cast<char>(0x80 | ((ch >> 12) & 0x3F)));
+		s.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
+		s.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+	}
+	return s;
+}
+
+}	 // namespace uc
 namespace log {
 
 enum class level_t {
