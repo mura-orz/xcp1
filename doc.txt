@@ -1,0 +1,200 @@
+■5.2	Phases of translation	[lex.phases]	(partial)
+//	翻訳手順
+
+The precedence among the syntax rules of translation is specied by the following phases.
+//	翻訳の構文規則間の順序は以下の段階で規定する。
+
+【1】
+
+An implementation shall support input files that are a sequence of UTF-8 code units(UTF-8 files).
+//	実装はUTF-8コード単位列の入力ファイル(UTF-8ファイル)をサポートするものとする。
+
+It may also support an implementation-defined set of other kinds of input files,
+and, if so, the kind of an input file is determined in an implementation-defined manner that includes a means of designating input files as UTF-8 files,
+independent of their content.
+//	また実装定義の他種の入力ファイル類をサポートしてもよい。
+//	その場合、入力ファイルの種類は、その内容とは独立して、UTF-8ファイルと指定する手段も含めて実装定義の作法により決定する。
+
+NOTE:1 In other words, recognizing the U+FEFF byte order mark is not sucient.
+//	つまり、BOMの認識だけでは不十分である。
+
+If an input file is determined to be a UTF-8 file,
+then it shall be a well-formed UTF-8 code unit sequence and it is decoded to produce a sequence of Unicode scalar values.
+//	もし入力ファイルがUTF-8ファイルと決定したら、
+//	それは適格なUTF-8コード単位列でなければならず、Unicodeの数値列としてデコードされる。
+
+A sequence of translation character set elements is then formed by mapping each Unicode scalar value to the corresponding translation character set element.
+//	各Unicodeの数値に対応する翻訳文字集合要素列の割り当てにより、翻訳文字集合要素は形成される。
+
+In the resulting sequence,
+each pair of characters in the input sequence consisting of U+000D carriage return followed by U+000A line feed,
+as well as each U+000D carriage return not immediately followed by a U+000A line feed,
+is replaced by a single new-line character.
+//	この結果列では、
+//	CRと続くLFの組と、
+//	直後にLFが続かないCRは、
+//	単一の改行文字に置換する。
+
+For any other kind of input file supported by the implementation,
+characters are mapped, in an implementation-defined manner,
+to a sequence of translation character set elements(5.3),
+representing end-of-line indicators as new-line characters.
+//	実装が他種の入力ファイルをサポートする場合、
+//	文字は、実装定義の作法により、
+//	改行文字で行端を表現する、
+//	翻訳文字集合要素列に割り当てられる。
+
+【2】
+
+If the first translation character is U+FEFF byte orde rmark, it is deleted.
+//	先頭の翻訳文字がBOMならば削除する。
+
+Each sequence of a backslash character(\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
+splicing physical source lines to form logical source lines.
+//	BSの後に改行以外の空白文字を挟んで改行が続くならば、
+//	物理行から論理行に接合するため、それを削除する。
+
+Only the last backslash on any physical source line shall be eligible for being part of such a splice.
+//	物理ソース行の最後のバックスラッシュのみが、そのような接合の一部となる資格を持つ。
+
+Except for splices reverted in a raw string literal,
+if a splice results in a character sequence that matches the syntax of a universal-character-name,
+the behavior is undened.
+//	生文字列定数で戻された接合を除き、
+//	接合結果が汎用文字名の構文に一致する文字列になる場合、
+//	その動作は未定義である。
+
+A source file that is not empty and that does not end in a new-line character,
+or that ends in a splice, shall be processed as if an additional new-line character were appended to the file.
+//	空でなく、改行文字で終わらないソースファイルまたは接合で終わるソースファイルは、あたかも改行文字が追加されたかのように処理されるものとする。
+
+【3】
+
+The source file is decomposed into preprocessing tokens (5.4) and sequences of whitespace characters (including comments).
+//	ソースファイルは、前処理字句と空白文字の列(注釈含む)に分解される。
+
+A source file shall not end in a partial preprocessing token or in a partial comment.
+//	ソースファイルは、部分的な前処理字句や部分的な注釈で終わってはならない。
+
+Each comment is replaced by one space character.
+//	各注釈は単一の空白文字に置換する。
+
+New-line characters are retained.
+//	改行文字は保持する。
+
+Whether each nonempty sequence of whitespace characters other than new-line is retained or replaced by one space character is unspecied.
+//	改行以外の空白文字列が保持されるか、単一の空白文字に置換されるかは不定である。
+
+As characters from the source file are consumed to form the next preprocessing token
+(i.e., not being consumed as part of a comment or other forms of whitespace),
+except when matching a c-char-sequence, s-char-sequence, r-char-sequence, h-char-sequence, or q-char-sequence,
+universal-character-names are recognized and replaced by the designated element of the translation character set.
+//	c-char-sequence、s-char-sequence、r-char-sequence、h-char-sequence、q-char-sequenceにマッチする場合を除き、
+//	ソースファイルの文字が次の前処理字句を形成するために消費されるとき(すなわち、注釈その他空白の一部として消費されないとき)、
+//	汎用文字名が認識され、翻訳文字集合の指定された要素に置換される。
+
+The process of dividing a source file's characters into preprocessing tokens is context-dependent.
+//	ソースファイルの文字を前処理字句に分割する処理は、文脈依存である。
+
+EXAMPLE: See the handling of < within a #include preprocessing directive.
+//	例：#include前処理命令内の<の扱いを参照のこと。
+
+【4】
+
+Preprocessing directives are executed,
+macro invocations are expanded,
+and_Pragma unary operator expressions are executed.
+//	前処理命令が実行され、
+//	マクロ呼び出しが展開され、
+//	_Pragma単項演算子式が実行される。
+
+A #include prepreprocessing directive causes the named header or source file to be processed from phase 1 through phase 4, recursively.
+//	#include 前処理命令は、指定されたヘッダまたはソースファイルを第1段階から第4段階まで再帰的に処理する。
+
+All preprocessing directives are then deleted.
+//	その後、全前処理命令は削除される。
+
+【5】
+
+For a sequence of two or more adjacent string-literal tokens,
+a common encoding-prefix is determined as specified in 5.13.5.
+//	2つ以上の文字列定数字句の隣接する列は、5.13.5で規定されるように、共通の符号化接頭辞に決定される。
+
+Each such string-literal token is then considered to have that common encoding-prefix.
+//	このような文字列定数字句は、それぞれ共通のエンコーディング接頭辞を持つものとみなす。
+
+【6】
+
+Adjacent string-literal tokens are concatenated (5.13.5).
+//	隣接する文字列定数字句列は連結される。
+
+【7】
+
+Whitespace characters separating tokens are no longer significant.
+//	字句を区切る空白文字はもはや重要ではない。
+
+Each preprocessing token is converted into a token (5.6).
+//	各前処理字句は字句に変換される。
+
+
+The resulting tokens constitute a translation unit and are syntactically and semantically analyzed and translated.
+//	結果の字句は翻訳単位を構成し、構文的・意味的に分析され、翻訳される。
+
+NOTE2: The process of analyzing and translating the tokens can occasionally result in one token being replaced by a sequence of other tokens (13.3).
+//	注2：字句を分析し翻訳する過程で、ある字句が他の字句れ列の列に置換されることがある。
+
+It is implementation-defined whether the sources for module units and header units on which the current translation unit has an interface dependency (10.1,10.3) are required to be available.
+//	現在の翻訳単位がインターフェース依存するモジュール単位やヘッダ単位のソースが必要か否かは、実装定義である。
+
+NOTE3: Source files, translation units and translated translation units need not necessarily be stored as files,
+nor need there be any one-to-one correspondence between these entities and any external representation.
+//	注3：ソースファイル、翻訳単位、および翻訳された翻訳単位は、必ずしもファイルとして格納される必要はなく、これらの実体と外部表現との間に一対一の対応も必要もない。
+
+The description is conceptualonly, and does not specify any particular implementation.
+//	この説明は概念的なものであり、特定の実装を指定するものではない。
+
+【8】
+
+Translated translation units and instantiation units are combined as follows:
+//	翻訳単位と実体化単位は次のように結合される：
+
+NOTE4: Some or all of these can be supplied from a library.
+//	注4：これらの一部または全部をライブラリで供給できる。
+
+Each translated translation unit is examined to produce a list of required instantiations.
+//	必要な実体化一覧を得るために、翻訳された各翻訳単位が検査される。
+
+NOTE5: This can include instantiations which have been explicitly requested(13.9.3).
+//	注5：明示的に要求された実体化も含められる(13.9.3)。
+
+The definitions of the required templates are located.
+//	必要なテンプレートの定義は以下の通りである。
+
+It is implementation-defined whether the source of the translation units containing these definitions is required to be available.
+//	これらの定義を含む翻訳単位のソースを利用できるか否かは、実装定義である。
+
+NOTE6: An implementation can choose to encode sufficient information into the translated translation unit so as to ensure the source is not required here.
+//	注6：実装は、ソースがここで必要とされないことを保証するために、翻訳された翻訳単位に十分な情報をエンコードしておいてもよい。
+
+All the required instantiations are performed to produce instantiationunits.
+//	必要な全実体化が実行され、実体化単位が生成される。
+
+NOTE7: These are similar to translated translation units,
+but contain no references to uninstantiated templates and no template definitions.
+//	注7：これらは翻訳された翻訳単位と似ているが、
+//	実体化されていないテンプレートへの参照はなく、テンプレートの定義もない。
+
+The program is ill-formed if any instantiation fails.
+//	実体化に失敗した場合、プログラムは不適格である。
+
+【9】
+
+All external entity references are resolved.
+//	全外部実体参照が解決される。
+
+Library components are linked to satisfy external references to entities not defined in the current translation.
+//	ライブラリは、現在の翻訳で定義されない実体への外部参照を満たすように結合される。
+
+All such translator output is collected into a program image which contains information needed for execution in its execution environment.
+//	このような翻訳器の全出力は、実行環境での動作に必要な情報を含むプログラムイメージに集積される。
+
