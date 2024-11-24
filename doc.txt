@@ -1,7 +1,7 @@
 ■5.2	Phases of translation	[lex.phases]	(partial)
 //	翻訳手順
 
-The precedence among the syntax rules of translation is specied by the following phases.
+The precedence among the syntax rules of translation is specified by the following phases.
 //	翻訳の構文規則間の順序は以下の段階で規定する。
 
 【1】
@@ -15,7 +15,7 @@ independent of their content.
 //	また実装定義の他種の入力ファイル類をサポートしてもよい。
 //	その場合、入力ファイルの種類は、その内容とは独立して、UTF-8ファイルと指定する手段も含めて実装定義の作法により決定する。
 
-NOTE:1 In other words, recognizing the U+FEFF byte order mark is not sucient.
+NOTE:1 In other words, recognizing the U+FEFF byte order mark is not sufficient.
 //	つまり、BOMの認識だけでは不十分である。
 
 If an input file is determined to be a UTF-8 file,
@@ -46,7 +46,7 @@ representing end-of-line indicators as new-line characters.
 
 【2】
 
-If the first translation character is U+FEFF byte orde rmark, it is deleted.
+If the first translation character is U+FEFF byte order mark, it is deleted.
 //	先頭の翻訳文字がBOMならば削除する。
 
 Each sequence of a backslash character(\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
@@ -59,7 +59,7 @@ Only the last backslash on any physical source line shall be eligible for being 
 
 Except for splices reverted in a raw string literal,
 if a splice results in a character sequence that matches the syntax of a universal-character-name,
-the behavior is undened.
+the behavior is undefined.
 //	生文字列定数で戻された接合を除き、
 //	接合結果が汎用文字名の構文に一致する文字列になる場合、
 //	その動作は未定義である。
@@ -82,7 +82,7 @@ Each comment is replaced by one space character.
 New-line characters are retained.
 //	改行文字は保持する。
 
-Whether each nonempty sequence of whitespace characters other than new-line is retained or replaced by one space character is unspecied.
+Whether each nonempty sequence of whitespace characters other than new-line is retained or replaced by one space character is unspecified.
 //	改行以外の空白文字列が保持されるか、単一の空白文字に置換されるかは不定である。
 
 As characters from the source file are consumed to form the next preprocessing token
@@ -108,7 +108,7 @@ and_Pragma unary operator expressions are executed.
 //	マクロ呼び出しが展開され、
 //	_Pragma単項演算子式が実行される。
 
-A #include prepreprocessing directive causes the named header or source file to be processed from phase 1 through phase 4, recursively.
+A #include preprocessing directive causes the named header or source file to be processed from phase 1 through phase 4, recursively.
 //	#include 前処理命令は、指定されたヘッダまたはソースファイルを第1段階から第4段階まで再帰的に処理する。
 
 All preprocessing directives are then deleted.
@@ -150,7 +150,7 @@ NOTE3: Source files, translation units and translated translation units need not
 nor need there be any one-to-one correspondence between these entities and any external representation.
 //	注3：ソースファイル、翻訳単位、および翻訳された翻訳単位は、必ずしもファイルとして格納される必要はなく、これらの実体と外部表現との間に一対一の対応も必要もない。
 
-The description is conceptualonly, and does not specify any particular implementation.
+The description is conceptual only, and does not specify any particular implementation.
 //	この説明は概念的なものであり、特定の実装を指定するものではない。
 
 【8】
@@ -176,7 +176,7 @@ It is implementation-defined whether the source of the translation units contain
 NOTE6: An implementation can choose to encode sufficient information into the translated translation unit so as to ensure the source is not required here.
 //	注6：実装は、ソースがここで必要とされないことを保証するために、翻訳された翻訳単位に十分な情報をエンコードしておいてもよい。
 
-All the required instantiations are performed to produce instantiationunits.
+All the required instantiations are performed to produce instantiation units.
 //	必要な全実体化が実行され、実体化単位が生成される。
 
 NOTE7: These are similar to translated translation units,
