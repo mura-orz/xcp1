@@ -356,7 +356,7 @@ auto const while_s_			   = "while"s;
 
 auto const override_s_ = "override"s;
 auto const final_s_	   = "final"s;
-auto const bom_ = "\xEF\xBB\xBF"sv;	// 0xFEFF
+auto const bom_		   = "\xEF\xBB\xBF"sv;	  // 0xFEFF
 
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
@@ -535,11 +535,11 @@ std::string load_file(std::filesystem::path const& path) {
 	// Reads the file.
 	std::stringstream ss;
 	std::copy(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>(), std::ostreambuf_iterator<char>(ss));
-	auto const s1  = ss.str();
+	auto const s1 = ss.str();
 
 	// -------------------------------
 	// Unifies CRLF/CR/LF to LF.
-	auto const s2  = std::regex_replace(s1, def::newline_re, "\n");
+	auto const s2 = std::regex_replace(s1, def::newline_re, "\n");
 
 	// ===============================
 	///	[ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
@@ -553,13 +553,13 @@ std::string load_file(std::filesystem::path const& path) {
 
 	// -------------------------------
 	// Removes BOM if exists.
-	auto const s3  = (s2.starts_with(def::bom_)) ? s2.substr(def::bom_.size()) : s2;
+	auto const s3 = (s2.starts_with(def::bom_)) ? s2.substr(def::bom_.size()) : s2;
 	// -------------------------------
 	// Splices to logical source lines.
-	auto const s4  = std::regex_replace(s3, def::escaped_newline_re, "");
+	auto const s4 = std::regex_replace(s3, def::escaped_newline_re, "");
 	// -------------------------------
 	// Adds the last new-line if necessary
-	auto const s5  = (s4.empty() || s4.ends_with('\\') || s4.ends_with('\n')) ? s4 : s4 + '\n';
+	auto const s5 = (s4.empty() || s4.ends_with('\\') || s4.ends_with('\n')) ? s4 : s4 + '\n';
 	tr.set_result(escape(s5, 32u));
 	return s5;
 }
@@ -633,6 +633,8 @@ private:
 	std::size_t									 column_;
 	std::shared_ptr<std::filesystem::path const> file_;
 };
+inline bool operator==(pos_t const& lhs, pos_t const& rhs) { return lhs.line() == rhs.line() && lhs.column() == rhs.column() && lhs.file() == rhs.file(); }
+inline bool operator!=(pos_t const& lhs, pos_t const& rhs) { return ! (lhs == rhs); }
 
 inline bool is_unary_op(std::string_view const& op) {
 	log::tracer_t tr{{std::string{op}}};
@@ -729,7 +731,6 @@ using tokens_lines_t = std::list<tokens_t>;
 using tokens_itr_t	 = tokens_t::iterator;
 using line_t		 = std::pair<tokens_itr_t, tokens_itr_t>;
 using lines_t		 = std::vector<line_t>;
-using strs_t		 = std::vector<std::string_view>;	 // TODO:
 
 inline bool operator==(token_t const& lhs, token_t const& rhs) { return lhs.type() == rhs.type() && lhs.token() == rhs.token(); }
 inline bool operator<(token_t const& lhs, token_t const& rhs) { return lhs.type() < rhs.type() || (lhs.token() < rhs.token()); }
@@ -1051,20 +1052,6 @@ class node_t;
 
 }	 // namespace cxx::ast
 namespace pp {
-namespace impl {
-
-inline lex::lines_t split_lines(lex::tokens_lines_t& tokens) {
-	log::tracer_t tr{{}};
-	if (tokens.empty()) return lex::lines_t{};
-
-	lex::lines_t lines;
-	lines.reserve(tokens.size());
-	std::ranges::transform(tokens, std::back_inserter(lines), [](auto& a) { return lex::line_t{a.begin(), a.end()}; });
-	tr.set_result(lines.size());
-	return lines;
-}
-
-}	 // namespace impl
 namespace pm {
 
 class path_manager_t {
@@ -1526,7 +1513,7 @@ class symbol_manager_t {
 
 }	 // namespace sm
 
-lex::lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t& tokens, std::filesystem::path const& source);
+lex::lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t& lines, std::filesystem::path const& source);
 
 namespace impl {
 
@@ -2005,59 +1992,34 @@ bool parse_preprocessing_pragma_line(lex::line_t const& line) {
 	return true;
 }
 
-std::tuple<bool, lex::lines_t> parse_preprocessing_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::line_t line) {
-	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
-	if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, line); matched) {
-		// -------------------------------
-		// #line number (filename)?
-		long long  no	= line.first->line();
-		auto const name = (! file.empty()) ? std::make_shared<std::filesystem::path const>(file) : line.first->file();
-
-		auto& tokens = paths.tokens();
-		std::for_each(std::ranges::find_if(tokens, [line](auto const& a) { return line.first == a.begin(); }), tokens.end(), [&](auto& a) { std::ranges::for_each(a, [&](auto& aa) { if (aa.file()) {aa.pos(lineno + (aa.line() - no), name);	} else {aa.pos(lineno + (aa.line() - no));} }); });
-		return {false, {line}};
-	} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, line); matched) {
-		// -------------------------------
-		// #include <...> or "..."
-		// TODO: failed to compile
-		return {true, {}};
-	} else if (parse_preprocessing_pragma_line(line)) {
-		// -------------------------------
-		// #pragma ...
-		// Ignores it because no pragma is supported yet.
-		return {true, {}};
-	} else if (auto const marker = lex::skip_ws(line.first, line.second); marker != line.second && marker->matched(lex::token_type_t::Operator, "#") && lex::next_token(marker, line.second) == line.second) {
-		// -------------------------------
-		// #
-		// Ignores it because of empty directive.
-		// It is parsed here directly.
-		return {true, {}};
-	} else {
-		return {true, {line}};
-	}
-}
-
 ///     @brief  Proceeds conditions.
 ////            #if ... (#elif ...)* (#else ...)? #endif
-std::tuple<lex::lines_t, lex::lines_t::const_iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_t::const_iterator const& begin, lex::lines_t::const_iterator const& end, std::filesystem::path const& source) {
+std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t::const_iterator const& begin, lex::tokens_lines_t::const_iterator const& end, std::filesystem::path const& source) {
 	log::tracer_t tr{{}, true};
 
 	lex::lines_t result;
 
 	bool elseif{true};
-	for (auto line = begin; line != end; ++line) {
-		auto const token = lex::skip_ws(line->first, line->second);
-		if (token == line->second) continue;
-		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, {token, line->second}); matched) {
+	auto itr = begin;
+	for (; itr != end; ++itr) {
+		// -------------------------------
+		// Expands macros.
+		auto line = macros.expand(*itr);
+
+		auto token = lex::skip_ws(line.begin(), line.end());
+		if (token == line.end()) continue;
+
+		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, {token, line.end()}); matched) {
 			// -------------------------------
 			// #if ...
 			tr.trace(lex::to_string(token->pos()) + "#if " + std::to_string(condition), true);
 			conditions.push(condition);
-			auto const [r, itr] = preprocess_conditions(conditions, macros, paths, ++line, end, source);
+			auto const [r, i] = preprocess_conditions(conditions, macros, paths, itr, end, source);
 			if (! std::ranges::empty(r)) { result.insert(result.end(), r.begin(), r.end()); }
-			if (itr == end) break;
-			line = itr;
-		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, {token, line->second}); matched) {
+			if (i == end) break;
+			itr = i;
+			--itr;	  // adjust from ++itr
+		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, {token, line.end()}); matched) {
 			// -------------------------------
 			// #elif ...
 			tr.trace(lex::to_string(token->pos()) + "#elif");
@@ -2065,7 +2027,7 @@ std::tuple<lex::lines_t, lex::lines_t::const_iterator> preprocess_conditions(cm:
 			if (! elseif) throw std::runtime_error("Invalid #elif - after #else");
 			conditions.pop();
 			conditions.push(condition);
-		} else if (impl::parse_preprocessing_else_line({token, line->second})) {
+		} else if (impl::parse_preprocessing_else_line({token, line.end()})) {
 			// -------------------------------
 			// #else ...
 			tr.trace(lex::to_string(token->pos()) + "#else");
@@ -2073,36 +2035,55 @@ std::tuple<lex::lines_t, lex::lines_t::const_iterator> preprocess_conditions(cm:
 			if (! elseif) throw std::runtime_error("Invalid #else - after #else");
 			elseif = false;
 			conditions.flip();
-		} else if (impl::parse_preprocessing_endif_line({token, line->second})) {
+		} else if (impl::parse_preprocessing_endif_line({token, line.end()})) {
 			// -------------------------------
 			// #endif
 			tr.trace(lex::to_string(token->pos()) + "#endif");
 			if (conditions.empty()) throw std::runtime_error("Invalid #endif");
 			conditions.pop();
-			return {result, line};
-		} else if (conditions.available()) {
+		} else if (! conditions.available()) {
+			// nothing to do because of false condition
+		} else if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, {token, line.end()}); matched) {
 			// -------------------------------
-			// ...
-			tr.trace(lex::to_string(token->pos()) + "#");
-			if (auto [required, lines] = parse_preprocessing_line(conditions, macros, paths, *line); required) {
-				std::ranges::copy(lines, std::inserter(result, result.end()));
-			}
-		}	 // else skips whole
+			// #line number (filename)?
+			auto const pos	= line.front().pos();
+			long long  no	= pos.line();
+			auto const name = (! file.empty()) ? std::make_shared<std::filesystem::path const>(file) : pos.file();
+
+			auto& tokens = paths.tokens();
+			std::for_each(std::ranges::find_if(tokens, [pos](auto const& a) { return a.front().pos() == pos; }), tokens.end(), [&](auto& a) { std::ranges::for_each(a, [&](auto& aa) { auto const n = lineno + (aa.line() - no); if (aa.file()) { aa.pos(n, name); } else { aa.pos(n); } }); });
+		} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, {token, line.end()}); matched) {
+			// -------------------------------
+			// #include <...> or "..."
+			// TODO: failed to compile
+			std::ranges::copy(lines, std::inserter(result, result.end()));
+		} else if (parse_preprocessing_pragma_line({token, line.end()})) {
+			// -------------------------------
+			// #pragma ...
+			// Ignores it because no pragma is supported yet.
+		} else if (auto const [tokens, rest] = lex::seq_match(line.begin(), line.end(), {lex::is_pp}); ! tokens.empty() && lex::next_token(rest, line.end()) == line.end()) {
+			// -------------------------------
+			// #
+			// Ignores it because of empty directive.
+		} else {
+			// -------------------------------
+			// non-directive line
+			std::ranges::copy(lines, std::inserter(result, result.end()));
+		}
 	}
-	return {result, end};
+	return {result, itr};
 }
 
 }	 // namespace impl
 
-lex::lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t& tokens, std::filesystem::path const& source) {
+lex::lines_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t& lines, std::filesystem::path const& source) {
 	log::tracer_t tr{{}};
 
 	check(! source.string().empty());
-	if (tokens.empty()) return {};	  // Empty file is valid.
+	if (lines.empty()) return {};	 // Empty file is valid.
 
 	// -------------------------------
 	// Proceeds line by line.
-	auto const lines		 = impl::split_lines(tokens);
 	auto const [result, itr] = impl::preprocess_conditions(conditions, macros, paths, lines.begin(), lines.end(), source);
 	if (itr != lines.end()) throw std::runtime_error("unexpected line");
 	return result;
@@ -3151,8 +3132,7 @@ xxx_parser_impl(noexcept_specifier_, { return seq_({lit::noexcept_, opt_(seq_({l
 }	 // namespace stx
 
 std::shared_ptr<ast::node_t> parse(lex::tokens_t const& tokens) {
-
-	return nullptr;	// TODO:
+	return nullptr;	   // TODO:
 
 	if (auto const [nodes, rest] = stx::translation_unit_->parse(stx::parser_t::nodes_t{}, tokens); ! rest) {
 		return nullptr;
