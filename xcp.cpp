@@ -242,56 +242,6 @@ inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, 
 
 }	 // namespace log
 
-std::string load_file(std::filesystem::path const& path) {
-	log::tracer_t tr{{path.string()}};
-
-	// ===============================
-	// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-	//	1.	An implementation shall support input files that are a sequence of UTF-8 code units (UTF-8 files).
-	//		It may also support an implementation-defined set of other kinds of input files, and,
-	//		if so, the kind of an input file is determined in an implementation-defined manner that includes a means of designating input files as UTF-8 files,
-	//		independent of their content.
-	//		NOTE 1 In other words, recognizing the u+feff byte order mark is not sufficient.
-	//		If an input file is determined to be a UTF-8 file,
-	//		then it shall be a well-formed UTF-8 code unit sequence and it is decoded to produce a sequence of Unicode8 scalar values.
-	//		A sequence of translation character set elements is then formed by mapping each Unicode scalar value to the corresponding translation　character set element.
-	//		In the resulting sequence, each pair of characters in the input sequence consisting　of u+000d carriage return followed by u+000a line feed,
-	//		as well as each u+000d carriage return not immediately followed by a u+000a line feed, is replaced by a single new-line character.
-	//		For any other kind of input file supported by the implementation, characters are mapped, in an implementation-defined manner,
-	//		to a sequence of translation character set elements (5.3), representing end-of-line indicators as new-line characters.
-
-	// -------------------------------
-	// Opens the file.
-	std::ifstream ifs;
-	ifs.exceptions(std::ios::failbit | std::ios::badbit);
-	ifs.open(path, std::ios::in | std::ios::binary);
-	ifs.exceptions(std::ios::failbit);
-	// -------------------------------
-	// Reads the file.
-	std::stringstream ss;
-	std::copy(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>(), std::ostreambuf_iterator<char>(ss));
-
-	// ===============================
-	///	[ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-	//	2.	If the first translation character is u+feff byte order mark, it is deleted.
-	//		Each sequence of a backslash character (\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
-	//		splicing physical source lines to form logical source lines.
-	//		Only the last backslash on any physical source line shall be eligible for being part of such a splice.
-	//		Except for splices reverted in a raw string literal,
-	//		if a splice results in a character sequence that matches the syntax of a universal-character-name, the behavior is undefined.
-	//		A source file that is not empty and that does not end in a new-line character, or that ends in a splice, shall be processed as if an additional new-line character were appended to the file.
-
-	// -------------------------------
-	// Removes BOM if exists.
-	auto const bom = "\xEF\xBB\xBF"sv;
-	auto const s1  = ss.str();
-	auto const s2  = (s1.starts_with(bom)) ? s1.substr(bom.size()) : s1;
-	auto const s3  = std::regex_replace(s2, std::regex(R"(\\[ \t\f\v]*\n)"), "");
-	auto const s4  = (s3.empty() || s3.ends_with('\\') || s3.ends_with('\n')) ? s3 : s3 + '\n';
-	tr.set_result(escape(s4, 32u));
-	return s4;
-}
-
 namespace lex {
 namespace def {
 
@@ -406,6 +356,7 @@ auto const while_s_			   = "while"s;
 
 auto const override_s_ = "override"s;
 auto const final_s_	   = "final"s;
+auto const bom_ = "\xEF\xBB\xBF"sv;	// 0xFEFF
 
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
@@ -520,9 +471,9 @@ std::unordered_set<std::string_view> const keywords{
 };
 
 // regex rules
-std::regex const newline_re{R"(^(\r?\n))"};
-std::regex const escaped_newline_re{R"(^(\\\r?\n))"};
-std::regex const line_comment_re{R"(^(//[^\r\n]*(\r?\n)))"};
+std::regex const newline_re{R"(^(\r\n?|\n))"};
+std::regex const escaped_newline_re{R"(^(\\[ \t\f\v]*\n))"};
+std::regex const line_comment_re{R"(^(//[^\r\n]*(\n)))"};
 std::regex const block_comment_re{R"(^(/[*](?:[^*]|[*][^/]|^|$|[\r\n])*[*]/))"};	// workaround for multiline regex
 std::regex const inline_whitespaces_re{R"(^([ \t\v\f]+))"};
 std::regex const identifier_re{R"(^([a-zA-Z_][a-zA-Z_0-9]*))"};
@@ -555,6 +506,63 @@ std::unordered_set<std::string_view> const binary_op_set{"##", "%:%:", "&&", "&"
 std::unordered_set<std::string_view> const trinary_op_set{"?", ":"};
 
 }	 // namespace def
+
+std::string load_file(std::filesystem::path const& path) {
+	log::tracer_t tr{{path.string()}};
+
+	// ===============================
+	// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+	//	1.	An implementation shall support input files that are a sequence of UTF-8 code units (UTF-8 files).
+	//		It may also support an implementation-defined set of other kinds of input files, and,
+	//		if so, the kind of an input file is determined in an implementation-defined manner that includes a means of designating input files as UTF-8 files,
+	//		independent of their content.
+	//		NOTE 1 In other words, recognizing the u+feff byte order mark is not sufficient.
+	//		If an input file is determined to be a UTF-8 file,
+	//		then it shall be a well-formed UTF-8 code unit sequence and it is decoded to produce a sequence of Unicode scalar values.
+	//		A sequence of translation character set elements is then formed by mapping each Unicode scalar value to the corresponding translation　character set element.
+	//		In the resulting sequence, each pair of characters in the input sequence consisting　of U+000d carriage return followed by U+000a line feed,
+	//		as well as each U+000d carriage return not immediately followed by a U+000a line feed, is replaced by a single new-line character.
+	//		For any other kind of input file supported by the implementation, characters are mapped, in an implementation-defined manner,
+	//		to a sequence of translation character set elements (5.3), representing end-of-line indicators as new-line characters.
+
+	// -------------------------------
+	// Opens the file.
+	std::ifstream ifs;
+	ifs.exceptions(std::ios::failbit | std::ios::badbit);
+	ifs.open(path, std::ios::in | std::ios::binary);
+	ifs.exceptions(std::ios::failbit);
+	// -------------------------------
+	// Reads the file.
+	std::stringstream ss;
+	std::copy(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>(), std::ostreambuf_iterator<char>(ss));
+	auto const s1  = ss.str();
+
+	// -------------------------------
+	// Unifies CRLF/CR/LF to LF.
+	auto const s2  = std::regex_replace(s1, def::newline_re, "\n");
+
+	// ===============================
+	///	[ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+	//	2.	If the first translation character is U+FEFF byte order mark, it is deleted.
+	//		Each sequence of a backslash character (\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
+	//		splicing physical source lines to form logical source lines.
+	//		Only the last backslash on any physical source line shall be eligible for being part of such a splice.
+	//		Except for splices reverted in a raw string literal,
+	//		if a splice results in a character sequence that matches the syntax of a universal-character-name, the behavior is undefined.
+	//		A source file that is not empty and that does not end in a new-line character, or that ends in a splice, shall be processed as if an additional new-line character were appended to the file.
+
+	// -------------------------------
+	// Removes BOM if exists.
+	auto const s3  = (s2.starts_with(def::bom_)) ? s2.substr(def::bom_.size()) : s2;
+	// -------------------------------
+	// Splices to logical source lines.
+	auto const s4  = std::regex_replace(s3, def::escaped_newline_re, "");
+	// -------------------------------
+	// Adds the last new-line if necessary
+	auto const s5  = (s4.empty() || s4.ends_with('\\') || s4.ends_with('\n')) ? s4 : s4 + '\n';
+	tr.set_result(escape(s5, 32u));
+	return s5;
+}
 
 /// @brief      Lexical token type.
 enum class token_type_t {
@@ -1932,8 +1940,8 @@ std::tuple<bool, std::filesystem::path, lex::lines_t> parse_preprocessing_includ
 
 	paths.push(*fullpath);
 	try {
-		paths.source(xxx::load_file(paths.path()));
-		paths.tokens(xxx::lex::scan(paths.source(), *fullpath));
+		paths.source(lex::load_file(paths.path()));
+		paths.tokens(lex::scan(paths.source(), *fullpath));
 		paths.preprocessing_tokens(preprocess(conditions, macros, paths, paths.tokens(), *fullpath));
 	} catch (std::exception const& e) {
 		std::cerr << e.what() << std::endl;
@@ -3143,6 +3151,9 @@ xxx_parser_impl(noexcept_specifier_, { return seq_({lit::noexcept_, opt_(seq_({l
 }	 // namespace stx
 
 std::shared_ptr<ast::node_t> parse(lex::tokens_t const& tokens) {
+
+	return nullptr;	// TODO:
+
 	if (auto const [nodes, rest] = stx::translation_unit_->parse(stx::parser_t::nodes_t{}, tokens); ! rest) {
 		return nullptr;
 	} else if (! rest->empty()) {
@@ -3199,11 +3210,11 @@ public:
 
 		// To keep address of lexical tokens and preprocessing tokens, it uses shared pointers in the path manager;
 		// otherwise, const iterators would be invalidate.
-		paths_.source(xxx::load_file(paths_.path()));
-		paths_.tokens(xxx::lex::scan(paths_.source(), paths_.path()));
+		paths_.source(lex::load_file(paths_.path()));
+		paths_.tokens(lex::scan(paths_.source(), paths_.path()));
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::ranges::for_each(a, [](auto const& aa) { std::clog << " ---> " << xxx::lex::to_string(aa) << "\n"; }); });	  // TODO:
-		paths_.preprocessing_tokens(xxx::pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
-		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::for_each(a.first, a.second, [](auto const& aa) { std::clog << " $---> " << xxx::lex::to_string(aa) << "\n"; }); });
+		paths_.preprocessing_tokens(pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
+		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::for_each(a.first, a.second, [](auto const& aa) { std::clog << " $---> " << lex::to_string(aa) << "\n"; }); });
 		auto const ft = paths_.tokens() | std::views::join | std::views::common;	// Flattens tokens. TODO: It would use std::views::to in C++23 or later.
 
 		lex::tokens_t const flat_tokens(ft.begin(), ft.end());
