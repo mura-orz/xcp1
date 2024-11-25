@@ -1708,8 +1708,8 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 			if (itr->token() == lex::def::defined_s_) {
 				// -------------------------------
 				// defined(...)
-				if (auto const [tokens, rest] = seq_match(itr, line.second, {lex::is_sep("("), lex::is_(lex::token_type_t::Identifier), lex::is_sep(")")}); !tokens.empty()) {
-					auto const defined = macros.defined(tokens.at(1).token());
+				if (auto const [tokens, rest] = seq_match(itr, line.second, {lex::is_sep("("), lex::is_(lex::token_type_t::Identifier), lex::is_sep(")")}); ! tokens.empty()) {
+					auto const defined = macros.defined(tokens.at(1)->token());
 					value.push(defined ? 1 : 0);
 					break;
 				}
@@ -1784,7 +1784,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	using enum lex::token_type_t;
 	if (auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
 		if (auto const is_ifdef = tokens.at(2)->matched(Identifier, lex::def::ifdef_s_); is_ifdef || tokens.at(2)->matched(Identifier, lex::def::ifndef_s_)) {
-			if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+			if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	 // TODO: extra token
 			auto const macro  = tokens.at(2)->token();
 			auto const result = macros.defined(macro);
 			return {true, is_ifdef ? result : ! result};
@@ -1807,7 +1807,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	using enum lex::token_type_t;
 	if (auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
 		if (auto const is_elifdef = tokens.at(2)->matched(Identifier, lex::def::elifdef_s_); is_elifdef || tokens.at(2)->matched(Identifier, lex::def::elifndef_s_)) {
-			if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+			if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	 // TODO: extra token
 			auto const macro  = tokens.at(2)->token();
 			auto const result = macros.defined(macro);
 			return {true, is_elifdef ? result : ! result};
@@ -1829,7 +1829,7 @@ bool parse_preprocessing_else_line(lex::line_t const& line) {
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_kw(lex::def::else_s_)});
 	if (tokens.empty()) return false;
-	if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	 // TODO: extra token
 	return true;
 }
 bool parse_preprocessing_endif_line(lex::line_t const& line) {
@@ -1837,7 +1837,7 @@ bool parse_preprocessing_endif_line(lex::line_t const& line) {
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::endif_s_)});
 	if (tokens.empty()) return false;
-	if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	 // TODO: extra token
 	return true;
 }
 
@@ -1950,7 +1950,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	auto const no	= lexical_cast<unsigned long long>(tokens.at(3)->token());
 	auto	   itr	= skip_ws(rest, line.second);
 	auto const path = itr == line.second ? ""sv : itr->token();
-	if (lex::next_token(itr, line.second) != line.second) log::err({__func__});	 // TODO: extra token
+	if (lex::next_token(itr, line.second) != line.second) log::err({__func__});	   // TODO: extra token
 	return {true, path, no};
 }
 bool parse_preprocessing_error_line(lex::line_t const& line) {
@@ -2007,11 +2007,11 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::iterator> preprocess_conditions(cm
 		// -------------------------------
 		// Expands macros.
 		{
-			auto line  = macros.expand(*itr);
+			auto  line	 = macros.expand(*itr);
 			auto& tokens = paths.tokens();
 
-			itr	= tokens.erase(itr);
-			itr	= tokens.insert(itr, line);
+			itr = tokens.erase(itr);
+			itr = tokens.insert(itr, line);
 		}
 		auto token = lex::skip_ws(itr->begin(), itr->end());
 		if (token == itr->end()) continue;
