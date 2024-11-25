@@ -1796,7 +1796,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	std::stack<std::string_view> ops;
 	std::stack<pp_value_t>		 values;
 
-	auto const result = evaluate(ops, values, macros, std::make_pair(conditions, line.second));
+	auto const result = evaluate(ops, values, macros, {conditions, line.second});
 	return {true, std::visit([](auto const& a) { return a != 0; }, result)};
 }
 std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, lex::line_t const& line) {
@@ -1819,7 +1819,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	std::stack<std::string_view> ops;
 	std::stack<pp_value_t>		 values;
 
-	auto const result = evaluate(ops, values, macros, std::make_pair(conditions, line.second));
+	auto const result = evaluate(ops, values, macros, {conditions, line.second});
 	return {true, std::visit([](auto const& a) { return a != 0; }, result)};
 }
 bool parse_preprocessing_else_line(lex::line_t const& line) {
@@ -1994,7 +1994,7 @@ bool parse_preprocessing_pragma_line(lex::line_t const& line) {
 
 ///     @brief  Proceeds conditions.
 ////            #if ... (#elif ...)* (#else ...)? #endif
-std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t::const_iterator const& begin, lex::tokens_lines_t::const_iterator const& end, std::filesystem::path const& source) {
+std::tuple<lex::lines_t, lex::tokens_lines_t::iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_lines_t::iterator const& begin, lex::tokens_lines_t::iterator const& end, std::filesystem::path const& source) {
 	log::tracer_t tr{{}, true};
 
 	lex::lines_t result;
@@ -2004,12 +2004,17 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditi
 	for (; itr != end; ++itr) {
 		// -------------------------------
 		// Expands macros.
-		auto line = macros.expand(*itr);
+		{
+			auto line  = macros.expand(*itr);
+			auto& tokens = paths.tokens();
 
-		auto token = lex::skip_ws(line.begin(), line.end());
-		if (token == line.end()) continue;
+			itr	= tokens.erase(itr);
+			itr	= tokens.insert(itr, line);
+		}
+		auto token = lex::skip_ws(itr->begin(), itr->end());
+		if (token == itr->end()) continue;
 
-		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, {token, line.end()}); matched) {
+		if (auto const [matched, condition] = impl::parse_preprocessing_if_line(macros, {token, itr->end()}); matched) {
 			// -------------------------------
 			// #if ...
 			tr.trace(lex::to_string(token->pos()) + "#if " + std::to_string(condition), true);
@@ -2019,7 +2024,7 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditi
 			if (i == end) break;
 			itr = i;
 			--itr;	  // adjust from ++itr
-		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, {token, line.end()}); matched) {
+		} else if (auto const [matched, condition] = impl::parse_preprocessing_elif_line(macros, {token, itr->end()}); matched) {
 			// -------------------------------
 			// #elif ...
 			tr.trace(lex::to_string(token->pos()) + "#elif");
@@ -2027,7 +2032,7 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditi
 			if (! elseif) throw std::runtime_error("Invalid #elif - after #else");
 			conditions.pop();
 			conditions.push(condition);
-		} else if (impl::parse_preprocessing_else_line({token, line.end()})) {
+		} else if (impl::parse_preprocessing_else_line({token, itr->end()})) {
 			// -------------------------------
 			// #else ...
 			tr.trace(lex::to_string(token->pos()) + "#else");
@@ -2035,7 +2040,7 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditi
 			if (! elseif) throw std::runtime_error("Invalid #else - after #else");
 			elseif = false;
 			conditions.flip();
-		} else if (impl::parse_preprocessing_endif_line({token, line.end()})) {
+		} else if (impl::parse_preprocessing_endif_line({token, itr->end()})) {
 			// -------------------------------
 			// #endif
 			tr.trace(lex::to_string(token->pos()) + "#endif");
@@ -2043,25 +2048,25 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::const_iterator> preprocess_conditi
 			conditions.pop();
 		} else if (! conditions.available()) {
 			// nothing to do because of false condition
-		} else if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, {token, line.end()}); matched) {
+		} else if (auto const [matched, file, lineno] = parse_preprocessing_line_line(macros, {token, itr->end()}); matched) {
 			// -------------------------------
 			// #line number (filename)?
-			auto const pos	= line.front().pos();
+			auto const pos	= itr->front().pos();
 			long long  no	= pos.line();
 			auto const name = (! file.empty()) ? std::make_shared<std::filesystem::path const>(file) : pos.file();
 
 			auto& tokens = paths.tokens();
 			std::for_each(std::ranges::find_if(tokens, [pos](auto const& a) { return a.front().pos() == pos; }), tokens.end(), [&](auto& a) { std::ranges::for_each(a, [&](auto& aa) { auto const n = lineno + (aa.line() - no); if (aa.file()) { aa.pos(n, name); } else { aa.pos(n); } }); });
-		} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, {token, line.end()}); matched) {
+		} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, {token, itr->end()}); matched) {
 			// -------------------------------
 			// #include <...> or "..."
 			// TODO: failed to compile
 			std::ranges::copy(lines, std::inserter(result, result.end()));
-		} else if (parse_preprocessing_pragma_line({token, line.end()})) {
+		} else if (parse_preprocessing_pragma_line({token, itr->end()})) {
 			// -------------------------------
 			// #pragma ...
 			// Ignores it because no pragma is supported yet.
-		} else if (auto const [tokens, rest] = lex::seq_match(line.begin(), line.end(), {lex::is_pp}); ! tokens.empty() && lex::next_token(rest, line.end()) == line.end()) {
+		} else if (auto const [tokens, rest] = lex::seq_match(token, itr->end(), {lex::is_pp}); ! tokens.empty() && lex::next_token(rest, itr->end()) == itr->end()) {
 			// -------------------------------
 			// #
 			// Ignores it because of empty directive.
