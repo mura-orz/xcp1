@@ -795,6 +795,11 @@ public:
 	explicit is_op(std::string const& s) :
 		is_(lex::token_type_t::Operator, s) {}
 };
+class is_sep : public is_ {
+public:
+	explicit is_sep(std::string const& s) :
+		is_(lex::token_type_t::Separator, s) {}
+};
 class is_id : public is_ {
 public:
 	explicit is_id(std::string const& s) :
@@ -1700,17 +1705,13 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 		case String: value.push(itr->token().data()); break;
 		// -------------------------------
 		case Identifier:
-			if (itr->token() == "defined") {
+			if (itr->token() == lex::def::defined_s_) {
 				// -------------------------------
 				// defined(...)
-				if (auto const lp = next_token(itr, line.second); lp->matched(lex::token_type_t::Separator, "(")) {
-					if (auto const identifier = next_token(lp, line.second); identifier->matched(lex::token_type_t::Identifier)) {
-						if (auto const rp = next_token(identifier, line.second); rp->matched(lex::token_type_t::Identifier, ")")) {
-							auto const defined = macros.defined(identifier->token());
-							value.push(defined ? 1 : 0);
-							break;
-						}
-					}
+				if (auto const [tokens, rest] = seq_match(itr, line.second, {lex::is_sep("("), lex::is_(lex::token_type_t::Identifier), lex::is_sep(")")}); !tokens.empty()) {
+					auto const defined = macros.defined(tokens.at(1).token());
+					value.push(defined ? 1 : 0);
+					break;
 				}
 				throw std::runtime_error("Invalid expression");
 			} else if (macros.defined(itr->token())) {
@@ -1772,6 +1773,7 @@ pp_value_t evaluate(std::stack<std::string_view>& op, std::stack<pp_value_t>& va
 		value.pop();
 		value.push(calculate(op.top(), lhs, rhs));
 	}
+	if (value.empty()) throw std::invalid_argument(__func__);
 	tr.set_result(to_string(value.top()));
 	return value.top();
 }
@@ -1782,7 +1784,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	using enum lex::token_type_t;
 	if (auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
 		if (auto const is_ifdef = tokens.at(2)->matched(Identifier, lex::def::ifdef_s_); is_ifdef || tokens.at(2)->matched(Identifier, lex::def::ifndef_s_)) {
-			if (lex::next_token(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+			if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
 			auto const macro  = tokens.at(2)->token();
 			auto const result = macros.defined(macro);
 			return {true, is_ifdef ? result : ! result};
@@ -1791,7 +1793,7 @@ std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_kw(lex::def::if_s_)});
 	if (tokens.empty()) return {false, false};
 
-	auto const conditions = lex::next_token(rest, line.second);
+	auto const conditions = lex::skip_ws(rest, line.second);
 	if (conditions == line.second) return {false, false};
 	std::stack<std::string_view> ops;
 	std::stack<pp_value_t>		 values;
@@ -1805,7 +1807,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	using enum lex::token_type_t;
 	if (auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
 		if (auto const is_elifdef = tokens.at(2)->matched(Identifier, lex::def::elifdef_s_); is_elifdef || tokens.at(2)->matched(Identifier, lex::def::elifndef_s_)) {
-			if (lex::next_token(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+			if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
 			auto const macro  = tokens.at(2)->token();
 			auto const result = macros.defined(macro);
 			return {true, is_elifdef ? result : ! result};
@@ -1814,7 +1816,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::elif_s_)});
 	if (tokens.empty()) return {false, false};
 
-	auto const conditions = lex::next_token(rest, line.second);
+	auto const conditions = lex::skip_ws(rest, line.second);
 	if (conditions == line.second) return {false, false};
 	std::stack<std::string_view> ops;
 	std::stack<pp_value_t>		 values;
@@ -1827,7 +1829,7 @@ bool parse_preprocessing_else_line(lex::line_t const& line) {
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_kw(lex::def::else_s_)});
 	if (tokens.empty()) return false;
-	if (lex::next_token(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
 	return true;
 }
 bool parse_preprocessing_endif_line(lex::line_t const& line) {
@@ -1835,7 +1837,7 @@ bool parse_preprocessing_endif_line(lex::line_t const& line) {
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::endif_s_)});
 	if (tokens.empty()) return false;
-	if (lex::next_token(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
+	if (lex::skip_ws(rest, line.second) != line.second) log::err({__func__});	// TODO: extra token
 	return true;
 }
 
@@ -1946,9 +1948,9 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	if (tokens.empty()) return {false, {}, 0LL};
 
 	auto const no	= lexical_cast<unsigned long long>(tokens.at(3)->token());
-	auto	   itr	= next_token(rest, line.second);
+	auto	   itr	= skip_ws(rest, line.second);
 	auto const path = itr == line.second ? ""sv : itr->token();
-	if (lex::next_token(++itr, line.second) != line.second) log::err({__func__});	 // TODO: extra token
+	if (lex::next_token(itr, line.second) != line.second) log::err({__func__});	 // TODO: extra token
 	return {true, path, no};
 }
 bool parse_preprocessing_error_line(lex::line_t const& line) {
@@ -1957,7 +1959,7 @@ bool parse_preprocessing_error_line(lex::line_t const& line) {
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::error_s_)});
 	if (tokens.empty()) return false;
 
-	auto const message = next_token(rest, line.second);
+	auto const message = skip_ws(rest, line.second);
 
 	std::ostringstream oss;
 	oss << "#error";
@@ -2066,7 +2068,7 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::iterator> preprocess_conditions(cm
 			// -------------------------------
 			// #pragma ...
 			// Ignores it because no pragma is supported yet.
-		} else if (auto const [tokens, rest] = lex::seq_match(token, itr->end(), {lex::is_pp}); ! tokens.empty() && lex::next_token(rest, itr->end()) == itr->end()) {
+		} else if (auto const [tokens, rest] = lex::seq_match(token, itr->end(), {lex::is_pp}); ! tokens.empty() && lex::skip_ws(rest, itr->end()) == itr->end()) {
 			// -------------------------------
 			// #
 			// Ignores it because of empty directive.
