@@ -172,7 +172,7 @@
 - preprocessing-operator: one of
   - \# ## %: %:%:
 - operator-or-punctuator: one of
-  - { } [ ] ( ) <: :> <% %> ; : ... ? :: . ._ -> ->_ ~ ! + - _ / % ^ & | = += -= _= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- , and or xor not bitand bitor compl and_eq or_eq xor_eq not_eq
+  - { } [ ] ( ) <: :> <% %> ; : ... ? :: . .\* -> ->\* ~ ! + - \* / % ^ & | = += -= \*= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- , and or xor not bitand bitor compl and_eq or_eq xor_eq not_eq
 - literal:
   - integer-literal
   - character-literal
@@ -420,7 +420,7 @@
   - ( ... fold-operator cast-expression )
   - ( cast-expression fold-operator ... fold-operator cast-expression )
 - fold-operator:
-  - one of + - _ / % ^ & | << >> += -= _= /= %= ^= &= |= <<= >>= = == != < > <= >= && || , ._ ->_
+  - one of + - \* / % ^ & | << >> += -= \*= /= %= ^= &= |= <<= >>= = == != < > <= >= && || , .\* ->\*
 - requires-expression:
   - requires requirement-parameter-list? requirement-body
 - requirement-parameter-list:
@@ -761,7 +761,7 @@
   - - attribute-specifier* cv-qualifier*
   - & attribute-specifier\*
   - && attribute-specifier\*
-  - nested-name-specifier _ attribute-specifier_ cv-qualifier\*
+  - nested-name-specifier \* attribute-specifier\* cv-qualifier\*
 - cv-qualifier-seq:
   - cv-qualifier cv-qualifier\*
 - cv-qualifier:
@@ -1040,7 +1040,7 @@
 - operator-function-id:
   - operator operator
 - operator: one of
-  - new delete new[] delete[] co*await ( ) [ ] -> ->*\* ~ ! + - \_ / % ^ & | = += -= \*= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- ,
+  - new delete new[] delete[] co*await ( ) [ ] -> ->*\* ~ ! + - \* / % ^ & | = += -= \*= /= %= ^= &= |= == != < > <= >= <=> && || << >> <<= >>= ++ -- ,
 - literal-operator-id:
   - operator string-literal identifier
   - operator user-defined-string-literal
