@@ -472,7 +472,7 @@ std::unordered_set<std::string_view> const keywords{
 
 // regex rules
 std::regex const newline_re{R"(^(\r\n?|\n))"};
-std::regex const escaped_newline_re{R"(^(\\[ \t\f\v]*\n))"};
+std::regex const escaped_newline_re{R"((\\[ \t\f\v]*\n))"};
 std::regex const line_comment_re{R"(^(//[^\r\n]*(\n)))"};
 std::regex const block_comment_re{R"(^(/[*](?:[^*]|[*][^/]|^|$|[\r\n])*[*]/))"};	// workaround for multiline regex
 std::regex const inline_whitespaces_re{R"(^([ \t\v\f]+))"};
@@ -557,6 +557,12 @@ std::string load_file(std::filesystem::path const& path) {
 	// -------------------------------
 	// Splices to logical source lines.
 	auto const s4 = std::regex_replace(s3, def::escaped_newline_re, "");
+
+	{
+		std::ofstream ofs{"ttt.cpp"};
+		ofs << s4;
+	}
+
 	// -------------------------------
 	// Adds the last new-line if necessary
 	auto const s5 = (s4.empty() || s4.ends_with('\\') || s4.ends_with('\n')) ? s4 : s4 + '\n';
@@ -868,7 +874,7 @@ inline std::tuple<token_type_t, std::string_view> tokenize_next(std::string_view
 		// -------------------------------
 		// white-spaces regardless of escape
 		tr.trace(ch);
-		if (std::regex_search(str.begin(), str.end(), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
+		//		if (std::regex_search(str.begin(), str.end(), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
 		if (std::regex_search(str.begin(), str.end(), result, def::newline_re)) return {Newline, str.substr(0, result.length(1))};
 		if (std::regex_search(str.begin(), str.end(), result, def::inline_whitespaces_re)) return {Whitespace, str.substr(0, result.length(1))};
 	} else if (ch == '/') {
@@ -2292,8 +2298,9 @@ inline parser_p id_(std::string const& str) { return std::make_shared<impl::str_
 inline parser_p op_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Operator); }
 inline parser_p kw_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Keyword); }
 inline parser_p punc_(std::string const& str) { return std::make_shared<impl::str_t>(str, lex::token_type_t::Separator); }
-inline parser_p kw_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set, lex::token_type_t::Operator); }
-inline parser_p op_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set, lex::token_type_t::Keyword); }
+inline parser_p kw_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set, lex::token_type_t::Keyword); }
+inline parser_p op_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set, lex::token_type_t::Operator); }
+inline parser_p punc_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set, lex::token_type_t::Separator); }
 
 #define xxx_parser_declare(name)                                                                  \
 	struct name##parser_t : parser_t {                                                            \
@@ -2470,14 +2477,14 @@ xxx_parser_declare(user_defined_floating_point_literal_);
 xxx_parser_declare(user_defined_string_literal_);
 xxx_parser_declare(user_defined_character_literal_);
 
-// TODO:
-xxx_parser_impl(token_, { return kw_("TODO:")->parse(nodes, source); });
-xxx_parser_impl(header_name_, { return kw_("TODO:")->parse(nodes, source); });
-xxx_parser_impl(identifier_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(token_, { return or_({op_set_({"and_eq", "or_eq", "xor_eq", "not_eq", "and", "or", "xor", "not", "bitand", "bitor", "compl", "+=", "-=", "*=", "/=", "%=", "^=", "&=", "|=", "==", "!=", "<=>", "<=", ">=", "<<=", ">>=", "<<", ">>", "&&", "||", "++", "--", "::", ":", "...", "<", ">", ",", ";", "?", "->*", "->", ".*", "~", ".", "!", "+", "-", "*", "/%", "^", "&", "|", "="}), punc_set_({"{", "}", "[", "]", "(", ")", "<:", ":>", "<%", "%>"}), identifier_, literal_})->parse(nodes, source); });
+xxx_parser_impl(header_name_, { return tok_(lex::token_type_t::Header)->parse(nodes, source); });
+xxx_parser_impl(identifier_, { return tok_(lex::token_type_t::Identifier)->parse(nodes, source); });
 xxx_parser_define(identifier_list_, { return seq_({identifier_, zom_(seq_({lit::comma_, identifier_}))})->parse(nodes, source); });
-xxx_parser_impl(keyword_, { return kw_("TODO:")->parse(nodes, source); });
-xxx_parser_impl(literal_, { return kw_("TODO:")->parse(nodes, source); });
-xxx_parser_impl(integer_literal_, { return kw_("TODO:")->parse(nodes, source); });
+xxx_parser_impl(keyword_, { return tok_(lex::token_type_t::Keyword)->parse(nodes, source); });
+// TODO:
+xxx_parser_impl(literal_, { return or_({user_defined_literal_, character_literal_, string_literal_, boolean_literal_, pointer_literal_, floating_point_literal_, integer_literal_})->parse(nodes, source); });
+xxx_parser_impl(integer_literal_, { return seq_({or_({hexadecimal_literal_, binary_literal_, octal_literal_, decimal_literal_}) /* TODO:, opt_(integer_suffix_)*/})->parse(nodes, source); });
 xxx_parser_impl(binary_literal_, { return kw_("TODO:")->parse(nodes, source); });
 xxx_parser_impl(octal_literal_, { return kw_("TODO:")->parse(nodes, source); });
 xxx_parser_impl(decimal_literal_, { return kw_("TODO:")->parse(nodes, source); });
@@ -3179,7 +3186,6 @@ inline std::vector<T> get(config_t const& config, std::string const& key, std::v
 
 }	 // namespace conf
 namespace tu {
-
 class context_t {};
 
 class translation_unit_t {
@@ -3201,10 +3207,19 @@ public:
 		paths_.tokens(lex::scan(paths_.source(), paths_.path()));
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::ranges::for_each(a, [](auto const& aa) { std::clog << " ---> " << xxx::lex::to_string(aa) << "\n"; }); });	  // TODO:
 		paths_.preprocessing_tokens(pp::preprocess(conditions_, macros_, paths_, paths_.tokens(), paths_.path()));
-		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::for_each(a.first, a.second, [](auto const& aa) { std::clog << " $---> " << lex::to_string(aa) << "\n"; }); });
+		// TODO: std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::for_each(a.first, a.second, [](auto const& aa) { std::clog << " $---> " << lex::to_string(aa) << "\n"; }); });
 		auto const ft = paths_.tokens() | std::views::join | std::views::common;	// Flattens tokens. TODO: It would use std::views::to in C++23 or later.
 
 		lex::tokens_t const flat_tokens(ft.begin(), ft.end());
+		{
+			auto path = std::filesystem::temp_directory_path();
+			tr.trace(path.string());
+			auto const ofn = path.replace_filename(paths_.path().filename()).replace_extension(".cxx");
+			tr.trace(ofn);
+			std::ofstream ofs{ofn, std::ios::out | std::ios::binary};
+			auto const&&  ofs_ = std::accumulate(flat_tokens.begin(), flat_tokens.end(), std::move(ofs), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); });
+		}
+
 		paths_.node(cxx::parse(flat_tokens));
 		return paths_.nodes();	  // TODO:
 	}
