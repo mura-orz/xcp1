@@ -869,7 +869,6 @@ inline std::tuple<token_type_t, std::string_view> tokenize_next(std::string_view
 		// -------------------------------
 		// white-spaces regardless of escape
 		tr.trace(ch);
-		//		if (std::regex_search(str.begin(), str.end(), result, def::escaped_newline_re)) return {Whitespace, str.substr(0, result.length(1))};
 		if (std::regex_search(str.begin(), str.end(), result, def::newline_re)) return {Newline, str.substr(0, result.length(1))};
 		if (std::regex_search(str.begin(), str.end(), result, def::inline_whitespaces_re)) return {Whitespace, str.substr(0, result.length(1))};
 	} else if (ch == '/') {
