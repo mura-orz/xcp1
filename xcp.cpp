@@ -1846,7 +1846,7 @@ mm::macro_manager_t::macro_parameters_t enclosed_parameters(lex::tokens_itr_t it
 	mm::macro_manager_t::macro_parameters_t parameters;
 
 	bool value{true};
-	for (; itr != end; ++itr) {
+	for (itr = lex::skip_ws(itr, end); itr != end; itr = lex::next_token(itr, end)) {
 		if (itr->matched(lex::token_type_t::Separator, ")")) {
 			if (value && ! parameters.empty()) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 			break;
@@ -1857,6 +1857,8 @@ mm::macro_manager_t::macro_parameters_t enclosed_parameters(lex::tokens_itr_t it
 			if (! value) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 			value = ! value;
 			parameters.push_back(itr);
+		} else {
+			throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 		}
 	}
 	return parameters;
