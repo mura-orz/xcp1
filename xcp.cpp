@@ -257,6 +257,7 @@ auto const defined_s_  = "defined"s;
 auto const undef_s_	   = "undef"s;
 auto const line_s_	   = "line"s;
 auto const error_s_	   = "error"s;
+auto const warning_s_  = "warning"s;
 auto const pragma_s_   = "pragma"s;
 auto const Pragma_s_   = "_Pragma"s;
 
@@ -374,6 +375,8 @@ std::unordered_set<std::string_view> const preprocessing_directives{
 	defined_s_,
 	undef_s_,
 	line_s_,
+	error_s_,
+	warning_s_,
 	pragma_s_,
 };
 std::unordered_set<std::string_view> const keywords{
