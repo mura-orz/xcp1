@@ -558,11 +558,6 @@ std::string load_file(std::filesystem::path const& path) {
 	// Splices to logical source lines.
 	auto const s4 = std::regex_replace(s3, def::escaped_newline_re, "");
 
-	{
-		std::ofstream ofs{"ttt.cpp"};
-		ofs << s4;
-	}
-
 	// -------------------------------
 	// Adds the last new-line if necessary
 	auto const s5 = (s4.empty() || s4.ends_with('\\') || s4.ends_with('\n')) ? s4 : s4 + '\n';
