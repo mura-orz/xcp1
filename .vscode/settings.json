@@ -76,6 +76,10 @@
         "coroutine": "cpp",
         "list": "cpp",
         "set": "cpp",
-        "version": "cpp"
+        "version": "cpp",
+        "__locale": "cpp",
+        "__verbose_abort": "cpp",
+        "ios": "cpp",
+        "locale": "cpp"
     }
 }
