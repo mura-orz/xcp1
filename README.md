@@ -89,8 +89,7 @@
 ### A.3 Lexical conventions
 
 - n-char: one of
-  - any member of the translation character set except the u+007d right curly bracket or new-line
-  - character
+  - any member of the translation character set except the U+007D RIGHT CURLY BRACKET or new-line character
 - n-char-sequence:
   - n-char
   - n-char-sequence n-char
@@ -130,12 +129,12 @@
   - h-char
   - h-char-sequence h-char
 - h-char:
-  - any member of the translation character set except new-line and u+003e greater-than sign
+  - any member of the translation character set except new-line and U+003E GREATER-THAN SIGN
 - q-char-sequence:
   - q-char
   - q-char-sequence q-char
 - q-char:
-  - any member of the translation character set except new-line and u+0022 quotation mark
+  - any member of the translation character set except new-line and U+0022 QUOTATION MARK
 - pp-number:
   - digit
   - . digit
@@ -191,7 +190,7 @@
   - 0B binary-digit
   - binary-literal ’? binary-digit
 - octal-literal:
-  - 0o
+  - 0
   - octal-literal ’? octal-digit
 - decimal-literal:
   - nonzero-digit
@@ -238,7 +237,7 @@
   - escape-sequence
   - universal-character-name
 - basic-c-char:
-  - any member of the translation character set except the u+0027 apostrophe, u+005c reverse solidus, or new-line character
+  - any member of the translation character set except the U+0027 APOSTROPHE, U+005C REVERSE SOLIDUS, or new-line character
 - escape-sequence:
   - simple-escape-sequence
   - numeric-escape-sequence
@@ -304,20 +303,20 @@
   - escape-sequence
   - universal-character-name
 - basic-s-char:
-  - any member of the translation character set except the u+0022 quotation mark, u+005c reverse solidus, or new-line character
+  - any member of the translation character set except the U+0022 QUOTATION MARK, U+005cCrREVERSE SOLIDUS, or new-line character
 - raw-string:
   - " d-char-sequence? ( r-char-sequence? ) d-char-sequence? "
 - r-char-sequence:
   - r-char
   - r-char-sequence r-char
 - r-char:
-  - any member of the translation character set, except a u+0029 right parenthesis followed by the initial d-char-sequence (which may be empty) followed by a u+0022 quotation mark
+  - any member of the translation character set, except a U+0029 RIGHT PARENTHESIS followed by the initial d-char-sequence (which may be empty) followed by a U+0022 QUOTATION MARK
 - d-char-sequence:
   - d-char
   - d-char-sequence d-char
 - d-char:
   - any member of the basic character set except:
-    - u+0020 space, u+0028 left parenthesis, u+0029 right parenthesis, u+005c reverse solidus, u+0009 character tabulation, u+000b line tabulation, u+000c form feed, and new-line
+    - U+0020 SPACE, U+0028 LEFT PARENTHESIS, U+0029 RIGHT PARENTHESIS, U+005cCrREVERSE SOLIDUS, U+0009 CHARACTER TABULATION, U+000B LINE TABULATION, U+000C FORM FEED, and new-line
 - boolean-literal:
   - true
   - false
@@ -758,7 +757,7 @@
 - trailing-return-type:
   - -> type-id
 - ptr-operator:
-  - - attribute-specifier* cv-qualifier*
+  - \* attribute-specifier* cv-qualifier*
   - & attribute-specifier\*
   - && attribute-specifier\*
   - nested-name-specifier \* attribute-specifier\* cv-qualifier\*
