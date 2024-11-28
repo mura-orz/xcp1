@@ -257,6 +257,7 @@ auto const defined_s_  = "defined"s;
 auto const undef_s_	   = "undef"s;
 auto const line_s_	   = "line"s;
 auto const error_s_	   = "error"s;
+auto const warning_s_  = "warning"s;
 auto const pragma_s_   = "pragma"s;
 auto const Pragma_s_   = "_Pragma"s;
 
@@ -374,6 +375,8 @@ std::unordered_set<std::string_view> const preprocessing_directives{
 	defined_s_,
 	undef_s_,
 	line_s_,
+	error_s_,
+	warning_s_,
 	pragma_s_,
 };
 std::unordered_set<std::string_view> const keywords{
@@ -809,6 +812,33 @@ public:
 
 auto const is_pp = is_op("#");
 
+std::list<std::string> ucn_;
+
+inline std::string_view replace_universal_character_name(std::string_view const& token) {
+	log::tracer_t tr{{}, true};
+
+	bool found = false;
+
+	std::ostringstream oss;
+	for (std::string_view s = token; ! s.empty();) {
+		if (svmatch m; std::regex_search(s.begin(), s.end(), m, def::universal_character_name_re)) {
+			oss << m.prefix();
+			auto const ucn = m[0].str();
+			auto const ch  = static_cast<char32_t>(std::stoi(ucn.substr((ucn.starts_with("\\u") || ucn.starts_with("\\U")) ? 2 : 3), nullptr, 16));
+			oss << uc::to_utf8(ch);
+			s = m.suffix().str();
+			tr.set_result("matched");
+			found = true;
+		} else {
+			oss << s;
+			break;
+		}
+	}
+	if (! found) return token;
+	ucn_.push_back(oss.str());
+	return ucn_.back();
+}
+
 /// @brief              Gets next token from source literal.
 /// @param[in]  str             Source string literal, which have to be available while parsing results exist.
 /// @return             The first is token type. The last string is parsed token, which is substring of the @p str.
@@ -912,32 +942,6 @@ inline std::tuple<token_type_t, std::string_view> tokenize_next(std::string_view
 	return {Failure, str.substr(0, 0)};
 }
 
-std::list<std::string> ucn_;
-
-inline std::string_view replace_universal_character_name(std::string_view const& token) {
-	log::tracer_t tr{{}, true};
-
-	bool found = false;
-
-	std::ostringstream oss;
-	for (std::string_view s = token; ! s.empty();) {
-		if (svmatch m; std::regex_search(s.begin(), s.end(), m, def::universal_character_name_re)) {
-			oss << m.prefix();
-			auto const ucn = m[0].str();
-			auto const ch  = static_cast<char32_t>(std::stoi(ucn.substr((ucn.starts_with("\\u") || ucn.starts_with("\\U")) ? 2 : 3), nullptr, 16));
-			oss << uc::to_utf8(ch);
-			s = m.suffix().str();
-			tr.set_result("matched");
-			found = true;
-		} else {
-			oss << s;
-			break;
-		}
-	}
-	if (! found) return token;
-	ucn_.push_back(oss.str());
-	return ucn_.back();
-}
 
 std::list<std::list<token_t>> scan(std::string_view const& str, std::filesystem::path const& name) {
 	log::tracer_t tr{{name.string(), escape(str, 32)}, true};
@@ -996,7 +1000,7 @@ std::list<std::list<token_t>> scan(std::string_view const& str, std::filesystem:
 				break;
 			case Header: {
 				if (auto const [tokens, rest] = seq_match(line.begin(), line.end(), {is_pp, is_id(lex::def::include_s_)}); ! tokens.empty()) {
-					line.push_back({type, token, pos});	   // This is in #include directive.
+					line.push_back({type, replace_universal_character_name(token), pos});	   // This is in #include directive.
 					tr.trace("header");
 					break;
 				}
@@ -1005,21 +1009,21 @@ std::list<std::list<token_t>> scan(std::string_view const& str, std::filesystem:
 				continue;
 			}
 			case Character:
-				line.push_back({type, replace_universal_character_name(std::string{token}), pos});
+				line.push_back({type, token, pos});
 				pos = pos.moved(token.size());
 				break;
 			case String:
 				if (auto const [tokens, rest] = seq_match(line.begin(), line.end(), {is_pp, is_id(lex::def::include_s_)}); ! tokens.empty()) {
 					// This is in #include directive. It may be a header_name. Prefix and suffix are not allowed here.
 					if (! token.starts_with(R"(")") || ! token.ends_with(R"(")")) throw std::runtime_error("syntax error:" + std::to_string(__LINE__));
-					line.push_back({Header, token, pos});
+					line.push_back({Header, replace_universal_character_name(token), pos});	// Ucn of String has not been replaced in tokenize_next.
 				} else {
-					line.push_back({type, replace_universal_character_name(std::string{token}), pos});
+					line.push_back({type, token, pos});
 				}
 				pos = pos.moved(token.size());
 				break;
 			case Raw_string:
-				line.push_back({type, replace_universal_character_name(std::string{token}), pos});
+				line.push_back({type, token, pos});
 				tr.set_result(std::string{to_string(type)} + ":" + escape(token, 32));
 
 				// TODO: Ths implementation does not take care of escaped new line here.
@@ -1030,10 +1034,10 @@ std::list<std::list<token_t>> scan(std::string_view const& str, std::filesystem:
 				}
 				break;
 			case Whitespace:
-				if (line.empty()) break;	// drops leading whitespaces
+				if (line.empty()) break;	// drops leading whitespaces of each line
 				[[fallthrough]];
 			default:
-				line.push_back({type, token, pos});
+				line.push_back({type, replace_universal_character_name(token), pos});
 				pos = pos.moved(token.size());
 				break;
 			}
@@ -3207,10 +3211,9 @@ public:
 		auto const ft = paths_.tokens() | std::views::join | std::views::common;	// Flattens tokens. TODO: It would use std::views::to in C++23 or later.
 
 		lex::tokens_t const flat_tokens(ft.begin(), ft.end());
-		{
-			auto path = std::filesystem::temp_directory_path();
-			tr.trace(path.string());
-			auto const ofn = path.replace_filename(paths_.path().filename()).replace_extension(".cxx");
+		{	// TODO: temporary debugging
+			auto path = std::filesystem::current_path() / paths_.path();
+			auto const ofn = path.replace_extension(".cxx");
 			tr.trace(ofn);
 			std::ofstream ofs{ofn, std::ios::out | std::ios::binary};
 			auto const&&  ofs_ = std::accumulate(flat_tokens.begin(), flat_tokens.end(), std::move(ofs), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); });
