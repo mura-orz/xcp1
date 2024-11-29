@@ -1,4 +1,4 @@
-///	@file
+﻿///	@file
 ///	@brief	xcp - xxx c++ compiler.
 ///		It is a C++23 compiler written in C++20. [ISO/IEC14882:2024]
 ///		It is just for hobby and does not take care of performance.
