@@ -2390,7 +2390,7 @@ xxx_parser_declare(identifier_);
 
 	//  A.2 Keywords [gram.key]
 
-	xxx_parser_define(typedef_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
+xxx_parser_define(typedef_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
 xxx_parser_define(namespace_alias_, { return identifier_->parse(nodes, source); });
 xxx_parser_define(namespace_name_, { return or_({namespace_alias_, identifier_})->parse(nodes, source); });
 xxx_parser_define(class_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
