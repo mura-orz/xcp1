@@ -1331,7 +1331,6 @@ private:
 					ap.push_back({++current, --lex::tokens_itr_t{itr}});
 					return {ap, itr};
 				}
-			} else if (itr->matched(Operator, ",") && nest == 0) {
 				ap.push_back({++current, --lex::tokens_itr_t{itr}});
 				current = itr;
 			}
@@ -1343,7 +1342,6 @@ private:
 	bool is_function_macro(lex::token_t const& token) const noexcept { return function_macros_.contains(token.token()); }
 	bool is_macro(lex::token_t const& token) const noexcept { return is_simple_macro(token) || is_function_macro(token); }
 
-	lex::line_t				value(lex::token_t const& t) { return simple_macros_.at(t.token()); }
 	function_macro_t const& function(lex::token_t const& t) { return function_macros_.at(t.token()); }
 
 	std::list<std::string> stringize_;
