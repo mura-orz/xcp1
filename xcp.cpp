@@ -543,6 +543,7 @@ std::string load_file(std::filesystem::path const& path) {
 
 	// -------------------------------
 	// Unifies CRLF/CR/LF to LF.
+	// TODO: raw string has to revert it...
 	auto const s2 = std::regex_replace(s1, def::newline_re, "\n");
 
 	// ===============================
