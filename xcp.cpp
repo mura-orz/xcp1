@@ -827,7 +827,7 @@ inline std::string_view replace_universal_character_name(std::string_view const&
 			auto const ucn = m[0].str();
 			auto const ch  = static_cast<char32_t>(std::stoi(ucn.substr((ucn.starts_with("\\u") || ucn.starts_with("\\U")) ? 2 : 3), nullptr, 16));
 			oss << uc::to_utf8(ch);
-			s = m.suffix().str();
+			s = s.substr(m.prefix().length() + m[0].length());
 			tr.set_result("matched");
 			found = true;
 		} else {
