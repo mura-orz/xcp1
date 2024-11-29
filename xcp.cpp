@@ -1884,45 +1884,62 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	if (lex::next_token(itr, line.second) != line.second) log::err({__func__});	   // TODO: extra token
 	return {true, path, no};
 }
-bool parse_preprocessing_error_line(lex::line_t const& line) {
+std::tuple<bool,std::string> parse_preprocessing_error_line(lex::line_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::error_s_)});
-	if (tokens.empty()) return false;
+	if (tokens.empty()) return {false, ""};
 
 	auto const message = skip_ws(rest, line.second);
 
 	std::ostringstream oss;
-	oss << "#error";
 	if (message != line.second) {
 		lex::tokens_t messages(message, line.second);
 
 		auto msg = messages | std::views::transform([](lex::token_t const& token) { return std::string{token.token()}; });
-		oss << " - " << std::reduce(msg.begin(), msg.end());
+		oss << std::reduce(msg.begin(), msg.end());
 	}
-	std::clog << oss.str() << std::endl;
-	tr.set_result(oss.str());
-	return true;
+	auto const str = oss.str();
+	tr.set_result(str);
+	return {true, str};
 }
-bool parse_preprocessing_pragma_line(lex::line_t const& line) {
+std::tuple<bool,std::string> parse_preprocessing_warning_line(lex::line_t const& line) {
+	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
+
+	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::warning_s_)});
+	if (tokens.empty()) return {false, ""};
+
+	auto const message = skip_ws(rest, line.second);
+
+	std::ostringstream oss;
+	if (message != line.second) {
+		lex::tokens_t messages(message, line.second);
+
+		auto msg = messages | std::views::transform([](lex::token_t const& token) { return std::string{token.token()}; });
+		oss << std::reduce(msg.begin(), msg.end());
+	}
+	auto const str = oss.str();
+	tr.set_result(str);
+	return {true, str};
+}
+std::tuple<bool,std::string> parse_preprocessing_pragma_line(lex::line_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::pragma_s_)});
-	if (tokens.empty()) return false;
+	if (tokens.empty()) return {false,""};
 
 	auto const message = lex::skip_ws(rest, line.second);
 
 	std::ostringstream oss;
-	oss << "unknown pragma is ignored ";	// TODO: _Pragma
 	if (message != line.second) {
 		lex::tokens_t messages(message, line.second);
 
 		auto msg = messages | std::views::transform([](lex::token_t const& token) { return std::string{token.token()}; });
-		oss << " - " << std::reduce(msg.begin(), msg.end());
+		oss << std::reduce(msg.begin(), msg.end());
 	}
-	std::clog << oss.str() << std::endl;
-	tr.set_result(oss.str());
-	return true;
+	auto const str = oss.str();
+	tr.set_result(str);
+	return {true, str};
 }
 
 ///     @brief  Proceeds conditions.
@@ -1983,16 +2000,31 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::iterator> preprocess_conditions(cm
 		} else if (auto const [matched, file, lines] = parse_preprocessing_include_line(conditions, macros, paths, {token, itr->end()}); matched) {
 			// -------------------------------
 			// #include <...> or "..."
-			// TODO: failed to compile
 			std::ranges::copy(lines, std::inserter(result, result.end()));
-		} else if (parse_preprocessing_pragma_line({token, itr->end()})) {
+		} else if (auto const [matched, message] = parse_preprocessing_error_line({token, itr->end()}); matched) {
 			// -------------------------------
-			// #pragma ...
-			// Ignores it because no pragma is supported yet.
+			// #error ..
+			log::err({lex::def::error_s_ + ":" + message});
+			throw std::runtime_error(message);	// failed to parse
+		} else if (auto const [matched, message] = parse_preprocessing_warning_line({token, itr->end()}); matched) {
+			// -------------------------------
+			// #warning ... - 
+			log::info({lex::def::warning_s_ + ":" + message});	// messaging only
+		} else if (auto const [matched, message] = parse_preprocessing_pragma_line({token, itr->end()}); matched) {
+			// -------------------------------
+			// #pragma ... - Ignores it because no pragma is supported yet.
+			log::info(lex::def::pragma_s_ + ":" + message);	// messaging only
+		} else if (auto const [matched, r] = parse_preprocessing_define_line(macros, {token, itr->end()}); matched) {
+			// -------------------------------
+			// #define ...
+			if (!r) log::err({lex::def::define_s_});
+		} else if (auto const [matched, r] = parse_preprocessing_undef_line(macros, {token, itr->end()}); matched) {
+			// -------------------------------
+			// #undef id
+			if (!r) log::err({lex::def::undef_s_});
 		} else if (auto const [tokens, rest] = lex::seq_match(token, itr->end(), {lex::is_pp}); ! tokens.empty() && lex::skip_ws(rest, itr->end()) == itr->end()) {
 			// -------------------------------
-			// #
-			// Ignores it because of empty directive.
+			// # - Ignores it because of empty directive.
 		} else {
 			// -------------------------------
 			// non-directive line
