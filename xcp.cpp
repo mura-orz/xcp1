@@ -1310,7 +1310,7 @@ private:
 		return itr->token() == token;
 	}
 	static std::optional<std::size_t> find_at(macro_parameters_t const& tokens, lex::token_t const& token) {
-		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [&token](auto const& a){ return *a == token; }); found != tokens.end()) { return std::distance(tokens.begin(), found); }
+		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [&token](auto const& a) { return *a == token; }); found != tokens.end()) { return std::distance(tokens.begin(), found); }
 		return std::nullopt;
 	}
 	///	@brief	Extracts actual arguments from the token sequence.
@@ -1388,12 +1388,12 @@ private:
 			} else {
 				// The parameter is replaced by its argument and combined.
 				glue(os, is.first, ap_);
-				return subst(is_, fp, ap, hs, os);	// subst follows again after the glue
+				return subst(is_, fp, ap, hs, os);	  // subst follows again after the glue
 			}
 		} else if (1u < iss && matched(is, 0, "##")) {
 			// "##token" shall combine both the lhs and rhs tokens.
 			glue(os, is.first, is_);
-			return subst(is_, fp, ap, hs, os);	// subst follows again after the glue
+			return subst(is_, fp, ap, hs, os);	  // subst follows again after the glue
 		} else if (2u < iss && matched(is, 0, "##") && (i = find_at(fp, *is.first))) {
 			// "##parameter" shall combine both the lhs and rhs tokens.
 			if (auto const& ap_ = ap.at(*i); ap_.first == ap_.second) {
@@ -1882,7 +1882,7 @@ std::tuple<bool, std::string_view, unsigned long long> parse_preprocessing_line_
 	if (lex::next_token(itr, line.second) != line.second) log::err({__func__});	   // TODO: extra token
 	return {true, path, no};
 }
-std::tuple<bool,std::string> parse_preprocessing_error_line(lex::line_t const& line) {
+std::tuple<bool, std::string> parse_preprocessing_error_line(lex::line_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::error_s_)});
@@ -1901,7 +1901,7 @@ std::tuple<bool,std::string> parse_preprocessing_error_line(lex::line_t const& l
 	tr.set_result(str);
 	return {true, str};
 }
-std::tuple<bool,std::string> parse_preprocessing_warning_line(lex::line_t const& line) {
+std::tuple<bool, std::string> parse_preprocessing_warning_line(lex::line_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::warning_s_)});
@@ -1920,11 +1920,11 @@ std::tuple<bool,std::string> parse_preprocessing_warning_line(lex::line_t const&
 	tr.set_result(str);
 	return {true, str};
 }
-std::tuple<bool,std::string> parse_preprocessing_pragma_line(lex::line_t const& line) {
+std::tuple<bool, std::string> parse_preprocessing_pragma_line(lex::line_t const& line) {
 	log::tracer_t tr{{lex::to_string(line.first->pos())}, true};
 
 	auto const [tokens, rest] = seq_match(line.first, line.second, {lex::is_pp, lex::is_id(lex::def::pragma_s_)});
-	if (tokens.empty()) return {false,""};
+	if (tokens.empty()) return {false, ""};
 
 	auto const message = lex::skip_ws(rest, line.second);
 
@@ -2006,20 +2006,20 @@ std::tuple<lex::lines_t, lex::tokens_lines_t::iterator> preprocess_conditions(cm
 			throw std::runtime_error(message_error);	// failed to parse
 		} else if (auto const [matched_warning, message_warning] = parse_preprocessing_warning_line({token, itr->end()}); matched_warning) {
 			// -------------------------------
-			// #warning ... - 
-			log::info({lex::def::warning_s_ + ":" + message_warning});	// messaging only
+			// #warning ... -
+			log::info({lex::def::warning_s_ + ":" + message_warning});	  // messaging only
 		} else if (auto const [matched_pragma, message_pragma] = parse_preprocessing_pragma_line({token, itr->end()}); matched_pragma) {
 			// -------------------------------
 			// #pragma ... - Ignores it because no pragma is supported yet.
-			log::info(lex::def::pragma_s_ + ":" + message_pragma);	// messaging only
+			log::info(lex::def::pragma_s_ + ":" + message_pragma);	  // messaging only
 		} else if (auto const [matched_define, result_define] = parse_preprocessing_define_line(macros, {token, itr->end()}); matched_define) {
 			// -------------------------------
 			// #define ...
-			if (!result_define) log::err({lex::def::define_s_});
+			if (! result_define) log::err({lex::def::define_s_});
 		} else if (auto const [matched_undef, result_undef] = parse_preprocessing_undef_line(macros, {token, itr->end()}); matched_undef) {
 			// -------------------------------
 			// #undef id
-			if (!result_undef) log::err({lex::def::undef_s_});
+			if (! result_undef) log::err({lex::def::undef_s_});
 		} else if (auto const [tokens, rest] = lex::seq_match(token, itr->end(), {lex::is_pp}); ! tokens.empty() && lex::skip_ws(rest, itr->end()) == itr->end()) {
 			// -------------------------------
 			// # - Ignores it because of empty directive.
@@ -2388,9 +2388,9 @@ auto const module_ = id_("module");
 xxx_parser_declare(simple_template_id_);
 xxx_parser_declare(identifier_);
 
-//  A.2 Keywords [gram.key]
+	//  A.2 Keywords [gram.key]
 
-xxx_parser_define(typedef_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
+	xxx_parser_define(typedef_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
 xxx_parser_define(namespace_alias_, { return identifier_->parse(nodes, source); });
 xxx_parser_define(namespace_name_, { return or_({namespace_alias_, identifier_})->parse(nodes, source); });
 xxx_parser_define(class_name_, { return or_({simple_template_id_, identifier_})->parse(nodes, source); });
@@ -3160,7 +3160,7 @@ public:
 			auto const ofn	= path.replace_extension(".cxx");
 			tr.trace(ofn);
 			std::ofstream ofs{ofn, std::ios::out | std::ios::binary};
-			auto&& ofs_ = std::accumulate(flat_tokens.begin(), flat_tokens.end(), std::move(ofs), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); });
+			auto&&		  ofs_ = std::accumulate(flat_tokens.begin(), flat_tokens.end(), std::move(ofs), [](auto&& o, auto const& a) { o << a.token(); return std::move(o); });
 			ofs_.close();
 		}
 
