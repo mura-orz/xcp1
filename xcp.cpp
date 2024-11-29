@@ -164,9 +164,9 @@ inline std::string datetime(std::chrono::system_clock::time_point const& dt) {
 
 inline void log(level_t level, std::string_view const& message, std::source_location sl = std::source_location::current()) {
 	if (level < level_s) return;
-	if (static_cast<int>(level) < 0 || (sizeof impl::Lv / sizeof impl::Lv[0]) <= static_cast<int>(level)) return;
+	if (static_cast<int>(level) < 0 || (sizeof impl::Lv / sizeof impl::Lv[0]) <= static_cast<unsigned>(level)) return;
 	std::lock_guard lock{mutex_s};
-	std::clog << impl::datetime(std::chrono::system_clock::now()) << impl::Lv[static_cast<int>(level)] << impl::location(sl) << std::string{message} << std::endl;
+	std::clog << impl::datetime(std::chrono::system_clock::now()) << impl::Lv[static_cast<unsigned>(level)] << impl::location(sl) << std::string{message} << std::endl;
 }
 inline void trace(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Trace, message, sl); }
 inline void info(std::string_view const& message, std::source_location sl = std::source_location::current()) { log(level_t::Info, message, sl); }
