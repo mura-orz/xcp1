@@ -909,8 +909,9 @@ std::string load_file(std::filesystem::path const& path) {
 
 namespace def {
 
-auto const id_start = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
-auto const id_cont	= "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"sv;
+constexpr auto const id_start = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
+constexpr auto const id_cont	= "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"sv;
+constexpr auto const ws_except_newline = " \t\v\f\r"sv;
 
 }	 // namespace def
 namespace impl {
@@ -929,7 +930,20 @@ inline std::string convert_utf8(std::string_view const& sv, std::size_t n) {
 	unsigned long	   ch{};
 	iss >> std::hex >> ch;
 	return uc::to_utf8(static_cast<char32_t>(ch));
-};
+}
+
+constexpr inline std::size_t newline(std::string_view const& sv) noexcept {
+	switch (sv[0]) {
+		case '\n':	return 1u;
+		case '\r':	return sv[1] == '\n' ? 2u : 1u;
+		default:	return 0u;
+	}
+}
+
+inline std::string_view::size_type skip(std::string_view sv, std::function<bool(char)> const& f, std::string_view::size_type index=0u) {
+	while (f(sv[index])) ++index;	// f(sv[x] shall not match '\0'
+	return index;
+}
 
 std::mutex								  mutex_s;
 std::vector<std::shared_ptr<std::string>> tokens_s;
@@ -993,6 +1007,18 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 
 	std::ostringstream oss;
 	switch (sv[1]) {
+	case ' ':	[[fallthrough]];
+	case '\t':	[[fallthrough]];
+	case '\v': {
+		auto const index = skip(sv, [](auto const& a) { return contains(def::ws_except_newline, a);}, 2u);
+		switch(auto const nl = newline(sv.substr(index)); nl) {
+			case 2u:	[[fallthrough]];
+			case 1u:	return {" "s, index + nl};	// escaped new-line for logical line
+			case 0u:	throw std::invalid_argument("invalid backslash");
+			default:	throw std::logic_error(__func__ + std::to_string(__LINE__));
+		}
+		break;
+	}
 	case '\0': throw std::invalid_argument("unexpected end of string");
 	case 'a': tr.set_result(escape("\a")); return {"\\a", 2u};
 	case 'b': tr.set_result(escape("\b")); return {"\\b", 2u};
@@ -1008,15 +1034,13 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 	case 'X': [[fallthrough]];
 	case 'x':	 // hexadecimal escape sequence
 		if (sv[2] == '{') {
-			std::string_view::size_type index = 3u;
-			while (std::isxdigit(sv.at(index))) { ++index; }
+			auto const index = skip(sv, [](auto const& a) { return std::isxdigit(a); }, 3u);
 			if (sv.at(index) != '}') throw std::invalid_argument("invalid hexadecimal {} escape sequence");
 			auto const s = impl::convert_utf8(sv.substr(3u), index - 3u);
 			tr.set_result(escape(s));
 			return {s, index + 1u};	   // \x{...}
 		} else {
-			std::string_view::size_type index = 2u;
-			while (std::isxdigit(sv.at(index))) { ++index; }
+			auto const index = skip(sv, [](auto const& a) { return std::isxdigit(a); }, 2u);
 			if (index == 2u) throw std::invalid_argument("invalid hexadecimal escape sequence");
 			auto const s = impl::convert_utf8(sv.substr(2u), index - 2u);
 			tr.set_result(escape(s));
@@ -1028,15 +1052,13 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 		return parse_universal_character_name(sv);
 	default:
 		if (sv[1] == '{') {
-			std::string_view::size_type index = 2u;
-			while ('0' <= sv.at(index) && sv[index] <= '7') { ++index; }
+			auto const index = skip(sv, [](auto const& a){ return '0' <= a && a <= '7'; }, 2u);
 			if (sv.at(index) != '}') throw std::invalid_argument("invalid octal {} escape sequence");
 			auto const s = impl::convert_utf8(sv.substr(1u), index - 1u);
 			tr.set_result(escape(s));
 			return {s, index + 1u};	   // \{...}
 		} else {
-			std::string_view::size_type index = 1u;
-			while ('0' <= sv.at(index) && sv[index] <= '7') { ++index; }
+			auto const index = skip(sv, [](auto const& a){ return '0' <= a && a <= '7'; }, 1u);
 			if (index == 1u) throw std::invalid_argument("invalid octal escape sequence");
 			auto const s = impl::convert_utf8(sv.substr(1u), index);
 			tr.set_result(escape(s));
