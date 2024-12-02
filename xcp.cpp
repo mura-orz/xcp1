@@ -533,6 +533,7 @@ enum class pp_type_t {
 	gt2_eq,		   // >>= : shift right assignment
 	question,	   // ?   : conditional
 	colon,		   // :   : colon
+	colon2,		   // ::  : scope
 	semi,		   // ;   : semicolon
 	comma,		   // ,   : comma
 	dot,		   // .   : dot
@@ -597,6 +598,7 @@ std::unordered_set<pp_type_t> const operators{
 	pp_type_t::gt2_eq,
 	pp_type_t::question,
 	pp_type_t::colon,
+	pp_type_t::colon2,
 	pp_type_t::semi,
 	pp_type_t::comma,
 	pp_type_t::dot,
@@ -676,6 +678,7 @@ inline std::string to_string(pp_type_t t) {
 		{gt2_eq, "{>>=}"},
 		{question, "{?}"},
 		{colon, "{:}"},
+		{colon2, "{::}"},
 		{semi, "{;}"},
 		{comma, "{,}"},
 		{dot, "{.}"},
@@ -1548,7 +1551,7 @@ lines_t scan(std::filesystem::path const& name) {
 			break;
 		case ':':
 			switch (sv[1]) {
-			case ':': impl::push_operator(line, size, pos, hash2, 2u); break;		 // ::
+			case ':': impl::push_operator(line, size, pos, colon2, 2u); break;		 // ::
 			case '>': impl::push_operator(line, size, pos, r_bracket, 2u); break;	 // :> (])
 			default: impl::push_operator(line, size, pos, colon); break;			 // :
 			}
