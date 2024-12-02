@@ -2083,7 +2083,7 @@ private:
 			expand(ap_);
 			return subst(is_, fp, ap, hs, os);
 		} else {
-			os.insert(is.begin(), *is.end());
+			os.insert(os.end(), is.begin(), is.end());
 			return subst(is_, fp, ap, hs, os);
 		}
 	}
