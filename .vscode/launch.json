@@ -2,16 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(lldb) Launch",
-            "type": "lldb",
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/xcp",
-            "args": ["-V", "${workspaceFolder}/tmp.cpp"],
+            "args": ["-V", "${workspaceFolder}/xcp.cpp"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb",
+            "MIMode": "gdb",
             "setupCommands": [],
             "preLaunchTask": "buildmake"
         }
