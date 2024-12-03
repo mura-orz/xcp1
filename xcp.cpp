@@ -109,6 +109,41 @@ inline std::string to_utf8(char32_t ch) {
 	return s;
 }
 
+constexpr inline bool validate_utf8(std::string_view const& sv) {
+	// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+	//	An implementation shall support input files that are a sequence of UTF-8 code units (UTF-8 files).
+	//	{{-- snip --}}
+	//	If an input file is determined to be a UTF-8 file,
+	//	then it shall be a well-formed UTF-8 code unit sequence and it is decoded to produce a sequence of Unicode scalar values.
+	//	A sequence of translation character set elements is then formed by mapping each Unicode scalar value to the corresponding translation　character set element.
+
+	for (auto pos = sv.begin(); pos != sv.end(); ++pos) {
+		auto const c = static_cast<unsigned char>(*pos);
+		if (c < 0x80) {
+			// 0xxxxxxx
+			continue;
+		} else if (c < 0xC0) {
+			// 10xxxxxx
+			return false;
+		} else if (c < 0xE0) {
+			// 110xxxxx 10xxxxxx
+			if (++pos == sv.end() || (*pos & 0xC0) != 0x80) return false;
+		} else if (c < 0xF0) {
+			// 1110xxxx 10xxxxxx 10xxxxxx
+			if (++pos == sv.end() || (*pos & 0xC0) != 0x80) return false;
+			if (++pos == sv.end() || (*pos & 0xC0) != 0x80) return false;
+		} else if (c < 0xF8) {
+			// 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+			if (++pos == sv.end() || (*pos & 0xC0) != 0x80) return false;
+			if (++pos == sv.end() || (*pos & 0xC0) != 0x80) return false;
+			if (++pos == sv.end() || (*pos & 0xC0) != 0x80) return false;
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
 }	 // namespace uc
 namespace log {
 
@@ -357,7 +392,7 @@ auto const while_s_			   = "while"s;
 
 auto const override_s_ = "override"s;
 auto const final_s_	   = "final"s;
-auto const bom_		   = "\xEF\xBB\xBF"sv;	  // 0xFEFF
+auto const bom_s_	   = "\xEF\xBB\xBF"sv;	  // 0xFEFF
 
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
@@ -910,7 +945,8 @@ std::string load_file(std::filesystem::path const& path) {
 namespace def {
 
 constexpr auto const id_start = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
-constexpr auto const id_cont	= "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"sv;
+constexpr auto const id_cont  = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"sv;
+
 constexpr auto const ws_except_newline = " \t\v\f\r"sv;
 
 }	 // namespace def
@@ -934,14 +970,14 @@ inline std::string convert_utf8(std::string_view const& sv, std::size_t n) {
 
 constexpr inline std::size_t newline(std::string_view const& sv) noexcept {
 	switch (sv[0]) {
-		case '\n':	return 1u;
-		case '\r':	return sv[1] == '\n' ? 2u : 1u;
-		default:	return 0u;
+	case '\n': return 1u;
+	case '\r': return sv[1] == '\n' ? 2u : 1u;
+	default: return 0u;
 	}
 }
 
-inline std::string_view::size_type skip(std::string_view sv, std::function<bool(char)> const& f, std::string_view::size_type index=0u) {
-	while (f(sv[index])) ++index;	// f(sv[x] shall not match '\0'
+inline std::string_view::size_type skip(std::string_view sv, std::function<bool(char)> const& f, std::string_view::size_type index = 0u) {
+	while (f(sv[index])) ++index;	 // f(sv[x] shall not match '\0'
 	return index;
 }
 
@@ -966,12 +1002,12 @@ inline std::tuple<std::string, std::size_t> parse_universal_character_name(std::
 	std::ostringstream oss;
 	switch (sv[1]) {
 	case '\0': throw std::invalid_argument("unexpected end of string");
-	case 'u':																											// \uXXXX
-		if (! impl::hexadecimal(sv.substr(1u), 4u)) throw std::invalid_argument("invalid universal character name");	// TODO: error message
+	case 'u':	 // \uXXXX
+		if (! impl::hexadecimal(sv.substr(1u), 4u)) throw std::invalid_argument("invalid universal character name");
 		oss << impl::convert_utf8(sv.substr(1u), 4u);
 		return {oss.str(), 6u};
-	case 'U':																											// \UXXXXXXXX
-		if (! impl::hexadecimal(sv.substr(1u), 8u)) throw std::invalid_argument("invalid universal character name");	// TODO: error message
+	case 'U':	 // \UXXXXXXXX
+		if (! impl::hexadecimal(sv.substr(1u), 8u)) throw std::invalid_argument("invalid universal character name");
 		oss << impl::convert_utf8(sv.substr(1u), 8u);
 		return {oss.str(), 10u};
 	case 'N':	 // \N{...}
@@ -980,7 +1016,7 @@ inline std::tuple<std::string, std::size_t> parse_universal_character_name(std::
 			for (std::string_view::size_type index = 3u, end = sv.size(); index < end; ++index) {
 				switch (sv.at(index)) {
 				case '\r': [[fallthrough]];
-				case '\n': throw std::invalid_argument("invalid universal character name");	   // TODO: error message
+				case '\n': throw std::invalid_argument("invalid universal character name");
 				case '}': {
 					auto const name = sv.substr(3u, index - 3u);
 					if (! name.empty()) {
@@ -994,10 +1030,10 @@ inline std::tuple<std::string, std::size_t> parse_universal_character_name(std::
 			break;
 		default: break;
 		}
-		throw std::invalid_argument("invalid universal character name");	// TODO: error message
+		throw std::invalid_argument("invalid universal character name");
 	default: break;
 	}
-	throw std::invalid_argument("invalid universal character name");	// TODO: error message
+	throw std::invalid_argument("invalid universal character name");
 }
 
 inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_view sv) {
@@ -1007,18 +1043,6 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 
 	std::ostringstream oss;
 	switch (sv[1]) {
-	case ' ':	[[fallthrough]];
-	case '\t':	[[fallthrough]];
-	case '\v': {
-		auto const index = skip(sv, [](auto const& a) { return contains(def::ws_except_newline, a);}, 2u);
-		switch(auto const nl = newline(sv.substr(index)); nl) {
-			case 2u:	[[fallthrough]];
-			case 1u:	return {" "s, index + nl};	// escaped new-line for logical line
-			case 0u:	throw std::invalid_argument("invalid backslash");
-			default:	throw std::logic_error(__func__ + std::to_string(__LINE__));
-		}
-		break;
-	}
 	case '\0': throw std::invalid_argument("unexpected end of string");
 	case 'a': tr.set_result(escape("\a")); return {"\\a", 2u};
 	case 'b': tr.set_result(escape("\b")); return {"\\b", 2u};
@@ -1052,13 +1076,13 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 		return parse_universal_character_name(sv);
 	default:
 		if (sv[1] == '{') {
-			auto const index = skip(sv, [](auto const& a){ return '0' <= a && a <= '7'; }, 2u);
+			auto const index = skip(sv, [](auto const& a) { return '0' <= a && a <= '7'; }, 2u);
 			if (sv.at(index) != '}') throw std::invalid_argument("invalid octal {} escape sequence");
 			auto const s = impl::convert_utf8(sv.substr(1u), index - 1u);
 			tr.set_result(escape(s));
 			return {s, index + 1u};	   // \{...}
 		} else {
-			auto const index = skip(sv, [](auto const& a){ return '0' <= a && a <= '7'; }, 1u);
+			auto const index = skip(sv, [](auto const& a) { return '0' <= a && a <= '7'; }, 1u);
 			if (index == 1u) throw std::invalid_argument("invalid octal escape sequence");
 			auto const s = impl::convert_utf8(sv.substr(1u), index);
 			tr.set_result(escape(s));
@@ -1353,6 +1377,18 @@ inline void new_line(lines_t& lines, tokens_t& line, pos_t& pos, pp_type_t type 
 	pos.set_column(1);
 };
 
+constexpr inline std::string_view::size_type count_newlines(std::string_view const& sv) noexcept {
+	auto const cr = std::ranges::count(sv, '\r');
+	auto const lf = std::ranges::count(sv, '\n');
+	if (cr == 0u || lf == 0u) return cr + lf;	 // It is just sum because of no CR-LF.
+
+	std::string_view::size_type crlf{};
+	for (std::string_view::size_type pos = sv.find("\r\n"); pos != std::string_view::npos; pos = sv.find("\r\n", pos + 1)) {
+		++crlf;
+	}
+	return cr + lf - crlf;
+}
+
 }	 // namespace impl
 
 lines_t scan(std::filesystem::path const& name) {
@@ -1394,7 +1430,13 @@ lines_t scan(std::filesystem::path const& name) {
 	//		EXAMPLE See the handling of < within a #include preprocessing directive.
 
 	auto const source1 = load_file(name);
-	auto const source2 = (source1.starts_with(def::bom_)) ? source1.substr(def::bom_.length()) : source1;
+
+	if (! uc::validate_utf8(source1)) throw std::invalid_argument("invalid UTF-8 code unit sequence");
+
+	// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+	// If the first translation character is U+FEFF byte order mark, it is deleted.
+	auto const source2 = (source1.starts_with(def::bom_s_)) ? source1.substr(def::bom_s_.length()) : source1;
+
 	if (source2.empty()) return {};
 	std::string_view sv{source2};
 
@@ -1411,6 +1453,9 @@ lines_t scan(std::filesystem::path const& name) {
 			impl::new_line(lines, line, pos);	 // LF
 			break;
 		case '\r':
+			//	[ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+			//	In the resulting sequence, each pair of characters in the input sequence consisting　of U+000d carriage return followed by U+000a line feed,
+			//	as well as each U+000d carriage return not immediately followed by a U+000a line feed, is replaced by a single new-line character.
 			switch (sv[1]) {
 			case '\n':
 				impl::new_line(lines, line, pos);	 // CR-LF
@@ -1447,33 +1492,36 @@ lines_t scan(std::filesystem::path const& name) {
 			break;
 		case '/':
 			switch (sv[1]) {
-			case '*':
+			case '*':	 // Block comment
 				if (auto const end_of_block = sv.find("*/"); end_of_block == std::string_view::npos) {
-					throw syntax_error_t(pos, "unterminated block comment");	// TODO: error message
+					// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+					// A source file shall not end in a partial preprocessing token or in a partial comment.
+					throw syntax_error_t(pos, "unterminated block comment");
 				} else {
-					auto const comments = end_of_block + 2u;	// +2 for "*/"
-					auto const comment	= impl::register_string_literal(sv.substr(0u, comments));
-					auto const newlines = std::ranges::count(comment, '\n');
-					if (0u < newlines) {
-						impl::new_line(lines, line, pos, Block_comment, comment, newlines);
-						pos	 = pos.moved(sv.length() - sv.find_last_of("\r\n"));
-						size = comments;
+					auto const length  = end_of_block + "*/"sv.length();
+					auto const comment = impl::register_string_literal(sv.substr(0u, length));
+					if (auto const newlines = impl::count_newlines(comment); 0u < newlines) {
+						impl::new_line(lines, line, pos, Block_comment, comment, newlines);	   // It sets the position to the first character of the next line.
+						pos	 = pos.moved(comment.length() - comment.find_last_of("\r\n"));	   // Adjusts the position to the last character of the comment.
+						size = length;														   // Adjusts the size of the comment, too.
 					} else {
-						impl::push_token(line, size, pos, comment, Block_comment);
+						impl::push_token(line, size, pos, comment, Block_comment);	  // Single-line block comment
 					}
 				}
 				break;
-			case '/':
+			case '/':	 // Line comment
 				if (auto const newline = sv.find('\n'); newline == std::string_view::npos) {
+					// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+					//	A source file that is not empty and that does not end in a new-line character,
+					//	or that ends in a splice, shall be processed as if an additional new-line character were appended to the file.
 					tr.trace("terminated");
 					impl::new_line(lines, line, pos, Line_comment, sv);
 					return lines;
 				} else {
-					auto const comments = newline + 1u;	   // +1 for '\n'
-					auto const comment	= impl::register_string_literal(sv.substr(0u, comments));
-					auto const newlines = std::ranges::count(comment, '\n');
-					impl::new_line(lines, line, pos, Line_comment, comment, newlines);
-					size = comments;
+					auto const length  = newline + "\n"sv.length();
+					auto const comment = impl::register_string_literal(sv.substr(0u, length));
+					impl::new_line(lines, line, pos, Line_comment, comment);
+					size = length;	  // Adjusts the size of the comment.
 				}
 				break;
 			case '=': impl::push_operator(line, size, pos, slash_eq, 2u); break;	// /=
@@ -1549,7 +1597,7 @@ lines_t scan(std::filesystem::path const& name) {
 					auto const s = impl::register_string_literal(sv.substr(0, index + 1u));
 					impl::push_token(line, size, pos, s, Header, s.size());
 				} else {
-					throw syntax_error_t(pos, "invalid header name");	 // TODO: error message
+					throw syntax_error_t(pos, "invalid header name");
 				}
 				break;
 			}
@@ -1636,7 +1684,7 @@ lines_t scan(std::filesystem::path const& name) {
 					auto const s = impl::register_string_literal(sv.substr(0, index + 1u));
 					impl::push_token(line, size, pos, s, Header, s.size());
 				} else {
-					throw syntax_error_t(pos, "invalid header name");	 // TODO: error message
+					throw syntax_error_t(pos, "invalid header name");
 				}
 				break;
 			}
@@ -1644,18 +1692,39 @@ lines_t scan(std::filesystem::path const& name) {
 			if (auto const [s, sz] = impl::parse_string_literal(pos, sv, '"'); ! s.empty()) {
 				impl::push_token(line, size, pos, s, String, sz);
 			} else {
-				throw syntax_error_t(pos, "invalid string literal");	// TODO: error message
+				throw syntax_error_t(pos, "invalid string literal");
 			}
 			break;
 		case '\'':
 			if (auto const [s, sz] = impl::parse_string_literal(pos, sv, '\''); ! s.empty()) {
 				impl::push_token(line, size, pos, s, Character, sz);
 			} else {
-				throw syntax_error_t(pos, "invalid character literal");	   // TODO: error message
+				throw syntax_error_t(pos, "invalid character literal");
 			}
 			break;
 		case '\\':
-			break;
+			if (sv[1] == '\0') {
+				// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+				//	Only the last backslash on any physical source line shall be eligible for being part of such a splice.
+				tr.trace("terminated");
+				impl::new_line(lines, line, pos, Whitespace, sv);
+				return lines;
+			} else {
+				// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+				//	Each sequence of a backslash character (\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
+				//	splicing physical source lines to form logical source lines.
+				auto const index = impl::skip(sv, [](auto const& a) { return impl::contains(def::ws_except_newline, a); }, 1u);
+				switch (auto const nl = impl::newline(sv.substr(index)); nl) {
+				case 2u: [[fallthrough]];
+				case 1u:
+					// Skip it as escaped new-line for logical line
+					size = index + nl;
+					break;
+				case 0u: throw std::invalid_argument("invalid backslash");
+				default: throw std::logic_error(__func__ + std::to_string(__LINE__));
+				}
+				break;
+			}
 		case 'L': [[fallthrough]];
 		case 'U':
 			switch (sv[1]) {
@@ -1663,7 +1732,7 @@ lines_t scan(std::filesystem::path const& name) {
 				if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
 					impl::push_token(line, size, pos, s, Raw_string, str_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid raw string literal");	// TODO: error message
+					throw syntax_error_t(pos, "invalid raw string literal");
 				}
 				break;
 			default:
@@ -1674,7 +1743,7 @@ lines_t scan(std::filesystem::path const& name) {
 				} else if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
 					impl::push_identifier(line, size, pos, id, id_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid universal character name");	  // TODO: error message
+					throw syntax_error_t(pos, "invalid universal character name");
 				}
 				break;
 			}
@@ -1687,7 +1756,7 @@ lines_t scan(std::filesystem::path const& name) {
 					if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
 						impl::push_token(line, size, pos, s, Raw_string, str_sz);
 					} else {
-						throw syntax_error_t(pos, "invalid raw string literal");	// TODO: error message
+						throw syntax_error_t(pos, "invalid raw string literal");
 					}
 					break;
 				default:
@@ -1698,7 +1767,7 @@ lines_t scan(std::filesystem::path const& name) {
 					} else if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
 						impl::push_identifier(line, size, pos, id, id_sz);
 					} else {
-						throw syntax_error_t(pos, "invalid universal character name");	  // TODO: error message
+						throw syntax_error_t(pos, "invalid universal character name");
 					}
 					break;
 				}
@@ -1707,7 +1776,7 @@ lines_t scan(std::filesystem::path const& name) {
 				if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
 					impl::push_token(line, size, pos, s, Raw_string, str_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid raw string literal");	// TODO: error message
+					throw syntax_error_t(pos, "invalid raw string literal");
 				}
 				break;
 			case '\'': [[fallthrough]];
@@ -1717,14 +1786,14 @@ lines_t scan(std::filesystem::path const& name) {
 				} else if (auto const [chr, chr_sz] = impl::parse_string_literal(pos, sv, '\''); ! chr.empty()) {
 					impl::push_token(line, size, pos, chr, Character, chr_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid universal character name");	  // TODO: error message
+					throw syntax_error_t(pos, "invalid universal character name");
 				}
 				break;
 			default:
 				if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
 					impl::push_identifier(line, size, pos, id, id_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid identifier");	// TODO: error message
+					throw syntax_error_t(pos, "invalid identifier");
 				}
 				break;
 			}
@@ -1735,14 +1804,14 @@ lines_t scan(std::filesystem::path const& name) {
 				if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
 					impl::push_token(line, size, pos, s, Raw_string, str_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid raw string literal");	// TODO: error message
+					throw syntax_error_t(pos, "invalid raw string literal");
 				}
 				break;
 			default:
 				if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
 					impl::push_identifier(line, size, pos, id, id_sz);
 				} else {
-					throw syntax_error_t(pos, "invalid token");	   // TODO: error message
+					throw syntax_error_t(pos, "invalid token");
 				}
 				break;
 			}
@@ -1760,7 +1829,7 @@ lines_t scan(std::filesystem::path const& name) {
 				}
 			}
 			tr.trace(to_string(pos) + escape(sv, 32u));
-			throw syntax_error_t(pos, "invalid token");	   // TODO: error message
+			throw syntax_error_t(pos, "invalid token");
 		}
 	}
 	return lines;
