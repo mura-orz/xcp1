@@ -3922,9 +3922,15 @@ public:
 		// otherwise, const iterators would be invalidate.
 		paths_.source(lex::load_file(paths_.path()));
 		paths_.preprocessing_tokens(lex::scan(paths_.path()));
+		std::cout << std::string(32u, '>') << std::endl
+				  << "Preprocessing tokens: " << paths_.preprocessing_tokens().size() << std::endl;
 		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::ranges::for_each(a, [](auto const& aa) { std::clog << " ---> " << xxx::lex::to_string(aa) << "\n"; }); });	// TODO:
+		std::cout << std::string(32u, '<') << std::endl;
 		paths_.tokens(pp::preprocess(conditions_, macros_, paths_, paths_.preprocessing_tokens(), paths_.path()));
+		std::cout << std::string(32u, '>') << std::endl
+				  << "Tokens: " << paths_.tokens().size() << std::endl;
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::clog << " $---> " << lex::to_string(a) << "\n"; });
+		std::cout << std::string(32u, '<') << std::endl;
 
 		auto const& flat_tokens{paths_.tokens()};
 		{	 // TODO: temporary debugging
