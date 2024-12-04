@@ -1842,6 +1842,29 @@ class node_t;
 
 }	 // namespace cxx::ast
 namespace pp {
+namespace impl {
+
+std::string stringize(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
+	log::tracer_t tr{{}};
+
+	itr = lex::skip_ws(itr, end);
+	if (itr != end) { return {}; }
+
+	auto message = std::ranges::subrange(itr, end) | std::views::transform([](auto const& a) {
+					   using enum lex::pp_type_t;
+					   switch (a.type()) {
+					   case String: return std::string{a.token()};
+					   default: return lex::to_string(a.type());
+					   }
+				   })
+				 | std::views::join | std::views::common;
+
+	auto const str = std::accumulate(message.begin(), message.end(), std::string{});
+	tr.set_result(escape(str, 32u));
+	return str;
+}
+
+}	 // namespace impl
 namespace pm {
 
 class path_manager_t {
@@ -2115,22 +2138,18 @@ private:
 
 	function_macro_t const& function(lex::pp_token_t const& t) { return function_macros_.at(t.token()); }
 
-	std::list<std::string> stringize_;
-	std::list<std::string> glue_;
-
-	lex::pp_token_t stringize(lex::tokens_t const& ts) {
+	lex::pp_token_t stringize_token(lex::tokens_t const& ts, hideset_t const& hs = {}) {
 		log::tracer_t tr{{}};
 
-		stringize_.push_back(std::accumulate(ts.begin(), ts.end(), std::ostringstream{}, [](auto&& o, auto const& a) { o << a.token(); return std::move(o); }).str());
-		return lex::pp_token_t{lex::pp_type_t::String, stringize_.back()};
+		auto const sv = lex::impl::register_string_literal(impl::stringize(ts.begin(), ts.end()));
+		return lex::pp_token_t{lex::pp_type_t::String, sv};
 	}
 	void glue(lex::tokens_t& tokens, lex::tokens_itr_t const& ls, lex::tokens_t const& rs) {
 		log::tracer_t tr{{}};
 		if (! rs.empty()) {
-			auto const lr = std::accumulate(rs.begin(), rs.end(), std::ostringstream{}, [](auto&& o, auto const& a) { o << a.token(); return std::move(o); }).str();
 			auto const hs = std::accumulate(rs.begin(), rs.end(), hideset_t{}, [](auto&& o, auto const& a) { o.insert(a.hideset().begin(), a.hideset().end()); return std::move(o); });
-			glue_.push_back(lr);
-			lex::pp_token_t const token{lex::pp_type_t::String, glue_.back(), hs};
+
+			auto const token = stringize_token(rs, hs);
 			tokens.insert(ls, token);
 			tokens.erase(ls);
 			tokens.erase(rs.begin(), rs.end());
@@ -2147,7 +2166,7 @@ private:
 		auto const iss = is.size();
 		if (std::optional<std::size_t> i = std::nullopt; matched(is, 0, lex::pp_type_t::hash) && 1u < iss && (i = find_at(fp, is.front()))) {
 			// "#parameter" shall be stringized.
-			os.insert(is.begin(), stringize(ap.at(*i)));
+			os.insert(is.begin(), stringize_token(ap.at(*i)));
 			return subst(is_, fp, ap, hs, os);
 		} else if (matched(is, 0, lex::pp_type_t::hash2) && 1u < iss && (i = find_at(fp, is.front()))) {
 			// "##parameter" shall combine both the lhs and rhs tokens.
@@ -2615,26 +2634,6 @@ std::tuple<bool, std::filesystem::path, lex::tokens_t> parse_preprocessing_inclu
 	auto const& pp_tokens = paths.tokens();
 	paths.pop();
 	return {true, *fullpath, pp_tokens};
-}
-
-std::string stringize(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
-	log::tracer_t tr{{}};
-
-	itr = lex::skip_ws(itr, end);
-	if (itr != end) { return {}; }
-
-	auto message = std::ranges::subrange(itr, end) | std::views::transform([](auto const& a) {
-					   using enum lex::pp_type_t;
-					   switch (a.type()) {
-					   case String: return std::string{a.token()};
-					   default: return lex::to_string(a.type());
-					   }
-				   })
-				 | std::views::join | std::views::common;
-
-	auto const str = std::accumulate(message.begin(), message.end(), std::string{});
-	tr.set_result(str);
-	return str;
 }
 
 ///     @brief  Proceeds conditions.
@@ -3837,15 +3836,15 @@ public:
 		// otherwise, const iterators would be invalidate.
 		paths_.source(lex::load_file(paths_.path()));
 		paths_.preprocessing_tokens(lex::scan(paths_.path()));
-		std::cout << std::string(32u, '>') << std::endl
+		std::clog << std::string(32u, '>') << std::endl
 				  << "Preprocessing tokens: " << paths_.preprocessing_tokens().size() << std::endl;
 		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::ranges::for_each(a, [](auto const& aa) { std::clog << " ---> " << xxx::lex::to_string(aa) << "\n"; }); });	// TODO:
-		std::cout << std::string(32u, '<') << std::endl;
+		std::clog << std::string(32u, '<') << std::endl;
 		paths_.tokens(pp::preprocess(conditions_, macros_, paths_, paths_.preprocessing_tokens(), paths_.path()));
-		std::cout << std::string(32u, '>') << std::endl
+		std::clog << std::string(32u, '>') << std::endl
 				  << "Tokens: " << paths_.tokens().size() << std::endl;
 		std::ranges::for_each(paths_.tokens(), [](auto const& a) { std::clog << " $---> " << lex::to_string(a) << "\n"; });
-		std::cout << std::string(32u, '<') << std::endl;
+		std::clog << std::string(32u, '<') << std::endl;
 
 		auto const& flat_tokens{paths_.tokens()};
 		{	 // TODO: temporary debugging
