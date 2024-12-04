@@ -946,7 +946,7 @@ inline std::string to_token_string(pp_token_t const& token) {
 inline tokens_itr_t next_token(tokens_itr_t pos, tokens_itr_t end) { return pos == end ? end : skip_ws(++pos, end); }
 
 inline std::tuple<std::vector<tokens_itr_t>, tokens_itr_t> seq_match(tokens_itr_t itr, tokens_itr_t const& end, std::vector<std::function<bool(lex::pp_token_t const&)>> const& expected) {
-	log::tracer_t tr{{std::to_string(expected.size())}};
+	log::tracer_t tr{{std::to_string(expected.size())}, true};
 
 	std::vector<tokens_itr_t> matched;
 	for (auto const& check: expected) {
@@ -973,7 +973,7 @@ public:
 
 protected:
 	virtual bool check(lex::pp_token_t const& a) const {
-		log::tracer_t tr{{lex::to_string(a), lex::to_string(type_), s_}};
+		log::tracer_t tr{{lex::to_string(a), lex::to_string(type_), s_}, true};
 
 		auto const result = s_.empty() ? a.is(type_) : a.is(type_, s_);
 		tr.set_result(result);
