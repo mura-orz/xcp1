@@ -3837,7 +3837,7 @@ public:
 		paths_.source(lex::load_file(paths_.path()));
 		paths_.preprocessing_tokens(lex::scan(paths_.path()));
 		std::clog << std::string(32u, '>') << std::endl
-				  << "Preprocessing tokens: " << paths_.preprocessing_tokens().size() << std::endl;
+				  << "Preprocessing lines: " << paths_.preprocessing_tokens().size() << std::endl;
 		std::ranges::for_each(paths_.preprocessing_tokens(), [](auto const& a) { std::ranges::for_each(a, [](auto const& aa) { std::clog << " ---> " << xxx::lex::to_string(aa) << "\n"; }); });	// TODO:
 		std::clog << std::string(32u, '<') << std::endl;
 		paths_.tokens(pp::preprocess(conditions_, macros_, paths_, paths_.preprocessing_tokens(), paths_.path()));
