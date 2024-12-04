@@ -161,7 +161,7 @@ static level_t	  level_s = level_t::Silent;
 namespace impl {
 
 char const*		 Lv[]{"[*]", "[T]", "[I]", "[E]", "[S]"};
-std::regex const function_name_re{R"(^(?:[^ ]+ )*(?:`?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*(~?[A-Za-z_<][A-Za-z_0-9<>]*) ?\(.*$)"};
+std::regex const function_name_re{R"(^(?:[^ ]+ )*((?:`?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*~?[A-Za-z_<][A-Za-z_0-9<>]*) ?\(.*$)"};
 
 inline std::tm local_tm(std::chrono::system_clock::time_point const& now) {
 	std::tm	   tm{};
@@ -946,7 +946,7 @@ inline std::string to_token_string(pp_token_t const& token) {
 inline tokens_itr_t next_token(tokens_itr_t pos, tokens_itr_t end) { return pos == end ? end : skip_ws(++pos, end); }
 
 inline std::tuple<std::vector<tokens_itr_t>, tokens_itr_t> seq_match(tokens_itr_t itr, tokens_itr_t const& end, std::vector<std::function<bool(lex::pp_token_t const&)>> const& expected) {
-	log::tracer_t tr{{std::to_string(expected.size())}, true};
+	log::tracer_t tr{{std::to_string(expected.size())}};
 
 	std::vector<tokens_itr_t> matched;
 	for (auto const& check: expected) {
@@ -972,7 +972,13 @@ public:
 	virtual ~is_() = default;
 
 protected:
-	virtual bool check(lex::pp_token_t const& a) const { return a.is(type_, s_); }
+	virtual bool check(lex::pp_token_t const& a) const {
+		log::tracer_t tr{{lex::to_string(a), lex::to_string(type_), s_}};
+
+		auto const result = s_.empty() ? a.is(type_) : a.is(type_, s_);
+		tr.set_result(result);
+		return result;
+	}
 
 private:
 	lex::pp_type_t type_;
@@ -982,23 +988,21 @@ private:
 class is_kw : public is_ {
 public:
 	explicit is_kw(std::string const& s) :
-		is_(lex::pp_type_t::Keyword, s) {}
+		is_(pp_type_t::Keyword, s) {}
 };
 class is_op : public is_ {
-protected:
-	virtual bool check(lex::pp_token_t const& a) const { return def::operators.contains(a.type()); }
-
 public:
 	explicit is_op(pp_type_t const t) :
-		is_(t) {}
+		is_(t) {
+		if (! def::operators.contains(t)) throw std::invalid_argument(__func__);
+	}
 };
 class is_sep : public is_ {
-protected:
-	virtual bool check(lex::pp_token_t const& a) const { return def::separators.contains(a.type()); }
-
 public:
 	explicit is_sep(pp_type_t const& t) :
-		is_(t) {}
+		is_(t) {
+		if (! def::separators.contains(t)) throw std::invalid_argument(__func__);
+	}
 };
 class is_id : public is_ {
 public:
@@ -2658,12 +2662,13 @@ mm::macro_manager_t::macro_parameters_t enclosed_parameters(lex::tokens_itr_t it
 	return parameters;
 }
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, lex::tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.front().pos())}};
+	log::tracer_t tr{{lex::to_string(line.front())}};
 
 	auto const [tokens, rest] = seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_pp_d(lex::def::define_s_), lex::is_(lex::pp_type_t::Identifier)});
 	if (tokens.empty()) return {false, false};
 
-	auto const& macro = tokens.at(3)->token();
+	auto const& macro = tokens.at(2)->token();
+	tr.trace(macro);
 
 	auto itr = rest;	// If there is left parenthesis without whitespace, it is function macro.
 	if (itr == line.end()) {
@@ -2771,7 +2776,7 @@ std::tuple<lex::lines_t, lex::lines_t::iterator> preprocess_conditions(cm::condi
 			// #line ...
 			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::line_s_});
 			auto const current_no = itr->front().line();
-			auto const new_no	  = lexical_cast<std::size_t>(tokens_line.at(3)->token());
+			auto const new_no	  = lexical_cast<std::size_t>(tokens_line.at(2)->token());
 			auto const next_itr	  = lex::skip_ws(rest_line, itr->cend());
 			auto const new_path	  = next_itr == itr->cend() ? ""sv : next_itr->token();
 			auto const path		  = ! new_path.empty() ? std::make_shared<std::filesystem::path const>(new_path) : itr->front().file();
