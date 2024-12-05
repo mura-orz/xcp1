@@ -1941,7 +1941,7 @@ std::string stringize(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
 	itr = lex::skip_ws(itr, end);
 	if (itr == end) { return {}; }
 
-	auto message = std::ranges::subrange(itr, end) | std::views::transform([](auto const& a) { return lex::to_token_string(a); }) | std::views::join | std::views::common;
+	auto message = std::ranges::subrange(itr, end) | std::views::filter([](auto const& a) { return ! a.is(lex::pp_type_t::Newline) && ! a.is(lex::pp_type_t::Line_comment) && ! a.is(lex::pp_type_t::Block_comment); }) | std::views::transform([](auto const& a) { return lex::to_token_string(a); }) | std::views::join | std::views::common;
 
 	auto const str = std::accumulate(message.begin(), message.end(), std::string{});
 	tr.set_result(escape(str, 32u));
