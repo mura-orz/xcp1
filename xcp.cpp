@@ -823,6 +823,7 @@ public:
 	auto const& pos() const noexcept { return pos_; }
 
 	void pos(std::size_t line, std::shared_ptr<std::filesystem::path const> path = std::shared_ptr<std::filesystem::path const>{}) {
+		log::tracer_t tr{{std::to_string(line), path ? path->string() : "{none}"}, true};
 		pos_.set_line(line);
 		pos_.set_column(0u);
 		pos_.set_file(path);
@@ -852,7 +853,8 @@ private:
 };
 using tokens_t	   = std::vector<pp_token_t>;
 using lines_t	   = std::vector<tokens_t>;
-using tokens_itr_t = std::vector<pp_token_t>::const_iterator;
+using tokens_itr_t = tokens_t::const_iterator;
+using lines_itr_t  = lines_t::const_iterator;
 
 inline bool operator==(pp_token_t const& lhs, pp_token_t const& rhs) { return lhs.type() == rhs.type() && lhs.token() == rhs.token(); }
 inline bool operator<(pp_token_t const& lhs, pp_token_t const& rhs) { return lhs.type() < rhs.type() || (lhs.token() < rhs.token()); }
@@ -1474,9 +1476,7 @@ constexpr inline std::string_view::size_type count_newlines(std::string_view con
 	if (cr == 0u || lf == 0u) return cr + lf;	 // It is just sum because of no CR-LF.
 
 	std::string_view::size_type crlf{};
-	for (std::string_view::size_type pos = sv.find("\r\n"); pos != std::string_view::npos; pos = sv.find("\r\n", pos + 1)) {
-		++crlf;
-	}
+	for (std::string_view::size_type pos = sv.find("\r\n"); pos != std::string_view::npos; pos = sv.find("\r\n", pos + 1)) { ++crlf; }
 	return cr + lf - crlf;
 }
 
@@ -2088,7 +2088,7 @@ inline hideset_t operator+(hideset_t const& lhs, hideset_t const& rhs) {
 
 class macro_manager_t {
 public:
-	using macro_parameters_t = std::vector<lex::tokens_itr_t>;
+	using macro_parameters_t = lex::tokens_t;
 	using values_t			 = lex::tokens_t;
 	using simple_macros_t	 = std::unordered_map<std::string_view, values_t>;
 	using function_macro_t	 = std::pair<macro_parameters_t, values_t>;
@@ -2186,21 +2186,22 @@ private:
 		if (tokens.size() <= offset) { return false; }
 		return tokens.at(offset).type() == type;
 	}
-	static std::optional<std::size_t> find_at(macro_parameters_t const& tokens, lex::pp_token_t const& token) {
-		log::tracer_t tr{{}};
-		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [&token](auto const& a) { return *a == token; }); found != tokens.end()) { return std::distance(tokens.begin(), found); }
+	static std::optional<std::size_t> find_at(macro_parameters_t const& tokens, lex::tokens_itr_t const& token, lex::tokens_itr_t const& end) {
+		log::tracer_t tr{{std::to_string(tokens.size())}};
+		if (token == end) return std::nullopt;
+		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [token](auto const& a) { return a == *token; }); found != tokens.end()) { return std::distance(tokens.begin(), found); }
 		return std::nullopt;
 	}
 	///	@brief	Extracts actual arguments from the token sequence.
 	///	@param[in]	ts		Token sequence to extract.
 	///	@return		Extracted actual arguments and the iterator of the last token, right parenthes.
-	static std::tuple<arguments_t, lex::tokens_itr_t> actuals(lex::tokens_t const& ts) {
+	static std::tuple<arguments_t, lex::tokens_itr_t> actuals(lex::tokens_itr_t const& ts, lex::tokens_itr_t const& end) {
 		log::tracer_t tr{{}};
 
 		arguments_t ap;
 
 		int nest = 0;	 // SPEC: max of nest is the same as signed integer.
-		for (auto itr = ts.begin(), current = ts.begin(), end = ts.end(); itr != end; ++itr) {
+		for (auto itr = ts, current = ts; itr != end; ++itr) {
 			if (itr->is(lex::pp_type_t::l_paren)) {
 				if (std::numeric_limits<decltype(nest)>::max() <= nest) throw std::overflow_error(__func__ + std::to_string(__LINE__));
 				++nest;
@@ -2227,93 +2228,100 @@ private:
 		log::tracer_t tr{{}};
 
 		auto const sv = lex::impl::register_string_literal(impl::stringize(ts.begin(), ts.end()));
-		return lex::pp_token_t{lex::pp_type_t::String, sv};
+		tr.set_result(escape(sv, 32u));
+		return lex::pp_token_t{lex::pp_type_t::String, sv, hs};
 	}
-	void glue(lex::tokens_t& tokens, lex::tokens_itr_t const& ls, lex::tokens_t const& rs) {
+	void glue(lex::tokens_t& tokens, lex::tokens_t const& rs) {
 		log::tracer_t tr{{}};
-		if (! rs.empty()) {
+		if (! tokens.empty() && ! rs.empty()) {
 			auto const hs = std::accumulate(rs.begin(), rs.end(), hideset_t{}, [](auto&& o, auto const& a) { o.insert(a.hideset().begin(), a.hideset().end()); return std::move(o); });
 
-			auto const token = stringize_token(rs, hs);
-			tokens.insert(ls, token);
-			tokens.erase(ls);
-			tokens.erase(rs.begin(), rs.end());
+			lex::tokens_t glued;
+			glued.push_back(tokens.back());
+			glued.insert(glued.end(), rs.begin(), rs.end());
+			auto const token = stringize_token(glued, hs);
+			tr.set_result(lex::to_string(token));
+			tokens.erase(tokens.begin());
+			tokens.insert(tokens.begin(), token);
 		}
 	}
-	lex::tokens_t& subst(lex::tokens_t const& is, macro_parameters_t const& fp, arguments_t const& ap, hideset_t const& hs, lex::tokens_t& os) {
-		log::tracer_t tr{{}};
-		if (is.empty()) {
-			// There is no more token. So, the token sequence might have been terminated.
-			std::ranges::for_each(os, [&hs](auto& t) { t.hideset().insert(hs.begin(), hs.end()); });
-			return os;
-		}
-		auto const is_ = follows(is);
-		auto const iss = is.size();
-		if (std::optional<std::size_t> i = std::nullopt; matched(is, 0, lex::pp_type_t::hash) && 1u < iss && (i = find_at(fp, is.front()))) {
-			// "#parameter" shall be stringized.
-			os.insert(is.begin(), stringize_token(ap.at(*i)));
-			return subst(is_, fp, ap, hs, os);
-		} else if (matched(is, 0, lex::pp_type_t::hash2) && 1u < iss && (i = find_at(fp, is.front()))) {
-			// "##parameter" shall combine both the lhs and rhs tokens.
-			if (auto const& ap_ = ap.at(*i); ap_.empty()) {
-				// This argument is empty and is ignored.
-				return subst(is_, fp, ap, hs, os);
+	lex::tokens_t substitute(lex::tokens_itr_t t, lex::tokens_itr_t const& end, macro_parameters_t const& fp, arguments_t const& ap, hideset_t const& hs) {
+		log::tracer_t tr{{std::to_string(fp.size()) + " " + std::to_string(ap.size()) + " " + std::to_string(hs.size())}};
+
+		lex::tokens_t os;
+		for (; t != end; ++t) {
+			auto const size = std::distance(t, end);
+			if (std::optional<std::size_t> i = std::nullopt; t->is(lex::pp_type_t::hash) && (i = find_at(fp, ++t, end))) {
+				// "#parameter" shall be stringized.
+				os.push_back(stringize_token(ap.at(*i)));
+			} else if (t->is(lex::pp_type_t::hash2) && (i = find_at(fp, ++t, end))) {
+				// "##parameter" shall combine both the lhs and rhs tokens.
+				if (auto const& ap_ = ap.at(*i); ap_.empty()) {
+					// This argument is empty and is ignored.
+				} else {
+					// The parameter is replaced by its argument and combined.
+					glue(os, ap_);
+				}
+			} else if (1u < size && t->is(lex::pp_type_t::hash2)) {
+				// "##token" shall combine both the lhs and rhs tokens.
+				glue(os, {*t});
+			} else if (2u < size && t->is(lex::pp_type_t::hash2) && (i = find_at(fp, ++t, end))) {
+				// "##parameter" shall combine both the lhs and rhs tokens.
+				if (auto const& ap_ = ap.at(*i); ap_.empty()) {
+					if (*t == fp.at(*i)) { os.insert(os.end(), ap_.begin(), ap_.end()); }
+				} else {
+					os.insert(os.end(), ap_.begin(), ap_.end());
+				}
+			} else if (1u < size && (i = find_at(fp, ++t, end))) {
+				auto const& ap_ = ap.at(*i);
+				auto const& o	= expand(ap_.begin(), ap_.end());
+				os.insert(os.end(), o.begin(), o.end());
 			} else {
-				// The parameter is replaced by its argument and combined.
-				glue(os, is.begin(), ap_);
-				return subst(is_, fp, ap, hs, os);	  // subst follows again after the glue
+				os.push_back(*t);
 			}
-		} else if (1u < iss && matched(is, 0, lex::pp_type_t::hash2)) {
-			// "##token" shall combine both the lhs and rhs tokens.
-			glue(os, is.begin(), is_);
-			return subst(is_, fp, ap, hs, os);	  // subst follows again after the glue
-		} else if (2u < iss && matched(is, 0, lex::pp_type_t::hash2) && (i = find_at(fp, is.front()))) {
-			// "##parameter" shall combine both the lhs and rhs tokens.
-			if (auto const& ap_ = ap.at(*i); ap_.empty()) {
-				if (is_.begin() == fp.at(*i)) { os.insert(is.begin(), ap_.begin(), ap_.end()); }
-				return subst(is_, fp, ap, hs, os);
-			} else {
-				os.insert(is.begin(), ap_.begin(), ap_.end());
-				return subst(is_, fp, ap, hs, os);
-			}
-		} else if (1u < iss && (i = find_at(fp, is.front()))) {
-			auto ap_ = lex::tokens_t(ap.at(*i).begin(), ap.at(*i).end());
-			expand(ap_);
-			return subst(is_, fp, ap, hs, os);
-		} else {
-			os.insert(os.end(), is.begin(), is.end());
-			return subst(is_, fp, ap, hs, os);
 		}
+		// There is no more token. So, the token sequence might have been terminated.
+		std::ranges::for_each(os, [&hs](auto& t) { t.hideset().insert(hs.begin(), hs.end()); });
+		return os;
 	}
 
 public:
-	void expand(lex::tokens_t& ts) {
+	[[nodiscard]] lex::tokens_t expand(lex::tokens_itr_t t, lex::tokens_itr_t const& end) {
 		log::tracer_t tr{{}};
-		for (auto t = ts.begin(); t != ts.end(); ++t) {
+		lex::tokens_t result;
+		for (; t != end; ++t) {
 			tr.trace(lex::to_string(*t));
-			if (hideset_t& hs = t->hideset(); hs.contains(*t)) {
+			if (hideset_t hs = t->hideset(); hs.contains(*t)) {
 				tr.trace(lex::to_string(*t) + " is hidden");
 				// The token has been hidden. The token does not need more expansion.
 			} else if (is_simple_macro(*t)) {
 				tr.trace(lex::to_string(*t) + " is simple macro");
 				// Expands simple macro.
 				hs.insert(hs.end(), *t);
-				expand(subst(value(t->token()), {}, {}, hs, ts));
+				auto const& vs = value(t->token());
+
+				auto ts = substitute(vs.begin(), vs.end(), {}, {}, hs);
+				ts		= expand(ts.begin(), ts.end());
+				result.insert(result.end(), ts.begin(), ts.end());
 			} else if (is_function_macro(*t)) {
 				tr.trace(lex::to_string(*t) + " is function macro");
 				// Expands functional macro.
-				auto [ap, rp] = actuals({t, ts.end()});	   // ( ..., ... )
+				auto [ap, rp] = actuals(t, end);	// ( ..., ... )
 				hs.insert(rp->hideset().begin(), rp->hideset().end());
 				hs.insert(hs.end(), *t);
-				expand(subst(value(t->token()), function(*t).first, ap, hs, ts));
-				auto tmp = ts.begin();
-				std::advance(tmp, std::distance(ts.cbegin(), rp));
-				t = tmp;
+				auto const& vs = value(t->token());
+
+				auto ts = substitute(vs.begin(), vs.end(), function(*t).first, ap, hs);
+				ts		= expand(ts.begin(), ts.end());
+				result.insert(result.end(), ts.begin(), ts.end());
+				std::advance(t, std::distance(t, rp));
 			} else {
 				tr.trace(lex::to_string(*t) + " is not macro");
 				// The token is not a macro. So, the token does not need more expansion.
+				result.push_back(*t);
 			}
 		}
+		return result;
 	}
 };
 
@@ -2326,7 +2334,8 @@ class symbol_manager_t {
 
 }	 // namespace sm
 
-lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_t& lines, std::filesystem::path const& source);
+lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_t const& lines, std::filesystem::path const& source);
+using pp_value_t = std::variant<void const*, long long, long double>;
 
 namespace impl {
 
@@ -2338,8 +2347,6 @@ inline T lexical_cast(std::string_view const& str) {
 	if (iss >> v) return v;
 	throw std::invalid_argument(__func__);
 }
-
-using pp_value_t = std::variant<void const*, long long, long double>;
 
 inline std::string to_string(pp_value_t const& value) {
 	if (std::holds_alternative<void const*>(value)) {
@@ -2592,50 +2599,50 @@ pp_value_t evaluate(std::stack<lex::pp_type_t>& op, std::stack<pp_value_t>& valu
 	return value.top();
 }
 
-std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, lex::tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.front().pos())}, true};
+std::tuple<bool, bool> parse_preprocessing_if_line(mm::macro_manager_t& macros, lex::tokens_itr_t const& line_itr, lex::tokens_itr_t const& line_end) {
+	log::tracer_t tr{{lex::to_string(line_itr->pos())}, true};
 
 	using enum lex::pp_type_t;
-	if (auto const [tokens, rest] = seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
+	if (auto const [tokens, rest] = seq_match(line_itr, line_end, {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
 		if (auto const is_ifdef = tokens.at(2)->is(Identifier, lex::def::ifdef_s_); is_ifdef || tokens.at(2)->is(Identifier, lex::def::ifndef_s_)) {
-			if (lex::skip_ws(rest, line.end()) != line.end()) log::err({__func__});	   // TODO: extra token
+			if (lex::skip_ws(rest, line_end) != line_end) log::err({__func__});	   // TODO: extra token
 			auto const macro  = tokens.at(2)->token();
 			auto const result = macros.defined(macro);
 			return {true, is_ifdef ? result : ! result};
 		}
 	}
-	auto const [tokens, rest] = seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_pp_d(lex::def::if_s_)});
+	auto const [tokens, rest] = seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::if_s_)});
 	if (tokens.empty()) return {false, false};
 
-	auto const conditions = lex::skip_ws(rest, line.end());
-	if (conditions == line.end()) return {false, false};
+	auto const conditions = lex::skip_ws(rest, line_end);
+	if (conditions == line_end) return {false, false};
 	std::stack<lex::pp_type_t> ops;
 	std::stack<pp_value_t>	   values;
 
-	auto const result = evaluate(ops, values, macros, {conditions, line.end()});
+	auto const result = evaluate(ops, values, macros, {conditions, line_end});
 	return {true, std::visit([](auto const& a) { return a != 0; }, result)};
 }
-std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, lex::tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.front().pos())}, true};
+std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros, lex::tokens_itr_t const& line_itr, lex::tokens_itr_t const& line_end) {
+	log::tracer_t tr{{lex::to_string(line_itr->pos())}, true};
 
 	using enum lex::pp_type_t;
-	if (auto const [tokens, rest] = lex::seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
+	if (auto const [tokens, rest] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_(Identifier), lex::is_(Identifier)}); ! tokens.empty()) {
 		if (auto const is_elifdef = tokens.at(2)->is(Identifier, lex::def::elifdef_s_); is_elifdef || tokens.at(2)->is(Identifier, lex::def::elifndef_s_)) {
-			if (lex::skip_ws(rest, line.end()) != line.end()) log::err({__func__});	   // TODO: extra token
+			if (lex::skip_ws(rest, line_end) != line_end) log::err({__func__});	   // TODO: extra token
 			auto const macro  = tokens.at(2)->token();
 			auto const result = macros.defined(macro);
 			return {true, is_elifdef ? result : ! result};
 		}
 	}
-	auto const [tokens, rest] = seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_pp_d(lex::def::elif_s_)});
+	auto const [tokens, rest] = seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::elif_s_)});
 	if (tokens.empty()) return {false, false};
 
-	auto const conditions = lex::skip_ws(rest, line.end());
-	if (conditions == line.end()) return {false, false};
+	auto const conditions = lex::skip_ws(rest, line_end);
+	if (conditions == line_end) return {false, false};
 	std::stack<lex::pp_type_t> ops;
 	std::stack<pp_value_t>	   values;
 
-	auto const result = evaluate(ops, values, macros, {conditions, line.end()});
+	auto const result = evaluate(ops, values, macros, {conditions, line_end});
 	return {true, std::visit([](auto const& a) { return a != 0; }, result)};
 }
 
@@ -2654,24 +2661,24 @@ mm::macro_manager_t::macro_parameters_t enclosed_parameters(lex::tokens_itr_t it
 		} else if (itr->is(lex::pp_type_t::Identifier)) {
 			if (! value) throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 			value = ! value;
-			parameters.push_back(itr);
+			parameters.push_back(*itr);
 		} else {
 			throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 		}
 	}
 	return parameters;
 }
-std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, lex::tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.front())}};
+std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, lex::tokens_itr_t const& line_itr, lex::tokens_itr_t const& line_end) {
+	log::tracer_t tr{{lex::to_string(*line_itr)}};
 
-	auto const [tokens, rest] = seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_pp_d(lex::def::define_s_), lex::is_(lex::pp_type_t::Identifier)});
+	auto const [tokens, rest] = seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::define_s_), lex::is_(lex::pp_type_t::Identifier)});
 	if (tokens.empty()) return {false, false};
 
 	auto const& macro = tokens.at(2)->token();
 	tr.trace(macro);
 
 	auto itr = rest;	// If there is left parenthesis without whitespace, it is function macro.
-	if (itr == line.end()) {
+	if (itr == line_end) {
 		// -------------------------------
 		// Simple macro without value.
 		macros.define_simple_macro(macro, mm::def::value_1);
@@ -2679,30 +2686,30 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 	} else if (itr->is(lex::pp_type_t::l_paren)) {
 		// -------------------------------
 		// Function macro
-		itr = next_token(itr, line.end());
+		itr = next_token(itr, line_end);
 
 		// parses parameters
-		auto const parameters = enclosed_parameters(itr, line.end());
+		auto const parameters = enclosed_parameters(itr, line_end);
 
 		// parses body
-		if (itr = lex::skip_ws(itr, line.end()); itr == line.end()) return {true, false};
-		macros.define_faction_macro(macro, parameters, {itr, line.end()});
+		if (itr = lex::skip_ws(itr, line_end); itr == line_end) return {true, false};
+		macros.define_faction_macro(macro, parameters, {itr, line_end});
 		tr.set_result(escape(macro));
 	} else {
 		// -------------------------------
 		// Simple macro
-		macros.define_simple_macro(macro, line);
+		macros.define_simple_macro(macro, {*itr});
 		tr.set_result(escape(macro));
 	}
 	return {true, true};
 }
-std::tuple<bool, std::filesystem::path, lex::tokens_t> parse_preprocessing_include_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_t const& line) {
-	log::tracer_t tr{{lex::to_string(line.front().pos())}, true};
+std::tuple<bool, std::filesystem::path, lex::tokens_t> parse_preprocessing_include_line(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::tokens_itr_t const& line_itr, lex::tokens_itr_t const& line_end) {
+	log::tracer_t tr{{lex::to_string(line_itr->pos())}, true};
 
-	auto const [tokens, rest] = lex::seq_match(line.begin(), line.end(), {lex::is_pp, lex::is_pp_d(lex::def::include_s_), lex::is_(lex::pp_type_t::Header)});	 // TODO:string
+	auto const [tokens, rest] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::include_s_), lex::is_(lex::pp_type_t::Header)});	   // TODO:string
 	if (tokens.empty()) return {false, std::filesystem::path{}, {}};
 
-	auto const token = tokens.at(3)->token();
+	auto const token = tokens.at(2)->token();
 
 	std::filesystem::path const path{std::string{token.substr(1, token.length() - 2)}};
 
@@ -2730,106 +2737,108 @@ std::tuple<bool, std::filesystem::path, lex::tokens_t> parse_preprocessing_inclu
 
 ///     @brief  Proceeds conditions.
 ////            #if ... (#elif ...)* (#else ...)? #endif
-std::tuple<lex::lines_t, lex::lines_t::iterator> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_t::iterator const& begin, lex::lines_t::iterator const& end) {
+std::tuple<lex::lines_t, lex::lines_itr_t> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_itr_t lines_itr, lex::lines_itr_t const& lines_end) {
 	log::tracer_t tr{{}};
 
 	lex::lines_t result;
 
 	bool elseif{true};
-	auto itr = begin;
-	for (; itr != end; ++itr) {
-		auto token = lex::skip_ws(itr->begin(), itr->end());
-		if (token == itr->end()) continue;
+	for (; lines_itr != lines_end; ++lines_itr) {
+		auto line_itr = lex::skip_ws(lines_itr->begin(), lines_itr->end());
+		if (line_itr == lines_itr->end()) continue;
 
 		// -------------------------------
 		// Expands macros.
-		macros.expand(*itr);
+		auto const line		 = macros.expand(line_itr, lines_itr->end());
+		line_itr			 = line.begin();
+		auto const line_end	 = line.end();
+		auto const line_cend = line.cend();
 
-		if (auto const [matched_if, condition_if] = impl::parse_preprocessing_if_line(macros, {token, itr->end()}); matched_if) {
+		if (auto const [matched_if, condition_if] = impl::parse_preprocessing_if_line(macros, line_itr, line_end); matched_if) {
 			// #if ...
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::if_s_});
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::if_s_});
 			conditions.push(condition_if);
-		} else if (auto const [matched_elif, condition_elif] = impl::parse_preprocessing_elif_line(macros, {token, itr->end()}); matched_elif) {
+		} else if (auto const [matched_elif, condition_elif] = impl::parse_preprocessing_elif_line(macros, line_itr, line_end); matched_elif) {
 			// #elif ...
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::elif_s_});
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::elif_s_});
 			if (conditions.empty()) throw std::runtime_error("Invalid #elif");
 			if (! elseif) throw std::runtime_error("Invalid #elif - after #else");
 			conditions.pop();
 			conditions.push(condition_elif);
-		} else if (auto const [tokens_else, rest_else] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::else_s_)}); ! tokens_else.empty()) {
+		} else if (auto const [tokens_else, rest_else] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::else_s_)}); ! tokens_else.empty()) {
 			// #else ...
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::else_s_});
-			if (lex::skip_ws(rest_else, itr->cend()) != itr->cend()) log::err({__func__});	  // TODO: extra token
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::else_s_});
+			if (lex::skip_ws(rest_else, line_cend) != line_cend) log::err({__func__});	  // TODO: extra token
 			if (conditions.empty()) throw std::runtime_error("Invalid #else");
 			if (! elseif) throw std::runtime_error("Invalid #else - after #else");
 			elseif = false;
 			conditions.flip();
-		} else if (auto const [tokens_endif, rest_endif] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::endif_s_)}); ! tokens_endif.empty()) {
+		} else if (auto const [tokens_endif, rest_endif] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::endif_s_)}); ! tokens_endif.empty()) {
 			// #endif
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::endif_s_});
-			if (lex::skip_ws(rest_endif, itr->cend()) != itr->cend()) log::err({__func__});	   // TODO: extra token
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::endif_s_});
+			if (lex::skip_ws(rest_endif, line_cend) != line_cend) log::err({__func__});	   // TODO: extra token
 			if (conditions.empty()) throw std::runtime_error("Invalid #endif");
 			conditions.pop();
 		} else if (! conditions.available()) {
 			// nothing to do because of false condition
-		} else if (auto const [tokens_line, rest_line] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::line_s_), lex::is_(lex::pp_type_t::Number)}); ! tokens_line.empty()) {
+		} else if (auto const [tokens_line, rest_line] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::line_s_), lex::is_(lex::pp_type_t::Number)}); ! tokens_line.empty()) {
 			// #line ...
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::line_s_});
-			auto const current_no = itr->front().line();
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::line_s_});
+			auto const current_no = line_itr->line();
 			auto const new_no	  = lexical_cast<std::size_t>(tokens_line.at(2)->token());
-			auto const next_itr	  = lex::skip_ws(rest_line, itr->cend());
-			auto const new_path	  = next_itr == itr->cend() ? ""sv : next_itr->token();
-			auto const path		  = ! new_path.empty() ? std::make_shared<std::filesystem::path const>(new_path) : itr->front().file();
-			if (lex::next_token(next_itr, itr->cend()) != itr->cend()) log::err({__func__});	// TODO: extra token
+			auto const next_itr	  = lex::skip_ws(rest_line, line_cend);
+			auto const new_path	  = next_itr == line_cend ? ""sv : next_itr->token();
+			auto const path		  = ! new_path.empty() ? std::make_shared<std::filesystem::path const>(new_path) : line_itr->file();
+			if (lex::next_token(next_itr, line_end) != line_end) log::err({__func__});	  // TODO: extra token
 			auto& tokens = paths.preprocessing_tokens();
-			std::for_each(std::ranges::find_if(tokens, [current_no](auto const& a) { return a.front().line() == current_no; }), tokens.end(), [&](auto& a) { std::ranges::for_each(a, [&](auto& aa) { auto const n = new_no + (aa.line() - current_no); if (aa.file()) { aa.pos(n, path); } else { aa.pos(n); } }); });
-		} else if (auto const [matched_include, file_include, lines] = parse_preprocessing_include_line(conditions, macros, paths, {token, itr->end()}); matched_include) {
+			std::for_each(std::ranges::find_if(tokens, [=](auto const& a) { return a.front().line() == current_no; }), tokens.end(), [=](auto& a) { std::ranges::for_each(a, [=](auto& aa) { auto const n = new_no + (aa.line() - current_no); if (aa.file()) { aa.pos(n, path); } else { aa.pos(n); } }); });
+		} else if (auto const [matched_include, file_include, lines] = parse_preprocessing_include_line(conditions, macros, paths, line_itr, line_end); matched_include) {
 			// #include <...> or "..."
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::include_s_} + " " + file_include.string());
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::include_s_} + " " + file_include.string());
 			result.push_back(lines);
-		} else if (auto const [tokens_error, message_error] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::error_s_)}); ! tokens_error.empty()) {
+		} else if (auto const [tokens_error, message_error] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::error_s_)}); ! tokens_error.empty()) {
 			// #error ..
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::error_s_});
-			auto const message = stringize(message_error, itr->end());
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::error_s_});
+			auto const message = stringize(message_error, line_end);
 			log::err(lex::def::error_s_ + ":" + message);
 			std::lock_guard lock{log::mutex_s};
 			std::clog << lex::def::error_s_ << ":" << message << std::endl;
 			throw std::runtime_error(message);	  // failed to parse
-		} else if (auto const [tokens_warning, message_warning] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::warning_s_)}); ! tokens_warning.empty()) {
+		} else if (auto const [tokens_warning, message_warning] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::warning_s_)}); ! tokens_warning.empty()) {
 			// #warning ... -
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::warning_s_});
-			auto const message = stringize(message_warning, itr->end());
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::warning_s_});
+			auto const message = stringize(message_warning, line_end);
 			log::info(lex::def::warning_s_ + ":" + message);	// messaging only
 			std::lock_guard lock{log::mutex_s};
 			std::clog << lex::def::warning_s_ << ":" << message << std::endl;
-		} else if (auto const [tokens_pragma, message_pragma] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::pragma_s_)}); ! tokens_pragma.empty()) {
+		} else if (auto const [tokens_pragma, message_pragma] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::pragma_s_)}); ! tokens_pragma.empty()) {
 			// #pragma ... - Ignores it because no pragma is supported yet.
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::pragma_s_});
-			auto const message = stringize(message_pragma, itr->end());
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::pragma_s_});
+			auto const message = stringize(message_pragma, line_end);
 			log::info(lex::def::pragma_s_ + ":" + message);	   // messaging only
-		} else if (auto const [matched_define, result_define] = parse_preprocessing_define_line(macros, {token, itr->end()}); matched_define) {
+		} else if (auto const [matched_define, result_define] = parse_preprocessing_define_line(macros, line_itr, line_end); matched_define) {
 			// #define ...
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::define_s_});
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::define_s_});
 			if (! result_define) log::err({lex::def::define_s_});
-		} else if (auto const [tokens_undef, rest_undef] = lex::seq_match(token, itr->end(), {lex::is_pp, lex::is_pp_d(lex::def::undef_s_), lex::is_(lex::pp_type_t::Identifier)}); ! tokens_undef.empty()) {
+		} else if (auto const [tokens_undef, rest_undef] = lex::seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::undef_s_), lex::is_(lex::pp_type_t::Identifier)}); ! tokens_undef.empty()) {
 			// #undef id
-			tr.trace(lex::to_string(token->pos()) + std::string{lex::def::undef_s_});
-			auto const& macro = tokens_undef.at(3)->token();
+			tr.trace(lex::to_string(line_itr->pos()) + std::string{lex::def::undef_s_});
+			auto const& macro = tokens_undef.at(2)->token();
 			if (! macros.defined(macro) || ! macros.undefine_macro(macro)) { log::err(lex::def::undef_s_ + " " + std::string{macro}); }
-		} else if (auto const [tokens, rest] = lex::seq_match(token, itr->end(), {lex::is_pp}); ! tokens.empty() && (lex::skip_ws(rest, itr->cend()) == itr->end())) {
+		} else if (auto const [tokens, rest] = lex::seq_match(line_itr, line_end, {lex::is_pp}); ! tokens.empty() && (lex::skip_ws(rest, line.cend()) == line_end)) {
 			// # - Ignores it because of empty directive.
-			tr.trace(lex::to_string(token->pos()) + lex::def::type_names.at(lex::pp_type_t::hash));
+			tr.trace(lex::to_string(line_itr->pos()) + lex::def::type_names.at(lex::pp_type_t::hash));
 		} else {
 			// non-directive line
-			result.push_back(lines);
+			result.push_back(line);
 		}
 	}
-	return {result, itr};
+	return {result, lines_itr};
 }
 
 }	 // namespace impl
 
-lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_t& lines, std::filesystem::path const& source) {
+lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_t const& lines, std::filesystem::path const& source) {
 	log::tracer_t tr{{}};
 
 	check(! source.string().empty());
