@@ -161,7 +161,7 @@ static level_t	  level_s = level_t::Silent;
 namespace impl {
 
 char const*		 Lv[]{"[*]", "[T]", "[I]", "[E]", "[S]"};
-std::regex const function_name_re{R"(^(?:[^ ]+ )*((?:[`]?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*[~]?[A-Za-z_<][A-Za-z_0-9<>]*)[ ]?\(.*$)"};
+std::regex const function_name_re{R"(^(?:[^ ]+[ ])*((?:[`]?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*[~]?[A-Za-z_<][A-Za-z_0-9<>]*)[ ]?\(.*$)"};
 
 inline std::tm local_tm(std::chrono::system_clock::time_point const& now) {
 	std::tm	   tm{};
@@ -1184,8 +1184,8 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 	}
 }
 
-inline std::tuple<std::string_view, std::size_t> parse_identifier(pos_t const& pos, std::string_view sv) {
-	log::tracer_t tr{{to_string(pos), escape(sv, 32u)}, true};
+inline std::tuple<std::string_view, std::size_t> parse_identifier(std::string_view sv) {
+	log::tracer_t tr{{escape(sv, 32u)}, true};
 	if (sv.empty()) {
 		tr.set_result("empty identifier");
 		return {};
@@ -1205,12 +1205,12 @@ inline std::tuple<std::string_view, std::size_t> parse_identifier(pos_t const& p
 			size = 1u;
 		} else if (ch == '\\') {	// universal-character-name
 			try {
-				auto const [ch, sz] = parse_universal_character_name(sv);
-				oss << ch;
+				auto const [ch1, sz] = parse_universal_character_name(sv);
+				oss << ch1;
 				size = sz;
 			} catch (std::invalid_argument const& e) {
 				tr.trace(e.what());
-				throw syntax_error_t(pos, e.what());
+				throw;
 			}
 		} else {
 			break;
@@ -1220,13 +1220,13 @@ inline std::tuple<std::string_view, std::size_t> parse_identifier(pos_t const& p
 	tr.set_result(id);
 	if (id.empty()) {
 		tr.trace("invalid identifier");
-		throw syntax_error_t(pos, "invalid identifier");
+		throw std::invalid_argument("invalid identifier");
 	}
 	return {register_string_literal(id), org.size() - sv.size()};
 }
 
-inline std::tuple<std::string_view, std::size_t> parse_string_literal(pos_t const& pos, std::string_view sv, char ch) {
-	log::tracer_t tr{{to_string(pos), escape(sv, 32u)}, true};
+inline std::tuple<std::string_view, std::size_t> parse_string_literal(std::string_view sv, char ch) {
+	log::tracer_t tr{{escape(sv, 32u)}, true};
 	if (sv.empty()) {
 		tr.set_result("empty string literal");
 		return {};
@@ -1259,14 +1259,14 @@ inline std::tuple<std::string_view, std::size_t> parse_string_literal(pos_t cons
 		switch (sv[0]) {
 		case '\\':
 			try {
-				auto const [ch, sz] = parse_escape_sequence(sv);
-				if (ch.empty()) throw std::invalid_argument("empty escape sequence");
-				oss << ch;
+				auto const [ch1, sz] = parse_escape_sequence(sv);
+				if (ch1.empty()) throw std::invalid_argument("empty escape sequence");
+				oss << ch1;
 				size = sz;
 				continue;
 			} catch (std::invalid_argument const& e) {
 				tr.trace(e.what());
-				throw syntax_error_t(pos, e.what());
+				throw;
 			}
 		default:
 			oss << sv[0];
@@ -1280,17 +1280,17 @@ inline std::tuple<std::string_view, std::size_t> parse_string_literal(pos_t cons
 		break;
 	}
 	auto const s = oss.str();
-	if (ch == '\'' && s.size() == 2u) throw syntax_error_t(pos, "empty character literal");
+	if (ch == '\'' && s.size() == 2u) throw std::invalid_argument("empty character literal");
 	if (! sv.empty()) {	   // suffix
 		tr.trace("suffix");
-		auto const [token, sz] = parse_identifier(pos, s);
+		auto const [token, sz] = parse_identifier(s);
 		oss << token;
 		sv = sv.substr(sz);
 	}
 	return {register_string_literal(oss.str()), org.size() - sv.size()};
 }
-inline std::tuple<std::string_view, std::size_t> parse_raw_string_literal(pos_t const& pos, std::string_view sv) {
-	log::tracer_t tr{{to_string(pos), escape(sv, 32u)}, true};
+inline std::tuple<std::string_view, std::size_t> parse_raw_string_literal(std::string_view sv) {
+	log::tracer_t tr{{escape(sv, 32u)}, true};
 	if (sv.empty()) {
 		tr.set_result("empty string literal");
 		return {};
@@ -1345,8 +1345,8 @@ inline std::tuple<std::string_view, std::size_t> parse_raw_string_literal(pos_t 
 	}
 	return {register_string_literal(oss.str()), org.size() - sv.size()};
 }
-inline std::tuple<std::string_view, std::size_t> parse_number_literal(pos_t const& pos, std::string_view sv) {
-	log::tracer_t tr{{to_string(pos)}, true};
+inline std::tuple<std::string_view, std::size_t> parse_number_literal(std::string_view sv) {
+	log::tracer_t tr{{}, true};
 
 	if (sv.empty()) {
 		tr.set_result("empty number literal");
@@ -1534,326 +1534,303 @@ lines_t scan(std::filesystem::path const& name) {
 	lines_t	 lines;
 	tokens_t line;
 
-	using enum pp_type_t;
-	for (std::string_view::size_type size{}; ! sv.empty(); sv = sv.substr(size)) {
-		size = 1u;
-		switch (sv[0]) {
-		case '\n':
-			impl::new_line(lines, line, pos);	 // LF
-			break;
-		case '\r':
-			//	[ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-			//	In the resulting sequence, each pair of characters in the input sequence consisting　of U+000d carriage return followed by U+000a line feed,
-			//	as well as each U+000d carriage return not immediately followed by a U+000a line feed, is replaced by a single new-line character.
-			switch (sv[1]) {
+	try {
+		using enum pp_type_t;
+		for (std::string_view::size_type size{}; ! sv.empty(); sv = sv.substr(size)) {
+			size = 1u;
+			switch (sv[0]) {
 			case '\n':
-				impl::new_line(lines, line, pos);	 // CR-LF
-				++size;
+				impl::new_line(lines, line, pos);	 // LF
 				break;
-			default: impl::new_line(lines, line, pos); break;	 // CR
-			}
-			break;
-		case '+':
-			switch (sv[1]) {
-			case '+': impl::push_operator(line, size, pos, plus2, 2u); break;	   // ++
-			case '=': impl::push_operator(line, size, pos, plus_eq, 2u); break;	   // +=
-			default: impl::push_operator(line, size, pos, plus); break;			   // +
-			}
-			break;
-		case '-':
-			switch (sv[1]) {
-			case '>':
-				switch (sv[2]) {
-				case '*': impl::push_operator(line, size, pos, arrow_star, 3u); break;	  // ->*
-				default: impl::push_operator(line, size, pos, arrow, 2u); break;		  // ->
+			case '\r':
+				//	[ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+				//	In the resulting sequence, each pair of characters in the input sequence consisting　of U+000d carriage return followed by U+000a line feed,
+				//	as well as each U+000d carriage return not immediately followed by a U+000a line feed, is replaced by a single new-line character.
+				switch (sv[1]) {
+				case '\n':
+					impl::new_line(lines, line, pos);	 // CR-LF
+					++size;
+					break;
+				default: impl::new_line(lines, line, pos); break;	 // CR
 				}
 				break;
-			case '-': impl::push_operator(line, size, pos, minus2, 2u); break;		// --
-			case '=': impl::push_operator(line, size, pos, minus_eq, 2u); break;	// -=
-			default: impl::push_operator(line, size, pos, minus); break;			// -
-			}
-			break;
-		case '*':
-			switch (sv[1]) {
-			case '=': impl::push_operator(line, size, pos, star_eq, 2u); break;	   // *=
-			default: impl::push_operator(line, size, pos, star); break;			   // *
-			}
-			break;
-		case '/':
-			switch (sv[1]) {
-			case '*':	 // Block comment
-				if (auto const end_of_block = sv.find("*/"); end_of_block == std::string_view::npos) {
-					// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-					// A source file shall not end in a partial preprocessing token or in a partial comment.
-					throw syntax_error_t(pos, "unterminated block comment");
-				} else {
-					auto const length  = end_of_block + "*/"sv.length();
-					auto const comment = impl::register_string_literal(sv.substr(0u, length));
-					if (auto const newlines = impl::count_newlines(comment); 0u < newlines) {
-						impl::new_line(lines, line, pos, Block_comment, comment, newlines);	   // It sets the position to the first character of the next line.
-						pos	 = pos.moved(comment.length() - comment.find_last_of("\r\n"));	   // Adjusts the position to the last character of the comment.
-						size = length;														   // Adjusts the size of the comment, too.
-					} else {
-						impl::push_token(line, size, pos, comment, Block_comment);	  // Single-line block comment
+			case '+':
+				switch (sv[1]) {
+				case '+': impl::push_operator(line, size, pos, plus2, 2u); break;	   // ++
+				case '=': impl::push_operator(line, size, pos, plus_eq, 2u); break;	   // +=
+				default: impl::push_operator(line, size, pos, plus); break;			   // +
+				}
+				break;
+			case '-':
+				switch (sv[1]) {
+				case '>':
+					switch (sv[2]) {
+					case '*': impl::push_operator(line, size, pos, arrow_star, 3u); break;	  // ->*
+					default: impl::push_operator(line, size, pos, arrow, 2u); break;		  // ->
 					}
+					break;
+				case '-': impl::push_operator(line, size, pos, minus2, 2u); break;		// --
+				case '=': impl::push_operator(line, size, pos, minus_eq, 2u); break;	// -=
+				default: impl::push_operator(line, size, pos, minus); break;			// -
 				}
 				break;
-			case '/':	 // Line comment
-				if (auto const newline = sv.find('\n'); newline == std::string_view::npos) {
-					// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-					//	A source file that is not empty and that does not end in a new-line character,
-					//	or that ends in a splice, shall be processed as if an additional new-line character were appended to the file.
+			case '*':
+				switch (sv[1]) {
+				case '=': impl::push_operator(line, size, pos, star_eq, 2u); break;	   // *=
+				default: impl::push_operator(line, size, pos, star); break;			   // *
+				}
+				break;
+			case '/':
+				switch (sv[1]) {
+				case '*':	 // Block comment
+					if (auto const end_of_block = sv.find("*/"); end_of_block == std::string_view::npos) {
+						// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+						// A source file shall not end in a partial preprocessing token or in a partial comment.
+						throw syntax_error_t(pos, "unterminated block comment");
+					} else {
+						auto const length  = end_of_block + "*/"sv.length();
+						auto const comment = impl::register_string_literal(sv.substr(0u, length));
+						if (auto const newlines = impl::count_newlines(comment); 0u < newlines) {
+							impl::new_line(lines, line, pos, Block_comment, comment, newlines);	   // It sets the position to the first character of the next line.
+							pos	 = pos.moved(comment.length() - comment.find_last_of("\r\n"));	   // Adjusts the position to the last character of the comment.
+							size = length;														   // Adjusts the size of the comment, too.
+						} else {
+							impl::push_token(line, size, pos, comment, Block_comment);	  // Single-line block comment
+						}
+					}
+					break;
+				case '/':	 // Line comment
+					if (auto const newline = sv.find('\n'); newline == std::string_view::npos) {
+						// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+						//	A source file that is not empty and that does not end in a new-line character,
+						//	or that ends in a splice, shall be processed as if an additional new-line character were appended to the file.
+						tr.trace("terminated");
+						impl::new_line(lines, line, pos, Line_comment, sv);
+						return lines;
+					} else {
+						auto const length  = newline + "\n"sv.length();
+						auto const comment = impl::register_string_literal(sv.substr(0u, length));
+						impl::new_line(lines, line, pos, Line_comment, comment);
+						size = length;	  // Adjusts the size of the comment.
+					}
+					break;
+				case '=': impl::push_operator(line, size, pos, slash_eq, 2u); break;	// /=
+				default: impl::push_operator(line, size, pos, slash); break;			// /
+				}
+				break;
+			case '%':
+				switch (sv[1]) {
+				case ':':
+					switch (sv[2]) {
+					case '%':
+						switch (sv[3]) {
+						case ':': impl::push_operator(line, size, pos, hash2, 4u); break;	 // %:%: (##)
+						default: impl::push_operator(line, size, pos, hash, 2u); break;		 // %:	(#)
+						}
+						break;
+					default: impl::push_operator(line, size, pos, hash, 2u); break;	   // %: (#)
+					}
+					break;
+				case '>': impl::push_operator(line, size, pos, r_brace, 2u); break;		  // %> (})
+				case '=': impl::push_operator(line, size, pos, percent_eq, 2u); break;	  // %=
+				default: impl::push_operator(line, size, pos, percent); break;			  // %
+				}
+				break;
+			case '&':
+				switch (sv[1]) {
+				case '&': impl::push_operator(line, size, pos, amp2, 2u); break;	  // &&
+				case '=': impl::push_operator(line, size, pos, amp_eq, 2u); break;	  // &=
+				default: impl::push_operator(line, size, pos, amp); break;			  // &
+				}
+				break;
+			case '|':
+				switch (sv[1]) {
+				case '|': impl::push_operator(line, size, pos, vert2, 2u); break;	   // ||
+				case '=': impl::push_operator(line, size, pos, vert_eq, 2u); break;	   // |=
+				default: impl::push_operator(line, size, pos, vert); break;			   // |
+				}
+				break;
+			case '!':
+				switch (sv[1]) {
+				case '=': impl::push_operator(line, size, pos, exclaim_eq, 2u); break;	  // !=
+				default: impl::push_operator(line, size, pos, exclaim); break;			  // !
+				}
+				break;
+			case '=':
+				switch (sv[1]) {
+				case '=': impl::push_operator(line, size, pos, eq2, 2u); break;	   // ==
+				default: impl::push_operator(line, size, pos, eq); break;		   // =
+				}
+				break;
+			case '^':
+				switch (sv[1]) {
+				case '=': impl::push_operator(line, size, pos, caret_eq, 2u); break;	// ^=
+				default: impl::push_operator(line, size, pos, caret); break;			// ^
+				}
+				break;
+			case '>':
+				switch (sv[1]) {
+				case '>':
+					switch (sv[2]) {
+					case '=': impl::push_operator(line, size, pos, gt2_eq, 3u); break;	  // >>=
+					default: impl::push_operator(line, size, pos, gt2, 2u); break;		  // >>
+					}
+					break;
+				case '=': impl::push_operator(line, size, pos, gt_eq, 2u); break;	 // >=
+				default: impl::push_operator(line, size, pos, gt); break;			 // >
+				}
+				break;
+			case '<':
+				// header-name
+				if (auto const [header, header_sz] = seq_match(line.begin(), line.end(), {is_pp, is_(pp_type_t::pp_directive, "include")}); ! header.empty()) {
+					if (auto const index = sv.find(">"); index != std::string_view::npos) {
+						auto const s = impl::register_string_literal(sv.substr(0, index + 1u));
+						impl::push_token(line, size, pos, s, Header, s.size());
+					} else {
+						throw syntax_error_t(pos, "invalid header name");
+					}
+					break;
+				}
+				switch (sv[1]) {
+				case '<':
+					switch (sv[2]) {
+					case '=': impl::push_operator(line, size, pos, lt2_eq, 3u); break;	  // <<=
+					default: impl::push_operator(line, size, pos, lt2, 2u); break;		  // <<
+					}
+					break;
+				case ':': impl::push_operator(line, size, pos, l_bracket, 2u); break;	 // <: ([)
+				case '%': impl::push_operator(line, size, pos, l_brace, 2u); break;		 // <% ({)
+				case '=':
+					switch (sv[2]) {
+					case '>': impl::push_operator(line, size, pos, spaceship, 3u); break;	 // <=>
+					default: impl::push_operator(line, size, pos, lt_eq, 2u); break;		 // <=
+					}
+					break;
+				default: impl::push_operator(line, size, pos, lt); break;	 // <
+				}
+				break;
+			case ':':
+				switch (sv[1]) {
+				case ':': impl::push_operator(line, size, pos, colon2, 2u); break;		 // ::
+				case '>': impl::push_operator(line, size, pos, r_bracket, 2u); break;	 // :> (])
+				default: impl::push_operator(line, size, pos, colon); break;			 // :
+				}
+				break;
+			case '.':
+				switch (sv[1]) {
+				case '.':
+					switch (sv[2]) {
+					case '.': impl::push_operator(line, size, pos, dot3, 3u); break;	// ...
+					default: impl::push_operator(line, size, pos, dot); break;			// .
+					}
+					break;
+				case '*': impl::push_operator(line, size, pos, dot_star, 2u); break;	// .*
+				default:
+					// pp-number can also start with a dot.
+					if (auto const [num, num_sz] = impl::parse_number_literal(sv); ! num.empty()) {
+						impl::push_token(line, size, pos, num, Number, num_sz);
+					} else {
+						impl::push_operator(line, size, pos, dot);
+					}
+					break;
+				}
+				break;
+			case '#':
+				switch (sv[1]) {
+				case '#': impl::push_operator(line, size, pos, hash2, 2u); break;	 // ##
+				default: impl::push_operator(line, size, pos, hash); break;			 // #
+				}
+				break;
+			case ';': impl::push_operator(line, size, pos, semi); break;		 // ;
+			case '?': impl::push_operator(line, size, pos, question); break;	 // ?
+			case '~': impl::push_operator(line, size, pos, tilde); break;		 // ~
+			case ',': impl::push_operator(line, size, pos, comma); break;		 // ,
+			case '(': impl::push_operator(line, size, pos, l_paren); break;		 // (
+			case ')': impl::push_operator(line, size, pos, r_paren); break;		 // )
+			case '{': impl::push_operator(line, size, pos, l_brace); break;		 // {
+			case '}': impl::push_operator(line, size, pos, r_brace); break;		 // }
+			case '[': impl::push_operator(line, size, pos, l_bracket); break;	 // [
+			case ']': impl::push_operator(line, size, pos, r_bracket); break;	 // ]
+			case '\v': [[fallthrough]];
+			case '\t': [[fallthrough]];
+			case '\f': [[fallthrough]];
+			case ' ':
+				if (auto const index = sv.find_first_not_of("\v\t\f "); index != std::string_view::npos) {
+					auto const ws = impl::register_string_literal(sv.substr(0, index));
+					impl::push_token(line, size, pos, ws, Whitespace);
+				} else {
 					tr.trace("terminated");
-					impl::new_line(lines, line, pos, Line_comment, sv);
+					impl::new_line(lines, line, pos, Whitespace, sv);
+					return lines;
+				}
+				break;
+			case '\0':
+				impl::new_line(lines, line, pos, Line_comment, sv);
+				return lines;
+			case '"':
+				// header-name
+				if (auto const [header, header_sz] = seq_match(line.begin(), line.end(), {is_pp, is_(pp_type_t::pp_directive, "include")}); ! header.empty()) {
+					if (auto const index = sv.find("\"", 1u); index != std::string_view::npos) {
+						auto const s = impl::register_string_literal(sv.substr(0, index + 1u));
+						impl::push_token(line, size, pos, s, Header, s.size());
+					} else {
+						throw syntax_error_t(pos, "invalid header name");
+					}
+					break;
+				}
+
+				if (auto const [s, sz] = impl::parse_string_literal(sv, '"'); ! s.empty()) {
+					impl::push_token(line, size, pos, s, String, sz);
+				} else {
+					throw syntax_error_t(pos, "invalid string literal");
+				}
+				break;
+			case '\'':
+				if (auto const [s, sz] = impl::parse_string_literal(sv, '\''); ! s.empty()) {
+					impl::push_token(line, size, pos, s, Character, sz);
+				} else {
+					throw syntax_error_t(pos, "invalid character literal");
+				}
+				break;
+			case '\\':
+				if (sv[1] == '\0') {
+					// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+					//	Only the last backslash on any physical source line shall be eligible for being part of such a splice.
+					tr.trace("terminated");
+					impl::new_line(lines, line, pos, Whitespace, sv);
 					return lines;
 				} else {
-					auto const length  = newline + "\n"sv.length();
-					auto const comment = impl::register_string_literal(sv.substr(0u, length));
-					impl::new_line(lines, line, pos, Line_comment, comment);
-					size = length;	  // Adjusts the size of the comment.
-				}
-				break;
-			case '=': impl::push_operator(line, size, pos, slash_eq, 2u); break;	// /=
-			default: impl::push_operator(line, size, pos, slash); break;			// /
-			}
-			break;
-		case '%':
-			switch (sv[1]) {
-			case ':':
-				switch (sv[2]) {
-				case '%':
-					switch (sv[3]) {
-					case ':': impl::push_operator(line, size, pos, hash2, 4u); break;	 // %:%: (##)
-					default: impl::push_operator(line, size, pos, hash, 2u); break;		 // %:	(#)
+					// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
+					//	Each sequence of a backslash character (\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
+					//	splicing physical source lines to form logical source lines.
+					auto const index = impl::skip(sv, [](auto const& a) { return impl::contains(def::ws_except_newline, a); }, 1u);
+					switch (auto const nl = impl::newline(sv.substr(index)); nl) {
+					case 2u: [[fallthrough]];
+					case 1u:
+						// Skip it as escaped new-line for logical line
+						size = index + nl;
+						break;
+					case 0u: throw std::invalid_argument("invalid backslash");
+					default: throw std::logic_error(__func__ + std::to_string(__LINE__));
 					}
 					break;
-				default: impl::push_operator(line, size, pos, hash, 2u); break;	   // %: (#)
 				}
-				break;
-			case '>': impl::push_operator(line, size, pos, r_brace, 2u); break;		  // %> (})
-			case '=': impl::push_operator(line, size, pos, percent_eq, 2u); break;	  // %=
-			default: impl::push_operator(line, size, pos, percent); break;			  // %
-			}
-			break;
-		case '&':
-			switch (sv[1]) {
-			case '&': impl::push_operator(line, size, pos, amp2, 2u); break;	  // &&
-			case '=': impl::push_operator(line, size, pos, amp_eq, 2u); break;	  // &=
-			default: impl::push_operator(line, size, pos, amp); break;			  // &
-			}
-			break;
-		case '|':
-			switch (sv[1]) {
-			case '|': impl::push_operator(line, size, pos, vert2, 2u); break;	   // ||
-			case '=': impl::push_operator(line, size, pos, vert_eq, 2u); break;	   // |=
-			default: impl::push_operator(line, size, pos, vert); break;			   // |
-			}
-			break;
-		case '!':
-			switch (sv[1]) {
-			case '=': impl::push_operator(line, size, pos, exclaim_eq, 2u); break;	  // !=
-			default: impl::push_operator(line, size, pos, exclaim); break;			  // !
-			}
-			break;
-		case '=':
-			switch (sv[1]) {
-			case '=': impl::push_operator(line, size, pos, eq2, 2u); break;	   // ==
-			default: impl::push_operator(line, size, pos, eq); break;		   // =
-			}
-			break;
-		case '^':
-			switch (sv[1]) {
-			case '=': impl::push_operator(line, size, pos, caret_eq, 2u); break;	// ^=
-			default: impl::push_operator(line, size, pos, caret); break;			// ^
-			}
-			break;
-		case '>':
-			switch (sv[1]) {
-			case '>':
-				switch (sv[2]) {
-				case '=': impl::push_operator(line, size, pos, gt2_eq, 3u); break;	  // >>=
-				default: impl::push_operator(line, size, pos, gt2, 2u); break;		  // >>
-				}
-				break;
-			case '=': impl::push_operator(line, size, pos, gt_eq, 2u); break;	 // >=
-			default: impl::push_operator(line, size, pos, gt); break;			 // >
-			}
-			break;
-		case '<':
-			// header-name
-			if (auto const [header, header_sz] = seq_match(line.begin(), line.end(), {is_pp, is_(pp_type_t::pp_directive, "include")}); ! header.empty()) {
-				if (auto const index = sv.find(">"); index != std::string_view::npos) {
-					auto const s = impl::register_string_literal(sv.substr(0, index + 1u));
-					impl::push_token(line, size, pos, s, Header, s.size());
-				} else {
-					throw syntax_error_t(pos, "invalid header name");
-				}
-				break;
-			}
-			switch (sv[1]) {
-			case '<':
-				switch (sv[2]) {
-				case '=': impl::push_operator(line, size, pos, lt2_eq, 3u); break;	  // <<=
-				default: impl::push_operator(line, size, pos, lt2, 2u); break;		  // <<
-				}
-				break;
-			case ':': impl::push_operator(line, size, pos, l_bracket, 2u); break;	 // <: ([)
-			case '%': impl::push_operator(line, size, pos, l_brace, 2u); break;		 // <% ({)
-			case '=':
-				switch (sv[2]) {
-				case '>': impl::push_operator(line, size, pos, spaceship, 3u); break;	 // <=>
-				default: impl::push_operator(line, size, pos, lt_eq, 2u); break;		 // <=
-				}
-				break;
-			default: impl::push_operator(line, size, pos, lt); break;	 // <
-			}
-			break;
-		case ':':
-			switch (sv[1]) {
-			case ':': impl::push_operator(line, size, pos, colon2, 2u); break;		 // ::
-			case '>': impl::push_operator(line, size, pos, r_bracket, 2u); break;	 // :> (])
-			default: impl::push_operator(line, size, pos, colon); break;			 // :
-			}
-			break;
-		case '.':
-			switch (sv[1]) {
-			case '.':
-				switch (sv[2]) {
-				case '.': impl::push_operator(line, size, pos, dot3, 3u); break;	// ...
-				default: impl::push_operator(line, size, pos, dot); break;			// .
-				}
-				break;
-			case '*': impl::push_operator(line, size, pos, dot_star, 2u); break;	// .*
-			default:
-				// pp-number can also start with a dot.
-				if (auto const [num, num_sz] = impl::parse_number_literal(pos, sv); ! num.empty()) {
-					impl::push_token(line, size, pos, num, Number, num_sz);
-				} else {
-					impl::push_operator(line, size, pos, dot);
-				}
-				break;
-			}
-			break;
-		case '#':
-			switch (sv[1]) {
-			case '#': impl::push_operator(line, size, pos, hash2, 2u); break;	 // ##
-			default: impl::push_operator(line, size, pos, hash); break;			 // #
-			}
-			break;
-		case ';': impl::push_operator(line, size, pos, semi); break;		 // ;
-		case '?': impl::push_operator(line, size, pos, question); break;	 // ?
-		case '~': impl::push_operator(line, size, pos, tilde); break;		 // ~
-		case ',': impl::push_operator(line, size, pos, comma); break;		 // ,
-		case '(': impl::push_operator(line, size, pos, l_paren); break;		 // (
-		case ')': impl::push_operator(line, size, pos, r_paren); break;		 // )
-		case '{': impl::push_operator(line, size, pos, l_brace); break;		 // {
-		case '}': impl::push_operator(line, size, pos, r_brace); break;		 // }
-		case '[': impl::push_operator(line, size, pos, l_bracket); break;	 // [
-		case ']': impl::push_operator(line, size, pos, r_bracket); break;	 // ]
-		case '\v': [[fallthrough]];
-		case '\t': [[fallthrough]];
-		case '\f': [[fallthrough]];
-		case ' ':
-			if (auto const index = sv.find_first_not_of("\v\t\f "); index != std::string_view::npos) {
-				auto const ws = impl::register_string_literal(sv.substr(0, index));
-				impl::push_token(line, size, pos, ws, Whitespace);
-			} else {
-				tr.trace("terminated");
-				impl::new_line(lines, line, pos, Whitespace, sv);
-				return lines;
-			}
-			break;
-		case '\0':
-			impl::new_line(lines, line, pos, Line_comment, sv);
-			return lines;
-		case '"':
-			// header-name
-			if (auto const [header, header_sz] = seq_match(line.begin(), line.end(), {is_pp, is_(pp_type_t::pp_directive, "include")}); ! header.empty()) {
-				if (auto const index = sv.find("\"", 1u); index != std::string_view::npos) {
-					auto const s = impl::register_string_literal(sv.substr(0, index + 1u));
-					impl::push_token(line, size, pos, s, Header, s.size());
-				} else {
-					throw syntax_error_t(pos, "invalid header name");
-				}
-				break;
-			}
-
-			if (auto const [s, sz] = impl::parse_string_literal(pos, sv, '"'); ! s.empty()) {
-				impl::push_token(line, size, pos, s, String, sz);
-			} else {
-				throw syntax_error_t(pos, "invalid string literal");
-			}
-			break;
-		case '\'':
-			if (auto const [s, sz] = impl::parse_string_literal(pos, sv, '\''); ! s.empty()) {
-				impl::push_token(line, size, pos, s, Character, sz);
-			} else {
-				throw syntax_error_t(pos, "invalid character literal");
-			}
-			break;
-		case '\\':
-			if (sv[1] == '\0') {
-				// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-				//	Only the last backslash on any physical source line shall be eligible for being part of such a splice.
-				tr.trace("terminated");
-				impl::new_line(lines, line, pos, Whitespace, sv);
-				return lines;
-			} else {
-				// [ISO/IEC 14882:2024] 5.2 Phases of translation [lex.phases]
-				//	Each sequence of a backslash character (\) immediately followed by zero or more whitespace characters other than new-line followed by a new-line character is deleted,
-				//	splicing physical source lines to form logical source lines.
-				auto const index = impl::skip(sv, [](auto const& a) { return impl::contains(def::ws_except_newline, a); }, 1u);
-				switch (auto const nl = impl::newline(sv.substr(index)); nl) {
-				case 2u: [[fallthrough]];
-				case 1u:
-					// Skip it as escaped new-line for logical line
-					size = index + nl;
-					break;
-				case 0u: throw std::invalid_argument("invalid backslash");
-				default: throw std::logic_error(__func__ + std::to_string(__LINE__));
-				}
-				break;
-			}
-		case 'L': [[fallthrough]];
-		case 'U':
-			switch (sv[1]) {
-			case 'R':
-				if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
-					impl::push_token(line, size, pos, s, Raw_string, str_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid raw string literal");
-				}
-				break;
-			default:
-				if (auto const [s, str_sz] = impl::parse_string_literal(pos, sv, '"'); ! s.empty()) {
-					impl::push_token(line, size, pos, s, String, str_sz);
-				} else if (auto const [chr, chr_sz] = impl::parse_string_literal(pos, sv, '\''); ! chr.empty()) {
-					impl::push_token(line, size, pos, chr, Character, chr_sz);
-				} else if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
-					impl::push_identifier(line, size, pos, id, id_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid universal character name");
-				}
-				break;
-			}
-			break;
-		case 'u':
-			switch (sv[1]) {
-			case '8':
-				switch (sv[2]) {
+			case 'L': [[fallthrough]];
+			case 'U':
+				switch (sv[1]) {
 				case 'R':
-					if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
+					if (auto const [s, str_sz] = impl::parse_raw_string_literal(sv); ! s.empty()) {
 						impl::push_token(line, size, pos, s, Raw_string, str_sz);
 					} else {
 						throw syntax_error_t(pos, "invalid raw string literal");
 					}
 					break;
 				default:
-					if (auto const [s, str_sz] = impl::parse_string_literal(pos, sv, '"'); ! s.empty()) {
+					if (auto const [s, str_sz] = impl::parse_string_literal(sv, '"'); ! s.empty()) {
 						impl::push_token(line, size, pos, s, String, str_sz);
-					} else if (auto const [chr, chr_sz] = impl::parse_string_literal(pos, sv, '\''); ! chr.empty()) {
+					} else if (auto const [chr, chr_sz] = impl::parse_string_literal(sv, '\''); ! chr.empty()) {
 						impl::push_token(line, size, pos, chr, Character, chr_sz);
-					} else if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
+					} else if (auto const [id, id_sz] = impl::parse_identifier(sv); ! id.empty()) {
 						impl::push_identifier(line, size, pos, id, id_sz);
 					} else {
 						throw syntax_error_t(pos, "invalid universal character name");
@@ -1861,67 +1838,94 @@ lines_t scan(std::filesystem::path const& name) {
 					break;
 				}
 				break;
+			case 'u':
+				switch (sv[1]) {
+				case '8':
+					switch (sv[2]) {
+					case 'R':
+						if (auto const [s, str_sz] = impl::parse_raw_string_literal(sv); ! s.empty()) {
+							impl::push_token(line, size, pos, s, Raw_string, str_sz);
+						} else {
+							throw syntax_error_t(pos, "invalid raw string literal");
+						}
+						break;
+					default:
+						if (auto const [s, str_sz] = impl::parse_string_literal(sv, '"'); ! s.empty()) {
+							impl::push_token(line, size, pos, s, String, str_sz);
+						} else if (auto const [chr, chr_sz] = impl::parse_string_literal(sv, '\''); ! chr.empty()) {
+							impl::push_token(line, size, pos, chr, Character, chr_sz);
+						} else if (auto const [id, id_sz] = impl::parse_identifier(sv); ! id.empty()) {
+							impl::push_identifier(line, size, pos, id, id_sz);
+						} else {
+							throw syntax_error_t(pos, "invalid universal character name");
+						}
+						break;
+					}
+					break;
+				case 'R':
+					if (auto const [s, str_sz] = impl::parse_raw_string_literal(sv); ! s.empty()) {
+						impl::push_token(line, size, pos, s, Raw_string, str_sz);
+					} else {
+						throw syntax_error_t(pos, "invalid raw string literal");
+					}
+					break;
+				case '\'': [[fallthrough]];
+				case '"':
+					if (auto const [s, str_sz] = impl::parse_string_literal(sv, '"'); ! s.empty()) {
+						impl::push_token(line, size, pos, s, String, str_sz);
+					} else if (auto const [chr, chr_sz] = impl::parse_string_literal(sv, '\''); ! chr.empty()) {
+						impl::push_token(line, size, pos, chr, Character, chr_sz);
+					} else {
+						throw syntax_error_t(pos, "invalid universal character name");
+					}
+					break;
+				default:
+					if (auto const [id, id_sz] = impl::parse_identifier(sv); ! id.empty()) {
+						impl::push_identifier(line, size, pos, id, id_sz);
+					} else {
+						throw syntax_error_t(pos, "invalid identifier");
+					}
+					break;
+				}
+				break;
 			case 'R':
-				if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
-					impl::push_token(line, size, pos, s, Raw_string, str_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid raw string literal");
-				}
-				break;
-			case '\'': [[fallthrough]];
-			case '"':
-				if (auto const [s, str_sz] = impl::parse_string_literal(pos, sv, '"'); ! s.empty()) {
-					impl::push_token(line, size, pos, s, String, str_sz);
-				} else if (auto const [chr, chr_sz] = impl::parse_string_literal(pos, sv, '\''); ! chr.empty()) {
-					impl::push_token(line, size, pos, chr, Character, chr_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid universal character name");
+				switch (sv[1]) {
+				case '"':
+					if (auto const [s, str_sz] = impl::parse_raw_string_literal(sv); ! s.empty()) {
+						impl::push_token(line, size, pos, s, Raw_string, str_sz);
+					} else {
+						throw syntax_error_t(pos, "invalid raw string literal");
+					}
+					break;
+				default:
+					if (auto const [id, id_sz] = impl::parse_identifier(sv); ! id.empty()) {
+						impl::push_identifier(line, size, pos, id, id_sz);
+					} else {
+						throw syntax_error_t(pos, "invalid token");
+					}
+					break;
 				}
 				break;
 			default:
-				if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
-					impl::push_identifier(line, size, pos, id, id_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid identifier");
+				if (std::isalpha(sv[0]) || sv[0] == '_') {
+					if (auto const [id, id_sz] = impl::parse_identifier(sv); ! id.empty()) {
+						impl::push_identifier(line, size, pos, id, id_sz);
+						break;
+					}
+				} else if (std::isdigit(sv[0])) {
+					if (auto const [num, num_sz] = impl::parse_number_literal(sv); ! num.empty()) {
+						impl::push_token(line, size, pos, num, Number, num_sz);
+						break;
+					}
 				}
-				break;
+				tr.trace(to_string(pos) + escape(sv, 32u));
+				throw syntax_error_t(pos, "invalid token");
 			}
-			break;
-		case 'R':
-			switch (sv[1]) {
-			case '"':
-				if (auto const [s, str_sz] = impl::parse_raw_string_literal(pos, sv); ! s.empty()) {
-					impl::push_token(line, size, pos, s, Raw_string, str_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid raw string literal");
-				}
-				break;
-			default:
-				if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
-					impl::push_identifier(line, size, pos, id, id_sz);
-				} else {
-					throw syntax_error_t(pos, "invalid token");
-				}
-				break;
-			}
-			break;
-		default:
-			if (std::isalpha(sv[0]) || sv[0] == '_') {
-				if (auto const [id, id_sz] = impl::parse_identifier(pos, sv); ! id.empty()) {
-					impl::push_identifier(line, size, pos, id, id_sz);
-					break;
-				}
-			} else if (std::isdigit(sv[0])) {
-				if (auto const [num, num_sz] = impl::parse_number_literal(pos, sv); ! num.empty()) {
-					impl::push_token(line, size, pos, num, Number, num_sz);
-					break;
-				}
-			}
-			tr.trace(to_string(pos) + escape(sv, 32u));
-			throw syntax_error_t(pos, "invalid token");
 		}
+		return lines;
+	} catch (std::invalid_argument const& e) {
+		throw syntax_error_t(pos, e.what());
 	}
-	return lines;
 }
 
 }	 // namespace lex
@@ -2857,7 +2861,7 @@ lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_
 	// -------------------------------
 	// Proceeds line by line.
 	auto const [result, itr] = impl::preprocess_conditions(conditions, macros, paths, lines.begin(), lines.end());
-	if (itr != lines.end()) throw std::runtime_error("unexpected line");
+	if (itr == lines.end()) throw std::runtime_error("unexpected line");
 	auto const r = result | std::views::join | std::views::common;
 	return lex::tokens_t(r.begin(), r.end());
 }
@@ -4102,7 +4106,7 @@ int main(int ac, char* av[]) {
 			util::stopwatch_t sw{[name = tu->name()](auto const& a) { std::clog << "TODO:" << name << ": " << static_cast<float>(a) / 1000.0f / 1000.0f << "sec." << std::endl; }};	   // TODO:
 
 			auto const result = tu->compile();
-
+			
 			std::clog << "TODO: source: " << tu->name() << std::endl;	 // TODO:
 		});
 		return 0;
