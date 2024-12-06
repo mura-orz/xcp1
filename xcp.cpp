@@ -161,7 +161,7 @@ static level_t	  level_s = level_t::Silent;
 namespace impl {
 
 char const*		 Lv[]{"[*]", "[T]", "[I]", "[E]", "[S]"};
-std::regex const function_name_re{R"(^(?:[^ ]+ )*((?:`?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*~?[A-Za-z_<][A-Za-z_0-9<>]*) ?\(.*$)"};
+std::regex const function_name_re{R"(^(?:[^ ]+ )*((?:[`]?[A-Za-z_{][-A-Za-z_0-9<>'}]*::)*[~]?[A-Za-z_<][A-Za-z_0-9<>]*)[ ]?\(.*$)"};
 
 inline std::tm local_tm(std::chrono::system_clock::time_point const& now) {
 	std::tm	   tm{};
@@ -213,7 +213,7 @@ public:
 		tracer_t(level_t::Trace, args, silent, sl) {}
 	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		level_{level}, sl_{sl}, result_{}, silent_{silent} {
-		if (! silent_ && level_s <= level_) log(level_, ">>>>(" + std::reduce(args.begin(), args.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
+		if (! silent_ && level_s <= level_) log(level_, ">>>>(" + std::accumulate(args.begin(), args.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
 	}
 	~tracer_t() {
 		if (! silent_ && level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
@@ -256,7 +256,7 @@ template<>
 inline void tracer_t::set_result(std::string_view const& v) { result_ = std::string{v}; }
 template<>
 inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
-	result_ = std::reduce(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+	result_ = std::accumulate(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
 }
 
 template<>
@@ -272,7 +272,7 @@ inline void tracer_t::trace(std::string_view const& v, bool force, std::source_l
 template<>
 inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, std::source_location sl) {
 	if (! force && (silent_ || level_ < level_s)) return;
-	auto const vs = std::reduce(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+	auto const vs = std::accumulate(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
 	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
 }
 
@@ -1181,9 +1181,7 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 			tr.set_result(escape(s));
 			return {s, index};	  // \XX
 		}
-		break;
 	}
-	throw std::invalid_argument("invalid hexadecimal escape sequence");
 }
 
 inline std::tuple<std::string_view, std::size_t> parse_identifier(pos_t const& pos, std::string_view sv) {
@@ -2187,7 +2185,7 @@ private:
 		return tokens.at(offset).type() == type;
 	}
 	static std::optional<std::size_t> find_at(macro_parameters_t const& tokens, lex::tokens_itr_t const& token, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{std::to_string(tokens.size())}};
+		log::tracer_t tr{{std::to_string(tokens.size()), lex::to_string(*token)}};
 		if (token == end) return std::nullopt;
 		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [token](auto const& a) { return a == *token; }); found != tokens.end()) { return std::distance(tokens.begin(), found); }
 		return std::nullopt;
@@ -2196,25 +2194,33 @@ private:
 	///	@param[in]	ts		Token sequence to extract.
 	///	@return		Extracted actual arguments and the iterator of the last token, right parenthes.
 	static std::tuple<arguments_t, lex::tokens_itr_t> actuals(lex::tokens_itr_t const& ts, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{}};
+		log::tracer_t tr{{std::accumulate(ts, end, std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); })}};
 
 		arguments_t ap;
 
 		int nest = 0;	 // SPEC: max of nest is the same as signed integer.
 		for (auto itr = ts, current = ts; itr != end; ++itr) {
 			if (itr->is(lex::pp_type_t::l_paren)) {
+				tr.trace("( :" + std::to_string(nest));
 				if (std::numeric_limits<decltype(nest)>::max() <= nest) throw std::overflow_error(__func__ + std::to_string(__LINE__));
+				if (nest == 0) current = itr;
 				++nest;
-				current = itr;
 			} else if (itr->is(lex::pp_type_t::r_paren)) {
+				tr.trace(") :" + std::to_string(nest));
 				if (--nest < 0) {
 					ap.push_back({++current, --lex::tokens_itr_t{itr}});
+					tr.set_result(std::to_string(ap.size()) + ":" + std::accumulate(ap.begin(), ap.end(), std::string{}, [](auto&& o, auto const& a) { return o + "{" + std::accumulate(a.begin(), a.end(), std::string{}, [](auto&& oo, auto const& aa) { return lex::to_string(aa); }) + "}"; }));
 					return {ap, itr};
 				}
-				ap.push_back({++current, --lex::tokens_itr_t{itr}});
+				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
+				current = itr;
+			} else if (nest == 0 && itr->is(lex::pp_type_t::comma)) {
+				tr.trace(", :" + std::to_string(nest));
+				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
 				current = itr;
 			}
 		}
+		tr.trace("terminated:" + std::to_string(nest));
 		throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 	}
 
@@ -2232,7 +2238,7 @@ private:
 		return lex::pp_token_t{lex::pp_type_t::String, sv, hs};
 	}
 	void glue(lex::tokens_t& tokens, lex::tokens_t const& rs) {
-		log::tracer_t tr{{}};
+		log::tracer_t tr{{std::accumulate(rs.begin(), rs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); })}};
 		if (! tokens.empty() && ! rs.empty()) {
 			auto const hs = std::accumulate(rs.begin(), rs.end(), hideset_t{}, [](auto&& o, auto const& a) { o.insert(a.hideset().begin(), a.hideset().end()); return std::move(o); });
 
@@ -2299,9 +2305,11 @@ public:
 				// Expands simple macro.
 				hs.insert(hs.end(), *t);
 				auto const& vs = value(t->token());
+				tr.trace(lex::to_string(*t) + ":" + std::accumulate(vs.begin(), vs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
 
 				auto ts = substitute(vs.begin(), vs.end(), {}, {}, hs);
 				ts		= expand(ts.begin(), ts.end());
+				tr.trace(lex::to_string(*t) + ":" + std::accumulate(ts.begin(), ts.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
 				result.insert(result.end(), ts.begin(), ts.end());
 			} else if (is_function_macro(*t)) {
 				tr.trace(lex::to_string(*t) + " is function macro");
@@ -2310,9 +2318,11 @@ public:
 				hs.insert(rp->hideset().begin(), rp->hideset().end());
 				hs.insert(hs.end(), *t);
 				auto const& vs = value(t->token());
+				tr.trace(lex::to_string(*t) + ":" + std::accumulate(vs.begin(), vs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
 
 				auto ts = substitute(vs.begin(), vs.end(), function(*t).first, ap, hs);
 				ts		= expand(ts.begin(), ts.end());
+				tr.trace(lex::to_string(*t) + ":" + std::accumulate(ts.begin(), ts.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
 				result.insert(result.end(), ts.begin(), ts.end());
 				std::advance(t, std::distance(t, rp));
 			} else {
