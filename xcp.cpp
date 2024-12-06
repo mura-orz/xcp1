@@ -2204,15 +2204,15 @@ private:
 
 		int nest = 0;	 // SPEC: max of nest is the same as signed integer.
 		for (auto itr = ts, current = ts; itr != end; ++itr) {
+			itr = skip_ws(itr, end);
 			if (itr->is(lex::pp_type_t::l_paren)) {
 				tr.trace("( :" + std::to_string(nest));
 				if (std::numeric_limits<decltype(nest)>::max() <= nest) throw std::overflow_error(__func__ + std::to_string(__LINE__));
-				if (nest == 0) current = itr;
-				++nest;
+				if (nest++ == 0) current = itr;
 			} else if (itr->is(lex::pp_type_t::r_paren)) {
 				tr.trace(") :" + std::to_string(nest));
-				if (--nest < 0) {
-					ap.push_back({++current, --lex::tokens_itr_t{itr}});
+				if (--nest <= 0) {
+					if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
 					tr.set_result(std::to_string(ap.size()) + ":" + std::accumulate(ap.begin(), ap.end(), std::string{}, [](auto&& o, auto const& a) { return o + "{" + std::accumulate(a.begin(), a.end(), std::string{}, [](auto&& oo, auto const& aa) { return lex::to_string(aa); }) + "}"; }));
 					return {ap, itr};
 				}
@@ -2318,7 +2318,7 @@ public:
 			} else if (is_function_macro(*t)) {
 				tr.trace(lex::to_string(*t) + " is function macro");
 				// Expands functional macro.
-				auto [ap, rp] = actuals(t, end);	// ( ..., ... )
+				auto [ap, rp] = actuals(++t, end);	// ( ..., ... )
 				hs.insert(rp->hideset().begin(), rp->hideset().end());
 				hs.insert(hs.end(), *t);
 				auto const& vs = value(t->token());
