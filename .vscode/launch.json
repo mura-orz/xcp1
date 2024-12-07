@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/xcp",
-            "args": ["-V", "${workspaceFolder}/xcp.cpp"],
+            "args": ["-V", "${workspaceFolder}/tmp.cpp"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],

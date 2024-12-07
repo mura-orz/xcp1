@@ -2213,7 +2213,7 @@ private:
 				tr.trace(") :" + std::to_string(nest));
 				if (--nest <= 0) {
 					if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
-					tr.set_result(std::to_string(ap.size()) + ":" + std::accumulate(ap.begin(), ap.end(), std::string{}, [](auto&& o, auto const& a) { return o + "{" + std::accumulate(a.begin(), a.end(), std::string{}, [](auto&& oo, auto const& aa) { return lex::to_string(aa); }) + "}"; }));
+					tr.set_result(std::to_string(ap.size()) + ":" + std::accumulate(ap.begin(), ap.end(), std::string{}, [](auto&& o, auto const& a) { o += "{ " + std::accumulate(a.begin(), a.end(), std::string{}, [](auto&& oo, auto const& aa) { oo += lex::to_string(aa); return std::move(oo); }) + " }"; return std::move(o); }));
 					return {ap, itr};
 				}
 				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
@@ -2221,6 +2221,10 @@ private:
 			} else if (nest == 0 && itr->is(lex::pp_type_t::comma)) {
 				tr.trace(", :" + std::to_string(nest));
 				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
+				current = itr;
+			} else if (nest == 0 && itr->is(lex::pp_type_t::comma)) {
+				tr.trace(", :" + std::to_string(nest));
+				ap.push_back({++current, --lex::tokens_itr_t{itr}});
 				current = itr;
 			}
 		}
@@ -2231,8 +2235,6 @@ private:
 	bool is_simple_macro(lex::pp_token_t const& token) const noexcept { return simple_macros_.contains(token.token()); }
 	bool is_function_macro(lex::pp_token_t const& token) const noexcept { return function_macros_.contains(token.token()); }
 	bool is_macro(lex::pp_token_t const& token) const noexcept { return is_simple_macro(token) || is_function_macro(token); }
-
-	function_macro_t const& function(lex::pp_token_t const& t) { return function_macros_.at(t.token()); }
 
 	lex::pp_token_t stringize_token(lex::tokens_t const& ts, hideset_t const& hs = {}) {
 		log::tracer_t tr{{}};
@@ -2318,13 +2320,14 @@ public:
 			} else if (is_function_macro(*t)) {
 				tr.trace(lex::to_string(*t) + " is function macro");
 				// Expands functional macro.
-				auto [ap, rp] = actuals(++t, end);	// ( ..., ... )
+				auto [ap, rp] = actuals(t + 1, end);	// ( ..., ... )
 				hs.insert(rp->hideset().begin(), rp->hideset().end());
 				hs.insert(hs.end(), *t);
-				auto const& vs = value(t->token());
+				tr.trace(lex::to_string(*t));
+				auto const& vs = function_value(t->token());
 				tr.trace(lex::to_string(*t) + ":" + std::accumulate(vs.begin(), vs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
 
-				auto ts = substitute(vs.begin(), vs.end(), function(*t).first, ap, hs);
+				auto ts = substitute(vs.begin(), vs.end(), function_parameters(t->token()), ap, hs);
 				ts		= expand(ts.begin(), ts.end());
 				tr.trace(lex::to_string(*t) + ":" + std::accumulate(ts.begin(), ts.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
 				result.insert(result.end(), ts.begin(), ts.end());
@@ -2861,7 +2864,7 @@ lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_
 	// -------------------------------
 	// Proceeds line by line.
 	auto const [result, itr] = impl::preprocess_conditions(conditions, macros, paths, lines.begin(), lines.end());
-	if (itr == lines.end()) throw std::runtime_error("unexpected line");
+	if (itr != lines.end()) throw std::runtime_error("unexpected line");
 	auto const r = result | std::views::join | std::views::common;
 	return lex::tokens_t(r.begin(), r.end());
 }
@@ -4106,7 +4109,7 @@ int main(int ac, char* av[]) {
 			util::stopwatch_t sw{[name = tu->name()](auto const& a) { std::clog << "TODO:" << name << ": " << static_cast<float>(a) / 1000.0f / 1000.0f << "sec." << std::endl; }};	   // TODO:
 
 			auto const result = tu->compile();
-			
+
 			std::clog << "TODO: source: " << tu->name() << std::endl;	 // TODO:
 		});
 		return 0;
