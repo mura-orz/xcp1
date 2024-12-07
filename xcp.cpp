@@ -1040,7 +1040,7 @@ namespace def {
 constexpr auto const id_start = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
 constexpr auto const id_cont  = "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"sv;
 
-constexpr auto const ws_except_newline = " \t\v\f\r"sv;
+constexpr auto const ws_except_newline = " \t\v\f"sv;
 
 }	 // namespace def
 namespace impl {
@@ -2102,10 +2102,13 @@ public:
 	auto const& function_value(std::string_view const& name) const noexcept { return function_macros_.at(name).second; }
 
 	void define_simple_macro(std::string_view const& name, values_t const& value) {
+		log::tracer_t tr{{std::string{name} + " : " + std::accumulate(value.begin(), value.end(), std::string{}, [](auto&& o, auto const& a) { o += " " + lex::to_token_string(a); return std::move(o); })}};
 		simple_macros_[name] = value;
 		if (function_macros_.contains(name)) { function_macros_.erase(name); }	  // Overrides it if exists.
 	}
 	void define_faction_macro(std::string_view const& name, macro_parameters_t const& arguments, values_t const& value) {
+		log::tracer_t tr{{std::string{name} + " : " + std::accumulate(arguments.begin(), arguments.end(), std::string{}, [](auto&& o, auto const& a) { o += " " + lex::to_token_string(a); return std::move(o); }) + " : " + std::accumulate(value.begin(), value.end(), std::string{}, [](auto&& o, auto const& a) { o += " " + lex::to_token_string(a); return std::move(o); })}};
+
 		function_macros_[name] = std::make_pair(arguments, value);
 		if (simple_macros_.contains(name)) { simple_macros_.erase(name); }	  // Overrides it if exists.
 	}
@@ -2663,7 +2666,7 @@ std::tuple<bool, bool> parse_preprocessing_elif_line(mm::macro_manager_t& macros
 	return {true, std::visit([](auto const& a) { return a != 0; }, result)};
 }
 
-mm::macro_manager_t::macro_parameters_t enclosed_parameters(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
+std::tuple<mm::macro_manager_t::macro_parameters_t, lex::tokens_itr_t> enclosed_parameters(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
 	if (itr->is(lex::pp_type_t::l_paren)) { ++itr; }
 	mm::macro_manager_t::macro_parameters_t parameters;
 
@@ -2683,7 +2686,7 @@ mm::macro_manager_t::macro_parameters_t enclosed_parameters(lex::tokens_itr_t it
 			throw std::invalid_argument(__func__ + std::to_string(__LINE__));
 		}
 	}
-	return parameters;
+	return {parameters, itr};
 }
 std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macros, lex::tokens_itr_t const& line_itr, lex::tokens_itr_t const& line_end) {
 	log::tracer_t tr{{lex::to_string(*line_itr)}};
@@ -2703,19 +2706,18 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 	} else if (itr->is(lex::pp_type_t::l_paren)) {
 		// -------------------------------
 		// Function macro
-		itr = next_token(itr, line_end);
 
 		// parses parameters
-		auto const parameters = enclosed_parameters(itr, line_end);
+		auto const [parameters, rest] = enclosed_parameters(itr, line_end);
 
 		// parses body
-		if (itr = lex::skip_ws(itr, line_end); itr == line_end) return {true, false};
+		if (itr = next_token(rest, line_end); itr == line_end) return {true, false};
 		macros.define_faction_macro(macro, parameters, {itr, line_end});
 		tr.set_result(escape(macro));
 	} else {
 		// -------------------------------
 		// Simple macro
-		macros.define_simple_macro(macro, {*itr});
+		macros.define_simple_macro(macro, {itr, line_end});
 		tr.set_result(escape(macro));
 	}
 	return {true, true};
