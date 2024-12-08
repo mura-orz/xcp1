@@ -42,6 +42,7 @@ using svmatch = std::match_results<std::string_view::const_iterator>;
 class finalizer_t {
 public:
 	template<typename T>
+		requires std::invocable<T>
 	explicit finalizer_t(T&& t) :
 		t_(std::move(t)) {}
 	~finalizer_t() {
@@ -83,6 +84,7 @@ inline std::string escape(std::string_view const& s, std::string_view::size_type
 }
 
 template<typename C, typename T>
+	requires std::ranges::range<C> && std::equality_comparable_with<std::ranges::range_value_t<C>, T>
 inline bool contains(C& container, T const& value) {
 	return std::ranges::find(container, value) != container.end();
 }
@@ -145,6 +147,11 @@ constexpr inline bool validate_utf8(std::string_view const& sv) {
 }
 
 }	 // namespace uc
+
+inline std::string vector_to_string(std::vector<std::string_view> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 32u) {
+	return lp + escape(std::accumulate(strs.begin(), strs.end(), std::string{}, [f, limit](auto&& o, auto const& a) { if (!o.empty()){o += ", "; } o += f(a); return std::move(o); }), limit) + rp;
+}
+
 namespace log {
 
 enum class level_t {
@@ -213,7 +220,7 @@ public:
 		tracer_t(level_t::Trace, args, silent, sl) {}
 	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		level_{level}, sl_{sl}, result_{}, silent_{silent} {
-		if (! silent_ && level_s <= level_) log(level_, ">>>>(" + std::accumulate(args.begin(), args.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; }) + ")", sl_);
+		if (! silent_ && level_s <= level_) log(level_, vector_to_string(args, ">>>>(", ")"), sl_);
 	}
 	~tracer_t() {
 		if (! silent_ && level_s <= level_) log(level_, "<<<<(" + result_ + ") ", sl_);
@@ -255,9 +262,7 @@ inline void tracer_t::set_result(std::string const& v) { result_ = v; }
 template<>
 inline void tracer_t::set_result(std::string_view const& v) { result_ = std::string{v}; }
 template<>
-inline void tracer_t::set_result(std::vector<std::string_view> const& v) {
-	result_ = std::accumulate(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
-}
+inline void tracer_t::set_result(std::vector<std::string_view> const& v) { result_ = vector_to_string(v, "", ""); }
 
 template<>
 inline void tracer_t::trace(std::string const& v, bool force, std::source_location sl) {
@@ -272,7 +277,7 @@ inline void tracer_t::trace(std::string_view const& v, bool force, std::source_l
 template<>
 inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, std::source_location sl) {
 	if (! force && (silent_ || level_ < level_s)) return;
-	auto const vs = std::accumulate(v.begin(), v.end(), std::string{}, [](auto const& lhs, auto const& rhs) { return std::string{lhs} + (lhs.empty() ? "" : ",") + std::string{rhs}; });
+	auto const vs = vector_to_string(v, "", "");
 	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
 }
 
@@ -943,6 +948,11 @@ inline std::string to_token_string(pp_token_t const& token) {
 	default: break;
 	};
 	throw std::logic_error(__func__);
+}
+
+inline std::string vector_to_string(tokens_t const& tokens, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
+	auto const strs = tokens | std::views::transform(f) | std::views::common;
+	return xxx::vector_to_string({strs.begin(), strs.end()}, lp, rp, [](auto const& a) { return std::string{a}; }, limit);
 }
 
 inline tokens_itr_t next_token(tokens_itr_t pos, tokens_itr_t end) { return pos == end ? end : skip_ws(++pos, end); }
@@ -1945,7 +1955,7 @@ std::string stringize(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
 
 	auto message = std::ranges::subrange(itr, end) | std::views::filter([](auto const& a) { return ! a.is(lex::pp_type_t::Newline) && ! a.is(lex::pp_type_t::Line_comment) && ! a.is(lex::pp_type_t::Block_comment); }) | std::views::transform([](auto const& a) { return lex::to_token_string(a); }) | std::views::join | std::views::common;
 
-	auto const str = std::accumulate(message.begin(), message.end(), std::string{});
+	auto const str = std::accumulate(message.begin(), message.end(), std::stringstream{}, [](auto&& o, auto const& a) { o << a; return std::move(o); }).str();
 	tr.set_result(escape(str, 32u));
 	return str;
 }
@@ -2102,12 +2112,12 @@ public:
 	auto const& function_value(std::string_view const& name) const noexcept { return function_macros_.at(name).second; }
 
 	void define_simple_macro(std::string_view const& name, values_t const& value) {
-		log::tracer_t tr{{std::string{name} + " : " + std::accumulate(value.begin(), value.end(), std::string{}, [](auto&& o, auto const& a) { o += " " + lex::to_token_string(a); return std::move(o); })}};
+		log::tracer_t tr{{std::string{name} + vector_to_string(value)}};
 		simple_macros_[name] = value;
 		if (function_macros_.contains(name)) { function_macros_.erase(name); }	  // Overrides it if exists.
 	}
 	void define_faction_macro(std::string_view const& name, macro_parameters_t const& arguments, values_t const& value) {
-		log::tracer_t tr{{std::string{name} + " : " + std::accumulate(arguments.begin(), arguments.end(), std::string{}, [](auto&& o, auto const& a) { o += " " + lex::to_token_string(a); return std::move(o); }) + " : " + std::accumulate(value.begin(), value.end(), std::string{}, [](auto&& o, auto const& a) { o += " " + lex::to_token_string(a); return std::move(o); })}};
+		log::tracer_t tr{{std::string{name} + vector_to_string(arguments, "(", ")") + vector_to_string(value)}};
 
 		function_macros_[name] = std::make_pair(arguments, value);
 		if (simple_macros_.contains(name)) { simple_macros_.erase(name); }	  // Overrides it if exists.
@@ -2201,7 +2211,7 @@ private:
 	///	@param[in]	ts		Token sequence to extract.
 	///	@return		Extracted actual arguments and the iterator of the last token, right parenthes.
 	static std::tuple<arguments_t, lex::tokens_itr_t> actuals(lex::tokens_itr_t const& ts, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{std::accumulate(ts, end, std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); })}};
+		log::tracer_t tr{{vector_to_string(lex::tokens_t(ts, end))}};
 
 		arguments_t ap;
 
@@ -2216,7 +2226,7 @@ private:
 				tr.trace(") :" + std::to_string(nest));
 				if (--nest <= 0) {
 					if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
-					tr.set_result(std::to_string(ap.size()) + ":" + std::accumulate(ap.begin(), ap.end(), std::string{}, [](auto&& o, auto const& a) { o += "{ " + std::accumulate(a.begin(), a.end(), std::string{}, [](auto&& oo, auto const& aa) { oo += lex::to_string(aa); return std::move(oo); }) + " }"; return std::move(o); }));
+					tr.set_result(std::to_string(ap.size()) + "<{ " + std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::ostringstream{}, [](auto&& o, auto const& a) { o << vector_to_string(a); return std::move(o); }).str() + " }>");
 					return {ap, itr};
 				}
 				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
@@ -2247,7 +2257,7 @@ private:
 		return lex::pp_token_t{lex::pp_type_t::String, sv, hs};
 	}
 	void glue(lex::tokens_t& tokens, lex::tokens_t const& rs) {
-		log::tracer_t tr{{std::accumulate(rs.begin(), rs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); })}};
+		log::tracer_t tr{{std::accumulate(rs.begin(), rs.end(), std::string{}, [](auto&& o, auto const& a) { o += lex::to_string(a); return std::move(o); })}};
 		if (! tokens.empty() && ! rs.empty()) {
 			auto const hs = std::accumulate(rs.begin(), rs.end(), hideset_t{}, [](auto&& o, auto const& a) { o.insert(a.hideset().begin(), a.hideset().end()); return std::move(o); });
 
@@ -2314,11 +2324,11 @@ public:
 				// Expands simple macro.
 				hs.insert(hs.end(), *t);
 				auto const& vs = value(t->token());
-				tr.trace(lex::to_string(*t) + ":" + std::accumulate(vs.begin(), vs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
+				tr.trace(lex::to_string(*t) + vector_to_string(vs));
 
 				auto ts = substitute(vs.begin(), vs.end(), {}, {}, hs);
 				ts		= expand(ts.begin(), ts.end());
-				tr.trace(lex::to_string(*t) + ":" + std::accumulate(ts.begin(), ts.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
+				tr.trace(lex::to_string(*t) + vector_to_string(ts));
 				result.insert(result.end(), ts.begin(), ts.end());
 			} else if (is_function_macro(*t)) {
 				tr.trace(lex::to_string(*t) + " is function macro");
@@ -2328,11 +2338,11 @@ public:
 				hs.insert(hs.end(), *t);
 				tr.trace(lex::to_string(*t));
 				auto const& vs = function_value(t->token());
-				tr.trace(lex::to_string(*t) + ":" + std::accumulate(vs.begin(), vs.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
+				tr.trace(lex::to_string(*t) + vector_to_string(vs));
 
 				auto ts = substitute(vs.begin(), vs.end(), function_parameters(t->token()), ap, hs);
 				ts		= expand(ts.begin(), ts.end());
-				tr.trace(lex::to_string(*t) + ":" + std::accumulate(ts.begin(), ts.end(), std::string{}, [](auto&& o, auto const& a) { return o + lex::to_string(a); }));
+				tr.trace(lex::to_string(*t) + vector_to_string(ts));
 				result.insert(result.end(), ts.begin(), ts.end());
 				std::advance(t, std::distance(t, rp));
 			} else {
@@ -2757,7 +2767,7 @@ std::tuple<bool, std::filesystem::path, lex::tokens_t> parse_preprocessing_inclu
 ///     @brief  Proceeds conditions.
 ////            #if ... (#elif ...)* (#else ...)? #endif
 std::tuple<lex::lines_t, lex::lines_itr_t> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_itr_t lines_itr, lex::lines_itr_t const& lines_end) {
-	log::tracer_t tr{{}};
+	log::tracer_t tr{{}, true};
 
 	lex::lines_t result;
 
