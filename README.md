@@ -75,9 +75,9 @@
   - simple-template-id
 - namespace-name:
   - identifier
-- namespace-name:
-  - identifier
   - namespace-alias
+- namespace-alias:
+  - identifier
 - class-name:
   - identifier
   - simple-template-id
