@@ -2731,10 +2731,10 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 		// Function macro
 
 		// parses parameters
-		auto const [parameters, rest] = enclosed_parameters(itr, line_end);
+		auto const [parameters, value_itr] = enclosed_parameters(itr, line_end);
 
 		// parses body
-		if (itr = next_token(rest, line_end); itr == line_end) return {true, false};
+		if (itr = next_token(value_itr, line_end); itr == line_end) return {true, false};
 		macros.define_faction_macro(macro, parameters, {itr, line_end});
 		tr.set_result(escape(macro) + lex::vector_to_string(parameters));
 	} else {
