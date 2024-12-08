@@ -350,7 +350,7 @@
 
 ### A.5 Expressions
 
-- primary-expression:primary-expression:
+- primary-expression:
   - literal
   - this
   - ( expression )
