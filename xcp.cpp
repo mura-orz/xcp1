@@ -149,8 +149,11 @@ constexpr inline bool validate_utf8(std::string_view const& sv) {
 }	 // namespace uc
 namespace impl {
 
+inline std::string vector_to_string(std::vector<std::string_view>::const_iterator const& itr, std::vector<std::string_view>::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 255u) {
+	return lp + escape(std::accumulate(itr, end, std::string{}, [f, limit](auto&& o, auto const& a) { if (!o.empty()){ o += ", "; } o += f(a); return std::move(o); }), limit) + rp;
+}
 inline std::string vector_to_string(std::vector<std::string_view> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 64u) {
-	return lp + escape(std::accumulate(strs.begin(), strs.end(), std::string{}, [f, limit](auto&& o, auto const& a) { if (!o.empty()){o += ", "; } o += f(a); return std::move(o); }), limit) + rp;
+	return vector_to_string(strs.cbegin(), strs.cend(), lp, rp, f, limit);
 }
 
 }	 // namespace impl
@@ -952,6 +955,10 @@ inline std::string to_token_string(pp_token_t const& token) {
 	throw std::logic_error(__func__);
 }
 
+inline std::string vector_to_string(tokens_t::const_iterator const& itr, tokens_t::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
+	auto const strs = std::ranges::subrange(itr, end) | std::views::transform(f) | std::views::common;
+	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, [](auto const& a) { return std::string{a}; }, limit);
+}
 inline std::string vector_to_string(tokens_t const& tokens, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
 	auto const strs = tokens | std::views::transform(f) | std::views::common;
 	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, [](auto const& a) { return std::string{a}; }, limit);
@@ -2116,12 +2123,14 @@ public:
 	void define_simple_macro(std::string_view const& name, values_t const& value) {
 		log::tracer_t tr{{std::string{name} + lex::vector_to_string(value)}};
 		simple_macros_[name] = value;
+		tr.set_result(lex::vector_to_string(simple_macros_[name]));
 		if (function_macros_.contains(name)) { function_macros_.erase(name); }	  // Overrides it if exists.
 	}
 	void define_faction_macro(std::string_view const& name, macro_parameters_t const& arguments, values_t const& value) {
 		log::tracer_t tr{{std::string{name} + lex::vector_to_string(arguments, "(", ")") + lex::vector_to_string(value)}};
 
 		function_macros_[name] = std::make_pair(arguments, value);
+		tr.set_result(lex::vector_to_string(function_macros_[name].first) + lex::vector_to_string(function_macros_[name].second));
 		if (simple_macros_.contains(name)) { simple_macros_.erase(name); }	  // Overrides it if exists.
 	}
 	bool defined(std::string_view const& name) const noexcept { return simple_macros_.contains(name) || function_macros_.contains(name); }
@@ -2213,7 +2222,7 @@ private:
 	///	@param[in]	ts		Token sequence to extract.
 	///	@return		Extracted actual arguments and the iterator of the last token, right parenthes.
 	static std::tuple<arguments_t, lex::tokens_itr_t> actuals(lex::tokens_itr_t const& ts, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{lex::vector_to_string(lex::tokens_t(ts, end))}};
+		log::tracer_t tr{{lex::vector_to_string(ts, end)}};
 
 		arguments_t ap;
 
@@ -2314,7 +2323,7 @@ private:
 
 public:
 	[[nodiscard]] lex::tokens_t expand(lex::tokens_itr_t t, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{lex::vector_to_string(lex::tokens_t(t, end))}};
+		log::tracer_t tr{{lex::vector_to_string(t, end)}};
 		lex::tokens_t result;
 		for (; t != end; ++t) {
 			tr.trace(lex::to_string(*t));
@@ -2732,7 +2741,7 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 		// -------------------------------
 		// Simple macro
 		macros.define_simple_macro(macro, {itr, line_end});
-		tr.set_result(escape(macro) + lex::vector_to_string(lex::tokens_t{itr, line_end}));
+		tr.set_result(escape(macro) + lex::vector_to_string(itr, line_end));
 	}
 	return {true, true};
 }
@@ -2777,7 +2786,7 @@ std::tuple<lex::lines_t, lex::lines_itr_t> preprocess_conditions(cm::condition_m
 
 	bool elseif{true};
 	for (; lines_itr != lines_end; ++lines_itr) {
-		tr.trace(lex::vector_to_string(lex::tokens_t(lines_itr->begin(), lines_itr->end())));
+		tr.trace(lex::vector_to_string(lines_itr->begin(), lines_itr->end()));
 
 		auto line_itr = lex::skip_ws(lines_itr->begin(), lines_itr->end());
 		if (line_itr == lines_itr->end()) continue;
