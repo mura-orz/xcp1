@@ -2314,7 +2314,7 @@ private:
 
 public:
 	[[nodiscard]] lex::tokens_t expand(lex::tokens_itr_t t, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{}};
+		log::tracer_t tr{{lex::vector_to_string(lex::tokens_t(t, end))}};
 		lex::tokens_t result;
 		for (; t != end; ++t) {
 			tr.trace(lex::to_string(*t));
@@ -2777,6 +2777,8 @@ std::tuple<lex::lines_t, lex::lines_itr_t> preprocess_conditions(cm::condition_m
 
 	bool elseif{true};
 	for (; lines_itr != lines_end; ++lines_itr) {
+		tr.trace(lex::vector_to_string(lex::tokens_t(lines_itr->begin(), lines_itr->end())));
+
 		auto line_itr = lex::skip_ws(lines_itr->begin(), lines_itr->end());
 		if (line_itr == lines_itr->end()) continue;
 
@@ -4071,7 +4073,7 @@ private:
 
 int main(int ac, char* av[]) {
 	// -------------------------------
-	// Initialzies primitive language features.
+	// Initializes primitive language features.
 	std::locale::global(std::locale{"C"});
 	std::ios::sync_with_stdio(false);
 	std::clog << msg::Title << std::endl;
