@@ -148,7 +148,7 @@ constexpr inline bool validate_utf8(std::string_view const& sv) {
 
 }	 // namespace uc
 
-inline std::string vector_to_string(std::vector<std::string_view> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 32u) {
+inline std::string vector_to_string(std::vector<std::string_view> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 64u) {
 	return lp + escape(std::accumulate(strs.begin(), strs.end(), std::string{}, [f, limit](auto&& o, auto const& a) { if (!o.empty()){o += ", "; } o += f(a); return std::move(o); }), limit) + rp;
 }
 
