@@ -2278,7 +2278,7 @@ private:
 		}
 	}
 	lex::tokens_t substitute(lex::tokens_itr_t t, lex::tokens_itr_t const& end, macro_parameters_t const& fp, arguments_t const& ap, hideset_t const& hs) {
-		log::tracer_t tr{{lex::vector_to_string(fp) + " " + std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::string{}, [](auto&& o, auto const& a) { o += lex::vector_to_string(a); return std::move(o); }) + " " + std::accumulate(std::ranges::begin(hs), std::ranges::end(hs), std::string{}, [](auto&& o, auto const& a) { o += lex::to_string(a); return std::move(o); })}};
+		log::tracer_t tr{{lex::vector_to_string(fp), std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::string{}, [](auto&& o, auto const& a) { o += lex::vector_to_string(a); return std::move(o); }), std::accumulate(std::ranges::begin(hs), std::ranges::end(hs), std::string{}, [](auto&& o, auto const& a) { o += lex::to_string(a); return std::move(o); })}};
 
 		lex::tokens_t os;
 		for (; t != end; ++t) {
@@ -2288,9 +2288,7 @@ private:
 				os.push_back(stringize_token(ap.at(*i)));
 			} else if (t->is(lex::pp_type_t::hash2) && (i = find_at(fp, ++t, end))) {
 				// "##parameter" shall combine both the lhs and rhs tokens.
-				if (auto const& ap_ = ap.at(*i); ap_.empty()) {
-					// This argument is empty and is ignored.
-				} else {
+				if (auto const& ap_ = ap.at(*i); ! ap_.empty()) {
 					// The parameter is replaced by its argument and combined.
 					glue(os, ap_);
 				}
