@@ -2214,14 +2214,18 @@ private:
 	static std::optional<std::size_t> find_at(macro_parameters_t const& tokens, lex::tokens_itr_t const& token, lex::tokens_itr_t const& end) {
 		log::tracer_t tr{{std::to_string(tokens.size()), lex::to_string(*token)}};
 		if (token == end) return std::nullopt;
-		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [token](auto const& a) { return a == *token; }); found != tokens.end()) { return std::distance(tokens.begin(), found); }
+		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [token](auto const& a) { return a == *token; }); found != tokens.end()) {
+			auto const index = std::distance(tokens.begin(), found);
+			tr.set_result(index);
+			return index;
+		}
 		return std::nullopt;
 	}
 	///	@brief	Extracts actual arguments from the token sequence.
 	///	@param[in]	ts		Token sequence to extract.
 	///	@return		Extracted actual arguments and the iterator of the last token, right parenthes.
 	static std::tuple<arguments_t, lex::tokens_itr_t> actuals(lex::tokens_itr_t const& ts, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{lex::vector_to_string(ts, end)}};
+		log::tracer_t tr{{lex::vector_to_string(ts, end)}, true};
 
 		arguments_t ap;
 
@@ -2253,14 +2257,14 @@ private:
 	bool is_macro(lex::pp_token_t const& token) const noexcept { return is_simple_macro(token) || is_function_macro(token); }
 
 	lex::pp_token_t stringize_token(lex::tokens_t const& ts, hideset_t const& hs = {}) {
-		log::tracer_t tr{{}};
+		log::tracer_t tr{{lex::vector_to_string(ts)}};
 
 		auto const sv = lex::impl::register_string_literal(impl::stringize(ts.begin(), ts.end()));
 		tr.set_result(escape(sv));
 		return lex::pp_token_t{lex::pp_type_t::String, sv, hs};
 	}
 	void glue(lex::tokens_t& tokens, lex::tokens_t const& rs) {
-		log::tracer_t tr{{std::accumulate(rs.begin(), rs.end(), std::string{}, [](auto&& o, auto const& a) { o += lex::to_string(a); return std::move(o); })}};
+		log::tracer_t tr{{lex::vector_to_string(tokens), lex::vector_to_string(rs)}};
 		if (! tokens.empty() && ! rs.empty()) {
 			auto const hs = std::accumulate(rs.begin(), rs.end(), hideset_t{}, [](auto&& o, auto const& a) { o.insert(a.hideset().begin(), a.hideset().end()); return std::move(o); });
 
@@ -2310,6 +2314,7 @@ private:
 		}
 		// There is no more token. So, the token sequence might have been terminated.
 		std::ranges::for_each(os, [&hs](auto& t) { t.hideset().insert(hs.begin(), hs.end()); });
+		tr.set_result(lex::vector_to_string(os));
 		return os;
 	}
 
@@ -2318,12 +2323,9 @@ public:
 		log::tracer_t tr{{lex::vector_to_string(t, end)}};
 		lex::tokens_t result;
 		for (; t != end; ++t) {
-			tr.trace(lex::to_string(*t));
 			if (hideset_t hs = t->hideset(); hs.contains(*t)) {
-				tr.trace(lex::to_string(*t) + " is hidden");
 				// The token has been hidden. The token does not need more expansion.
 			} else if (is_simple_macro(*t)) {
-				tr.trace(lex::to_string(*t) + " is simple macro");
 				// Expands simple macro.
 				hs.insert(hs.end(), *t);
 				auto const& vs = value(t->token());
@@ -2333,7 +2335,6 @@ public:
 				tr.trace(lex::to_string(*t) + lex::vector_to_string(ts));
 				result.insert(result.end(), ts.begin(), ts.end());
 			} else if (is_function_macro(*t)) {
-				tr.trace(lex::to_string(*t) + " is function macro");
 				// Expands functional macro.
 				auto [ap, rp] = actuals(t + 1, end);	// ( ..., ... )
 				hs.insert(rp->hideset().begin(), rp->hideset().end());
@@ -2346,7 +2347,6 @@ public:
 				result.insert(result.end(), ts.begin(), ts.end());
 				std::advance(t, std::distance(t, rp));
 			} else {
-				tr.trace(lex::to_string(*t) + " is not macro");
 				// The token is not a macro. So, the token does not need more expansion.
 				result.push_back(*t);
 				tr.trace(lex::to_string(result.back()));
