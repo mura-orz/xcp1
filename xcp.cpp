@@ -150,7 +150,7 @@ constexpr inline bool validate_utf8(std::string_view const& sv) {
 namespace impl {
 
 inline std::string vector_to_string(std::vector<std::string>::const_iterator const& itr, std::vector<std::string>::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 255u) {
-	return lp + escape(std::accumulate(itr, end, std::string{}, [limit](auto&& o, auto const& a) { if (!o.empty()){ o += ", "; } o += a; return std::move(o); }), limit) + rp;
+	return lp + std::accumulate(itr, end, std::string{}, [limit](auto&& o, auto const& a) { if (!o.empty()){ o += ", "; } o += escape(a, limit); return std::move(o); }) + rp;
 }
 inline std::string vector_to_string(std::vector<std::string> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 64u) {
 	return vector_to_string(strs.cbegin(), strs.cend(), lp, rp, limit);
@@ -2121,16 +2121,15 @@ public:
 	auto const& function_value(std::string_view const& name) const noexcept { return function_macros_.at(name).second; }
 
 	void define_simple_macro(std::string_view const& name, values_t const& value) {
-		log::tracer_t tr{{std::string{name} + lex::vector_to_string(value)}};
+		log::tracer_t tr{{std::string{name}}};
 		simple_macros_[name] = value;
 		tr.set_result(lex::vector_to_string(simple_macros_[name]));
 		if (function_macros_.contains(name)) { function_macros_.erase(name); }	  // Overrides it if exists.
 	}
 	void define_faction_macro(std::string_view const& name, macro_parameters_t const& arguments, values_t const& value) {
-		log::tracer_t tr{{std::string{name} + lex::vector_to_string(arguments, "(", ")") + lex::vector_to_string(value)}};
-
+		log::tracer_t tr{{std::string{name}}};
 		function_macros_[name] = std::make_pair(arguments, value);
-		tr.set_result(lex::vector_to_string(function_macros_[name].first) + lex::vector_to_string(function_macros_[name].second));
+		tr.set_result(lex::vector_to_string(function_macros_[name].first, "(", ")") + lex::vector_to_string(function_macros_[name].second));
 		if (simple_macros_.contains(name)) { simple_macros_.erase(name); }	  // Overrides it if exists.
 	}
 	bool defined(std::string_view const& name) const noexcept { return simple_macros_.contains(name) || function_macros_.contains(name); }
@@ -2363,7 +2362,7 @@ public:
 				tr.trace(lex::to_string(result.back()));
 			}
 		}
-		tr.trace(lex::vector_to_string(result, "<[", "]>", [](auto const& a) { return lex::to_string(a); }));
+		tr.trace(lex::vector_to_string(result, "<[", "]>", [](auto const& a) { return lex::to_token_string(a); }));
 		return result;
 	}
 };
@@ -2716,12 +2715,13 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 
 	auto const [tokens, rest] = seq_match(line_itr, line_end, {lex::is_pp, lex::is_pp_d(lex::def::define_s_), lex::is_(lex::pp_type_t::Identifier)});
 	if (tokens.empty()) return {false, false};
+	auto const end = line_end - 1;	  // newline
 
 	auto const& macro = tokens.at(2)->token();
 	tr.trace(macro);
 
-	auto itr = rest;	// If there is left parenthesis without whitespace, it is function macro.
-	if (itr == line_end) {
+	auto itr = skip_ws(rest, end);	  // If there is left parenthesis without whitespace, it is function macro.
+	if (itr == end) {
 		// -------------------------------
 		// Simple macro without value.
 		macros.define_simple_macro(macro, mm::def::value_1);
@@ -2731,17 +2731,19 @@ std::tuple<bool, bool> parse_preprocessing_define_line(mm::macro_manager_t& macr
 		// Function macro
 
 		// parses parameters
-		auto const [parameters, value_itr] = enclosed_parameters(itr, line_end);
+		auto const [parameters, value_itr] = enclosed_parameters(itr, end);
 
 		// parses body
-		if (itr = next_token(value_itr, line_end); itr == line_end) return {true, false};
-		macros.define_faction_macro(macro, parameters, {itr, line_end});
+		if (itr = next_token(value_itr, end); itr == end) return {true, false};
+		macros.define_faction_macro(macro, parameters, {itr, end});
 		tr.set_result(escape(macro) + lex::vector_to_string(parameters));
 	} else {
 		// -------------------------------
 		// Simple macro
-		macros.define_simple_macro(macro, {itr, line_end});
-		tr.set_result(escape(macro) + lex::vector_to_string(itr, line_end));
+		itr = skip_ws(itr, end);
+
+		macros.define_simple_macro(macro, {itr, end});
+		tr.set_result(escape(macro) + lex::vector_to_string(itr, end));
 	}
 	return {true, true};
 }
@@ -2780,7 +2782,7 @@ std::tuple<bool, std::filesystem::path, lex::tokens_t> parse_preprocessing_inclu
 ///     @brief  Proceeds conditions.
 ////            #if ... (#elif ...)* (#else ...)? #endif
 std::tuple<lex::lines_t, lex::lines_itr_t> preprocess_conditions(cm::condition_manager_t& conditions, mm::macro_manager_t& macros, pm::path_manager_t& paths, lex::lines_itr_t lines_itr, lex::lines_itr_t const& lines_end) {
-	log::tracer_t tr{{}};
+	log::tracer_t tr{{}, true};
 
 	lex::lines_t result;
 
