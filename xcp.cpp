@@ -440,7 +440,9 @@ std::unordered_set<std::string_view> const keywords{
 	char32_t_s_,
 	class_s_,
 	const_s_,
+	consteval_s_,
 	constexpr_s_,
+	constinit_s_,
 	const_cast_s_,
 	continue_s_,
 
