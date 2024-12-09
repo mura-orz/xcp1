@@ -149,11 +149,11 @@ constexpr inline bool validate_utf8(std::string_view const& sv) {
 }	 // namespace uc
 namespace impl {
 
-inline std::string vector_to_string(std::vector<std::string_view>::const_iterator const& itr, std::vector<std::string_view>::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 255u) {
-	return lp + escape(std::accumulate(itr, end, std::string{}, [f, limit](auto&& o, auto const& a) { if (!o.empty()){ o += ", "; } o += f(a); return std::move(o); }), limit) + rp;
+inline std::string vector_to_string(std::vector<std::string>::const_iterator const& itr, std::vector<std::string>::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 255u) {
+	return lp + escape(std::accumulate(itr, end, std::string{}, [limit](auto&& o, auto const& a) { if (!o.empty()){ o += ", "; } o += a; return std::move(o); }), limit) + rp;
 }
-inline std::string vector_to_string(std::vector<std::string_view> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(std::string_view const&)> const& f = [](std::string_view const& a) { return std::string{a}; }, std::size_t limit = 64u) {
-	return vector_to_string(strs.cbegin(), strs.cend(), lp, rp, f, limit);
+inline std::string vector_to_string(std::vector<std::string> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 64u) {
+	return vector_to_string(strs.cbegin(), strs.cend(), lp, rp, limit);
 }
 
 }	 // namespace impl
@@ -221,9 +221,9 @@ inline void err(std::string_view const& message, std::source_location sl = std::
 
 class tracer_t {
 public:
-	explicit tracer_t(std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
+	explicit tracer_t(std::vector<std::string> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		tracer_t(level_t::Trace, args, silent, sl) {}
-	tracer_t(level_t level, std::vector<std::string_view> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
+	tracer_t(level_t level, std::vector<std::string> const& args, bool silent = false, std::source_location sl = std::source_location::current()) :
 		level_{level}, sl_{sl}, result_{}, silent_{silent} {
 		if (! silent_ && level_s <= level_) log(level_, xxx::impl::vector_to_string(args, ">>>>(", ")"), sl_);
 	}
@@ -267,7 +267,7 @@ inline void tracer_t::set_result(std::string const& v) { result_ = v; }
 template<>
 inline void tracer_t::set_result(std::string_view const& v) { result_ = std::string{v}; }
 template<>
-inline void tracer_t::set_result(std::vector<std::string_view> const& v) { result_ = xxx::impl::vector_to_string(v, "", ""); }
+inline void tracer_t::set_result(std::vector<std::string> const& v) { result_ = xxx::impl::vector_to_string(v, "", ""); }
 
 template<>
 inline void tracer_t::trace(std::string const& v, bool force, std::source_location sl) {
@@ -280,7 +280,7 @@ inline void tracer_t::trace(std::string_view const& v, bool force, std::source_l
 	log(level_, "----" + std::to_string(sl.line()) + "|" + std::string{v} + "|", sl_);
 }
 template<>
-inline void tracer_t::trace(std::vector<std::string_view> const& v, bool force, std::source_location sl) {
+inline void tracer_t::trace(std::vector<std::string> const& v, bool force, std::source_location sl) {
 	if (! force && (silent_ || level_ < level_s)) return;
 	auto const vs = xxx::impl::vector_to_string(v, "", "");
 	log(level_, "----" + std::to_string(sl.line()) + "|" + vs + "|", sl_);
@@ -440,9 +440,7 @@ std::unordered_set<std::string_view> const keywords{
 	char32_t_s_,
 	class_s_,
 	const_s_,
-	consteval_s_,
 	constexpr_s_,
-	constinit_s_,
 	const_cast_s_,
 	continue_s_,
 
@@ -959,11 +957,11 @@ inline std::string to_token_string(pp_token_t const& token) {
 
 inline std::string vector_to_string(tokens_t::const_iterator const& itr, tokens_t::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
 	auto const strs = std::ranges::subrange(itr, end) | std::views::transform(f) | std::views::common;
-	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, [](auto const& a) { return std::string{a}; }, limit);
+	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, limit);
 }
 inline std::string vector_to_string(tokens_t const& tokens, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
 	auto const strs = tokens | std::views::transform(f) | std::views::common;
-	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, [](auto const& a) { return std::string{a}; }, limit);
+	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, limit);
 }
 
 inline tokens_itr_t next_token(tokens_itr_t pos, tokens_itr_t end) { return pos == end ? end : skip_ws(++pos, end); }
@@ -1098,18 +1096,18 @@ inline std::string_view::size_type skip(std::string_view sv, std::function<bool(
 std::mutex								  mutex_s;
 std::vector<std::shared_ptr<std::string>> tokens_s;
 
-inline std::string_view register_string_literal(std::string_view const& s) {
-	log::tracer_t tr{{escape(s)}, true};
+inline std::string_view register_string_literal(std::string_view const& sv) {
+	log::tracer_t tr{{escape(sv)}, true};
 
 	std::lock_guard lock{mutex_s};
 
-	auto const itr = std::ranges::find_if(tokens_s, [&s](auto const& v) { return *v == s; });
+	auto const itr = std::ranges::find_if(tokens_s, [&sv](auto const& v) { return *v == sv; });
 	if (itr != tokens_s.end()) return **itr;
-	return *tokens_s.emplace_back(std::make_shared<std::string>(s));
+	return *tokens_s.emplace_back(std::make_shared<std::string>(sv));
 }
 
 inline std::tuple<std::string, std::size_t> parse_universal_character_name(std::string_view sv) {
-	log::tracer_t tr{{escape(sv, 32u)}, true};
+	log::tracer_t tr{{escape(sv)}, true};
 	if (sv.empty()) return {};
 	if (sv[0] != '\\') return {};
 
@@ -1151,7 +1149,7 @@ inline std::tuple<std::string, std::size_t> parse_universal_character_name(std::
 }
 
 inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_view sv) {
-	log::tracer_t tr{{escape(sv, 32u)}, true};
+	log::tracer_t tr{{escape(sv)}, true};
 	if (sv.empty()) return {};
 	if (sv[0] != '\\') return {};
 
@@ -1206,7 +1204,7 @@ inline std::tuple<std::string, std::size_t> parse_escape_sequence(std::string_vi
 }
 
 inline std::tuple<std::string_view, std::size_t> parse_identifier(std::string_view sv) {
-	log::tracer_t tr{{escape(sv, 32u)}, true};
+	log::tracer_t tr{{escape(sv)}, true};
 	if (sv.empty()) {
 		tr.set_result("empty identifier");
 		return {};
@@ -1247,7 +1245,7 @@ inline std::tuple<std::string_view, std::size_t> parse_identifier(std::string_vi
 }
 
 inline std::tuple<std::string_view, std::size_t> parse_string_literal(std::string_view sv, char ch) {
-	log::tracer_t tr{{escape(sv, 32u)}, true};
+	log::tracer_t tr{{escape(sv)}, true};
 	if (sv.empty()) {
 		tr.set_result("empty string literal");
 		return {};
@@ -1311,7 +1309,7 @@ inline std::tuple<std::string_view, std::size_t> parse_string_literal(std::strin
 	return {register_string_literal(oss.str()), org.size() - sv.size()};
 }
 inline std::tuple<std::string_view, std::size_t> parse_raw_string_literal(std::string_view sv) {
-	log::tracer_t tr{{escape(sv, 32u)}, true};
+	log::tracer_t tr{{escape(sv)}, true};
 	if (sv.empty()) {
 		tr.set_result("empty string literal");
 		return {};
@@ -1423,14 +1421,14 @@ inline std::tuple<std::string_view, std::size_t> parse_number_literal(std::strin
 }
 
 inline void push_token(tokens_t& line, std::size_t& length, pos_t& pos, std::string_view const& sv, pp_type_t type, std::size_t size) {
-	log::tracer_t tr{{to_string(pos), to_string(type), escape(sv, 32u), std::to_string(size)}, true};
+	log::tracer_t tr{{to_string(pos), to_string(type), escape(sv), std::to_string(size)}, true};
 
 	line.emplace_back(pp_token_t{type, sv, pos});
 	pos	   = pos.moved(size);
 	length = size;
 };
 inline void push_token(tokens_t& line, std::size_t& length, pos_t& pos, std::string_view const& sv, pp_type_t type) {
-	log::tracer_t tr{{to_string(pos), to_string(type), escape(sv, 32u)}, true};
+	log::tracer_t tr{{to_string(pos), to_string(type), escape(sv)}, true};
 	push_token(line, length, pos, sv, type, sv.length());
 };
 inline void push_operator(tokens_t& line, std::size_t& length, pos_t& pos, pp_type_t type, std::size_t size = 1u) {
@@ -1480,7 +1478,7 @@ inline void push_identifier(tokens_t& line, std::size_t& length, pos_t& pos, std
 };
 
 inline void new_line(lines_t& lines, tokens_t& line, pos_t& pos, pp_type_t type = pp_type_t::Newline, std::string_view const& token = {}, std::size_t newlines = 1u) {
-	log::tracer_t tr{{to_string(pos), to_string(type), escape(token, 32u), std::to_string(newlines)}, true};
+	log::tracer_t tr{{to_string(pos), to_string(type), escape(token), std::to_string(newlines)}, true};
 
 	line.emplace_back(pp_token_t{type, token, pos});
 	lines.push_back(std::move(line));
@@ -1939,7 +1937,7 @@ lines_t scan(std::filesystem::path const& name) {
 						break;
 					}
 				}
-				tr.trace(to_string(pos) + escape(sv, 32u));
+				tr.trace(to_string(pos) + escape(sv));
 				throw syntax_error_t(pos, "invalid token");
 			}
 		}
@@ -1967,7 +1965,7 @@ std::string stringize(lex::tokens_itr_t itr, lex::tokens_itr_t const& end) {
 	auto message = std::ranges::subrange(itr, end) | std::views::filter([](auto const& a) { return ! a.is(lex::pp_type_t::Newline) && ! a.is(lex::pp_type_t::Line_comment) && ! a.is(lex::pp_type_t::Block_comment); }) | std::views::transform([](auto const& a) { return lex::to_token_string(a); }) | std::views::join | std::views::common;
 
 	auto const str = std::accumulate(message.begin(), message.end(), std::stringstream{}, [](auto&& o, auto const& a) { o << a; return std::move(o); }).str();
-	tr.set_result(escape(str, 32u));
+	tr.set_result(escape(str));
 	return str;
 }
 
@@ -2266,7 +2264,7 @@ private:
 		log::tracer_t tr{{}};
 
 		auto const sv = lex::impl::register_string_literal(impl::stringize(ts.begin(), ts.end()));
-		tr.set_result(escape(sv, 32u));
+		tr.set_result(escape(sv));
 		return lex::pp_token_t{lex::pp_type_t::String, sv, hs};
 	}
 	void glue(lex::tokens_t& tokens, lex::tokens_t const& rs) {
@@ -4091,7 +4089,7 @@ int main(int ac, char* av[]) {
 	try {
 		// -------------------------------
 		// Gets the arguments as options and sources.
-		std::vector<std::string_view> const args{av + 1, av + ac};
+		std::vector<std::string> const args{av + 1, av + ac};
 
 		auto options{args | std::views::filter([](auto const& a) { return a != "-" && a.starts_with("-"); }) | std::views::common};
 		auto sources{args | std::views::filter([](auto const& a) { return ! a.starts_with("-"); }) | std::views::common};
@@ -4129,7 +4127,7 @@ int main(int ac, char* av[]) {
 		xxx::conf::config_t configurations;
 		std::ranges::for_each(options, [&configurations](auto const& a) {
 			std::regex const re{R"(^-([A-Za-z])(?:[=:](.*))$)"};
-			if (std::match_results<std::string_view::const_iterator> m; std::regex_match(a.begin(), a.end(), m, re)) { configurations[m.str(1)].push_back(1 < m.size() ? m.str(2) : ""); }
+			if (std::smatch m; std::regex_match(a.begin(), a.end(), m, re)) { configurations[m.str(1)].push_back(1 < m.size() ? m.str(2) : ""); }
 		});
 
 		// -------------------------------
