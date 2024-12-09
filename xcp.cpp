@@ -2235,19 +2235,13 @@ private:
 			} else if (itr->is(lex::pp_type_t::r_paren)) {
 				tr.trace(") :" + std::to_string(nest));
 				if (--nest <= 0) {
-					if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
+					if (auto const rp = --lex::tokens_itr_t{itr}; ++current <= rp) { ap.push_back({current, rp}); }
 					tr.set_result(std::to_string(ap.size()) + "<{ " + std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::ostringstream{}, [](auto&& o, auto const& a) { o << lex::vector_to_string(a); return std::move(o); }).str() + " }>");
 					return {ap, itr};
 				}
-				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
-				current = itr;
 			} else if (nest == 0 && itr->is(lex::pp_type_t::comma)) {
 				tr.trace(", :" + std::to_string(nest));
-				if (auto const rp = --lex::tokens_itr_t{itr}; ++current < rp) { ap.push_back({current, rp}); }
-				current = itr;
-			} else if (nest == 0 && itr->is(lex::pp_type_t::comma)) {
-				tr.trace(", :" + std::to_string(nest));
-				ap.push_back({++current, --lex::tokens_itr_t{itr}});
+				if (auto const rp = --lex::tokens_itr_t{itr}; ++current <= rp) { ap.push_back({current, rp}); }
 				current = itr;
 			}
 		}
