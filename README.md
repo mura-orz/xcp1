@@ -1048,7 +1048,7 @@
 
 - template-declaration:
   - template-head declaration
-  - template-head concept -definition
+  - template-head concept-definition
 - template-head:
   - template < template-parameter-list > requires-clause?
 - template-parameter-list:
