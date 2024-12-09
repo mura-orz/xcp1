@@ -554,7 +554,7 @@
   - co_yield assignment-expression
   - co_yield braced-init-list
 - throw-expression:
-  - throw assignment -expression?
+  - throw assignment-expression?
 - assignment-expression:
   - conditional-expression
   - yield-expression
