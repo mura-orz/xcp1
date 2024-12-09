@@ -2226,8 +2226,7 @@ private:
 		arguments_t ap;
 
 		int nest = 0;	 // SPEC: max of nest is the same as signed integer.
-		for (auto itr = ts, current = ts; itr != end; ++itr) {
-			itr = skip_ws(itr, end);
+		for (auto itr = skip_ws(ts, end), current = skip_ws(ts, end); itr != end; itr = next_token(itr, end)) {
 			if (itr->is(lex::pp_type_t::l_paren)) {
 				tr.trace("( :" + std::to_string(nest));
 				if (std::numeric_limits<decltype(nest)>::max() <= nest) throw std::overflow_error(__func__ + std::to_string(__LINE__));
@@ -2235,13 +2234,13 @@ private:
 			} else if (itr->is(lex::pp_type_t::r_paren)) {
 				tr.trace(") :" + std::to_string(nest));
 				if (--nest <= 0) {
-					if (auto const rp = --lex::tokens_itr_t{itr}; ++current <= rp) { ap.push_back({current, rp}); }
+					if (++current <= itr) { ap.push_back({current, itr}); }
 					tr.set_result(std::to_string(ap.size()) + "<{ " + std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::ostringstream{}, [](auto&& o, auto const& a) { o << lex::vector_to_string(a); return std::move(o); }).str() + " }>");
 					return {ap, itr};
 				}
 			} else if (nest == 0 && itr->is(lex::pp_type_t::comma)) {
 				tr.trace(", :" + std::to_string(nest));
-				if (auto const rp = --lex::tokens_itr_t{itr}; ++current <= rp) { ap.push_back({current, rp}); }
+				if (++current <= itr) { ap.push_back({current, itr}); }
 				current = itr;
 			}
 		}
@@ -2328,7 +2327,6 @@ public:
 				// Expands simple macro.
 				hs.insert(hs.end(), *t);
 				auto const& vs = value(t->token());
-				tr.trace(lex::to_string(*t) + lex::vector_to_string(vs));
 
 				auto ts = substitute(vs.begin(), vs.end(), {}, {}, hs);
 				ts		= expand(ts.begin(), ts.end());
@@ -2340,9 +2338,7 @@ public:
 				auto [ap, rp] = actuals(t + 1, end);	// ( ..., ... )
 				hs.insert(rp->hideset().begin(), rp->hideset().end());
 				hs.insert(hs.end(), *t);
-				tr.trace(lex::to_string(*t));
 				auto const& vs = function_value(t->token());
-				tr.trace(lex::to_string(*t) + lex::vector_to_string(vs));
 
 				auto ts = substitute(vs.begin(), vs.end(), function_parameters(t->token()), ap, hs);
 				ts		= expand(ts.begin(), ts.end());
