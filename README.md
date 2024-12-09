@@ -387,7 +387,7 @@
   - lambda-specifier+ noexcept-specifier? attribute-specifier\* trailing-return-type?
   - noexcept-specifier attribute-specifier\* trailing-return-type?
   - trailing-return-type?
-  - ( parameter-declaration-clause ) lambda-specifier* noexcept-specifier? attribute-specifie* trailing-return-type? requires-clause?
+  - ( parameter-declaration-clause ) lambda-specifier* noexcept-specifier? attribute-specifier* trailing-return-type? requires-clause?
 - lambda-specifier:
   - consteval
   - constexpr
