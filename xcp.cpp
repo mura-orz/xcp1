@@ -2295,12 +2295,13 @@ private:
 		lex::tokens_t os;
 		for (; t != end; ++t) {
 			auto const size = std::distance(t, end);
+			auto const next = next_token(t, end);
 			tr.trace(std::to_string(size) + lex::to_string(*t));
-			if (std::optional<std::size_t> i = std::nullopt; t->is(lex::pp_type_t::hash) && (i = find_at(ap, t + 1, end))) {
+			if (std::optional<std::size_t> i = std::nullopt; t->is(lex::pp_type_t::hash) && (i = find_at(ap, next, end))) {
 				// "#parameter" shall be stringized.
 				tr.trace(std::to_string(size) + lex::to_string(*t));
 				os.push_back(stringize_token({fp.at(*i)}));
-			} else if (t->is(lex::pp_type_t::hash2) && (i = find_at(fp, t + 1, end))) {
+			} else if (t->is(lex::pp_type_t::hash2) && (i = find_at(fp, next, end))) {
 				// "##parameter" shall combine both the lhs and rhs tokens.
 				if (auto const& ap_ = ap.at(*i); ! ap_.empty()) {
 					// The parameter is replaced by its argument and combined.
@@ -2311,7 +2312,7 @@ private:
 				// "##token" shall combine both the lhs and rhs tokens.
 				tr.trace(std::to_string(size) + lex::to_string(*t));
 				glue(os, {*t});
-			} else if (2u < size && t->is(lex::pp_type_t::hash2) && (i = find_at(fp, t + 1, end))) {
+			} else if (2u < size && t->is(lex::pp_type_t::hash2) && (i = find_at(fp, next, end))) {
 				// "##parameter" shall combine both the lhs and rhs tokens.
 				if (auto const& ap_ = ap.at(*i); ap_.empty()) {
 					tr.trace(std::to_string(size) + lex::to_string(*t));
@@ -2320,7 +2321,7 @@ private:
 					tr.trace(std::to_string(size) + lex::to_string(*t));
 					os.insert(os.end(), ap_.begin(), ap_.end());
 				}
-			} else if (1u < size && (i = find_at(fp, t + 1, end))) {
+			} else if (1u < size && (i = find_at(fp, next, end))) {
 				auto const& ap_ = ap.at(*i);
 				auto const& o	= expand(ap_.begin(), ap_.end());
 				tr.trace(std::to_string(size) + lex::to_string(*t));
