@@ -404,6 +404,9 @@ auto const override_s_ = "override"s;
 auto const final_s_	   = "final"s;
 auto const bom_s_	   = "\xEF\xBB\xBF"sv;	  // 0xFEFF
 
+auto const VA_ARGS_ = "__VA_ARGS__"s;
+auto const VA_OPT_	= "__VA_OPT__"s;
+
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
 std::unordered_set<std::string_view> const preprocessing_directives{
