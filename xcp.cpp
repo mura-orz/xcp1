@@ -152,7 +152,7 @@ namespace impl {
 inline std::string vector_to_string(std::vector<std::string>::const_iterator const& itr, std::vector<std::string>::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 255u) {
 	return lp + std::accumulate(itr, end, std::string{}, [limit](auto&& o, auto const& a) { if (!o.empty()){ o += ", "; } o += escape(a, limit); return std::move(o); }) + rp;
 }
-inline std::string vector_to_string(std::vector<std::string> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 64u) {
+inline std::string vector_to_string(std::vector<std::string> const& strs, std::string const& lp = "{", std::string const& rp = "}", std::size_t limit = 255u) {
 	return vector_to_string(strs.cbegin(), strs.cend(), lp, rp, limit);
 }
 
@@ -955,11 +955,11 @@ inline std::string to_token_string(pp_token_t const& token) {
 	throw std::logic_error(__func__);
 }
 
-inline std::string vector_to_string(tokens_t::const_iterator const& itr, tokens_t::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
+inline std::string vector_to_string(tokens_t::const_iterator const& itr, tokens_t::const_iterator const& end, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 255u) {
 	auto const strs = std::ranges::subrange(itr, end) | std::views::transform(f) | std::views::common;
 	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, limit);
 }
-inline std::string vector_to_string(tokens_t const& tokens, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 32u) {
+inline std::string vector_to_string(tokens_t const& tokens, std::string const& lp = "{", std::string const& rp = "}", std::function<std::string(pp_token_t const&)> const& f = to_token_string, std::size_t limit = 255u) {
 	auto const strs = tokens | std::views::transform(f) | std::views::common;
 	return xxx::impl::vector_to_string({strs.begin(), strs.end()}, lp, rp, limit);
 }
@@ -2212,9 +2212,21 @@ private:
 		return tokens.at(offset).type() == type;
 	}
 	static std::optional<std::size_t> find_at(macro_parameters_t const& tokens, lex::tokens_itr_t const& token, lex::tokens_itr_t const& end) {
-		log::tracer_t tr{{std::to_string(tokens.size()), lex::to_string(*token)}};
+		log::tracer_t tr{{std::to_string(tokens.size()), lex::to_string(*token), lex::vector_to_string(tokens)}};
 		if (token == end) return std::nullopt;
 		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [token](auto const& a) { return a == *token; }); found != tokens.end()) {
+			auto const index = std::distance(tokens.begin(), found);
+			tr.set_result(index);
+			return index;
+		}
+		return std::nullopt;
+	}
+	static std::optional<std::size_t> find_at(arguments_t const& tokens, lex::tokens_itr_t const& token, lex::tokens_itr_t const& end) {
+		log::tracer_t tr{{std::to_string(tokens.size()), lex::to_string(*token), std::accumulate(std::ranges::begin(tokens), std::ranges::end(tokens), std::string{}, [](auto&& o, auto const& a) { o += lex::vector_to_string(a); return std::move(o); })}};
+
+		if (token == end) return std::nullopt;
+		if (auto const found = std::find_if(tokens.begin(), tokens.end(), [token](auto const& a) { return a.front() == *token; }); found != tokens.end()) {
+			tr.trace(lex::to_string(found->front()));
 			auto const index = std::distance(tokens.begin(), found);
 			tr.set_result(index);
 			return index;
@@ -2278,35 +2290,43 @@ private:
 		}
 	}
 	lex::tokens_t substitute(lex::tokens_itr_t t, lex::tokens_itr_t const& end, macro_parameters_t const& fp, arguments_t const& ap, hideset_t const& hs) {
-		log::tracer_t tr{{lex::vector_to_string(fp), std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::string{}, [](auto&& o, auto const& a) { o += lex::vector_to_string(a); return std::move(o); }), std::accumulate(std::ranges::begin(hs), std::ranges::end(hs), std::string{}, [](auto&& o, auto const& a) { o += lex::to_string(a); return std::move(o); })}};
+		log::tracer_t tr{{lex::vector_to_string(t, end), lex::vector_to_string(fp), std::accumulate(std::ranges::begin(ap), std::ranges::end(ap), std::string{}, [](auto&& o, auto const& a) { o += lex::vector_to_string(a); return std::move(o); }), std::accumulate(std::ranges::begin(hs), std::ranges::end(hs), std::string{}, [](auto&& o, auto const& a) { o += lex::to_string(a); return std::move(o); })}};
 
 		lex::tokens_t os;
 		for (; t != end; ++t) {
 			auto const size = std::distance(t, end);
-			if (std::optional<std::size_t> i = std::nullopt; t->is(lex::pp_type_t::hash) && (i = find_at(fp, ++t, end))) {
+			tr.trace(std::to_string(size) + lex::to_string(*t));
+			if (std::optional<std::size_t> i = std::nullopt; t->is(lex::pp_type_t::hash) && (i = find_at(ap, t + 1, end))) {
 				// "#parameter" shall be stringized.
-				os.push_back(stringize_token(ap.at(*i)));
-			} else if (t->is(lex::pp_type_t::hash2) && (i = find_at(fp, ++t, end))) {
+				tr.trace(std::to_string(size) + lex::to_string(*t));
+				os.push_back(stringize_token({fp.at(*i)}));
+			} else if (t->is(lex::pp_type_t::hash2) && (i = find_at(fp, t + 1, end))) {
 				// "##parameter" shall combine both the lhs and rhs tokens.
 				if (auto const& ap_ = ap.at(*i); ! ap_.empty()) {
 					// The parameter is replaced by its argument and combined.
+					tr.trace(std::to_string(size) + lex::to_string(*t));
 					glue(os, ap_);
 				}
 			} else if (1u < size && t->is(lex::pp_type_t::hash2)) {
 				// "##token" shall combine both the lhs and rhs tokens.
+				tr.trace(std::to_string(size) + lex::to_string(*t));
 				glue(os, {*t});
-			} else if (2u < size && t->is(lex::pp_type_t::hash2) && (i = find_at(fp, ++t, end))) {
+			} else if (2u < size && t->is(lex::pp_type_t::hash2) && (i = find_at(fp, t + 1, end))) {
 				// "##parameter" shall combine both the lhs and rhs tokens.
 				if (auto const& ap_ = ap.at(*i); ap_.empty()) {
+					tr.trace(std::to_string(size) + lex::to_string(*t));
 					if (*t == fp.at(*i)) { os.insert(os.end(), ap_.begin(), ap_.end()); }
 				} else {
+					tr.trace(std::to_string(size) + lex::to_string(*t));
 					os.insert(os.end(), ap_.begin(), ap_.end());
 				}
-			} else if (1u < size && (i = find_at(fp, ++t, end))) {
+			} else if (1u < size && (i = find_at(fp, t + 1, end))) {
 				auto const& ap_ = ap.at(*i);
 				auto const& o	= expand(ap_.begin(), ap_.end());
+				tr.trace(std::to_string(size) + lex::to_string(*t));
 				os.insert(os.end(), o.begin(), o.end());
 			} else {
+				tr.trace(std::to_string(size) + lex::to_string(*t));
 				os.push_back(*t);
 			}
 		}
