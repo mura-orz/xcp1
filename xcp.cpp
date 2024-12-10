@@ -333,8 +333,8 @@ auto const char32_t_s_		   = "char32_t"s;
 auto const class_s_			   = "class"s;
 auto const concept_s_		   = "concept"s;
 auto const const_s_			   = "const"s;
-auto const constexpr_s_		   = "constexpr"s;
 auto const consteval_s_		   = "consteval"s;
+auto const constexpr_s_		   = "constexpr"s;
 auto const constinit_s_		   = "constinit"s;
 auto const const_cast_s_	   = "const_cast"s;
 auto const co_await_s_		   = "co_await"s;
@@ -343,8 +343,8 @@ auto const co_yield_s_		   = "co_yield"s;
 auto const continue_s_		   = "continue"s;
 auto const decltype_s_		   = "decltype"s;
 auto const default_s_		   = "default"s;
-auto const do_s_			   = "do"s;
 auto const delete_s_		   = "delete"s;
+auto const do_s_			   = "do"s;
 auto const double_s_		   = "double"s;
 auto const dynamic_cast_s_	   = "dynamic_cast"s;
 auto const else_s_			   = "else"s;
@@ -370,10 +370,10 @@ auto const operator_s_		   = "operator"s;
 auto const private_s_		   = "private"s;
 auto const protected_s_		   = "protected"s;
 auto const public_s_		   = "public"s;
+auto const register_s_		   = "register"s;
 auto const reinterpret_cast_s_ = "reinterpret_cast"s;
 auto const requires_s_		   = "requires"s;
 auto const return_s_		   = "return"s;
-auto const register_s_		   = "register"s;
 auto const short_s_			   = "short"s;
 auto const signed_s_		   = "signed"s;
 auto const sizeof_s_		   = "sizeof"s;
@@ -386,11 +386,11 @@ auto const template_s_		   = "template"s;
 auto const this_s_			   = "this"s;
 auto const thread_local_s_	   = "thread_local"s;
 auto const throw_s_			   = "throw"s;
+auto const true_s_			   = "true"s;
+auto const try_s_			   = "try"s;
 auto const typedef_s_		   = "typedef"s;
 auto const typeid_s_		   = "typeid"s;
 auto const typename_s_		   = "typename"s;
-auto const try_s_			   = "try"s;
-auto const true_s_			   = "true"s;
 auto const union_s_			   = "union"s;
 auto const unsigned_s_		   = "unsigned"s;
 auto const using_s_			   = "using"s;
@@ -404,8 +404,8 @@ auto const override_s_ = "override"s;
 auto const final_s_	   = "final"s;
 auto const bom_s_	   = "\xEF\xBB\xBF"sv;	  // 0xFEFF
 
-auto const VA_ARGS_ = "__VA_ARGS__"s;
-auto const VA_OPT_	= "__VA_OPT__"s;
+auto const VA_ARGS_s_ = "__VA_ARGS__"s;
+auto const VA_OPT_s_  = "__VA_OPT__"s;
 
 // literal list
 std::unordered_set<std::string_view> const alternative_expressions{and_s_, and_eq_s_, bitand_s_, bitor_s_, compl_s_, not_s_, not_eq_s_, or_s_, or_eq_s_, xor_s_, xor_eq_s_};
@@ -420,12 +420,14 @@ std::unordered_set<std::string_view> const preprocessing_directives{
 	else_s_,
 	endif_s_,
 	define_s_,
-	defined_s_,
+	defined_s_,	   // is not directive exactly.
 	undef_s_,
 	line_s_,
 	error_s_,
 	warning_s_,
 	pragma_s_,
+	VA_ARGS_s_,	   // is not directive exactly.
+	VA_OPT_s_,	   // is not directive exactly.
 };
 std::unordered_set<std::string_view> const keywords{
 	alignas_s_,
@@ -439,18 +441,25 @@ std::unordered_set<std::string_view> const keywords{
 	case_s_,
 	catch_s_,
 	char_s_,
+	char8_t_s_,
 	char16_t_s_,
 	char32_t_s_,
 	class_s_,
+	concept_s_,
 	const_s_,
+	consteval_s_,
 	constexpr_s_,
+	constinit_s_,
 	const_cast_s_,
 	continue_s_,
+	co_await_s_,
+	co_return_s_,
+	co_yield_s_,
 
 	decltype_s_,
 	default_s_,
-	do_s_,
 	delete_s_,
+	do_s_,
 	double_s_,
 	dynamic_cast_s_,
 
@@ -486,9 +495,10 @@ std::unordered_set<std::string_view> const keywords{
 	protected_s_,
 	public_s_,
 
-	return_s_,
-	reinterpret_cast_s_,
 	register_s_,
+	reinterpret_cast_s_,
+	requires_s_,
+	return_s_,
 
 	short_s_,
 	signed_s_,
@@ -503,11 +513,11 @@ std::unordered_set<std::string_view> const keywords{
 	this_s_,
 	thread_local_s_,
 	throw_s_,
+	true_s_,
+	try_s_,
 	typedef_s_,
 	typeid_s_,
 	typename_s_,
-	try_s_,
-	true_s_,
 
 	union_s_,
 	unsigned_s_,
