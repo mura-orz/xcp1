@@ -1961,11 +1961,11 @@ lines_t scan(std::filesystem::path const& name) {
 }
 
 }	 // namespace lex
-namespace cxx::ast {
+namespace cxx::def::ast {
 
 class node_t;
 
-}	 // namespace cxx::ast
+}	 // namespace cxx::def::ast
 namespace pp {
 namespace impl {
 
@@ -1999,7 +1999,7 @@ public:
 	void tokens(lex::tokens_t&& tokens) { current_.top()->tokens = std::move(tokens); }
 	void preprocessing_tokens(lex::lines_t const& pp_tokens) { current_.top()->lines = pp_tokens; }
 	void preprocessing_tokens(lex::lines_t&& pp_tokens) { current_.top()->lines = std::move(pp_tokens); }
-	void node(std::shared_ptr<cxx::ast::node_t> nodes) const { current_.top()->node = std::move(nodes); }
+	void node(std::shared_ptr<cxx::def::ast::node_t> nodes) const { current_.top()->node = std::move(nodes); }
 
 	std::optional<std::filesystem::path> find(std::filesystem::path const& header, bool includes_current_path) const {
 		auto dir = path();
@@ -2010,7 +2010,7 @@ public:
 		return std::nullopt;
 	}
 	void push(std::filesystem::path const& path) {
-		paths_.push_back(std::make_shared<file_t>(path, std::string{}, lex::tokens_t{}, lex::lines_t{}, std::shared_ptr<cxx::ast::node_t>{}));
+		paths_.push_back(std::make_shared<file_t>(path, std::string{}, lex::tokens_t{}, lex::lines_t{}, std::shared_ptr<cxx::def::ast::node_t>{}));
 		current_.push(paths_.back());
 	}
 	void pop() { current_.pop(); }
@@ -2055,7 +2055,7 @@ private:
 		std::string						  source;
 		lex::tokens_t					  tokens;
 		lex::lines_t					  lines;
-		std::shared_ptr<cxx::ast::node_t> node;
+		std::shared_ptr<cxx::def::ast::node_t> node;
 	};
 
 	std::vector<std::shared_ptr<file_t>> paths_;		///<    @brief  Stack of current paths.
@@ -2923,6 +2923,7 @@ lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_
 
 }	 // namespace pp
 namespace cxx {
+namespace def {
 namespace ast {
 
 class node_t {
@@ -2952,15 +2953,14 @@ private:
 	std::shared_ptr<lex::pp_token_t>	 token_;
 	std::vector<std::shared_ptr<node_t>> children_;
 };
+using nodes_t = std::vector<std::shared_ptr<node_t>>;
 
 }	 // namespace ast
-namespace stx {
 
 struct parser_t {
-	using nodes_t  = std::vector<std::shared_ptr<ast::node_t>>;
-	using result_t = std::tuple<nodes_t, std::optional<lex::tokens_t>>;
+	using result_t = std::tuple<ast::nodes_t, std::optional<lex::tokens_t>>;
 
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const = 0;
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const = 0;
 
 	virtual ~parser_t() = default;
 };
@@ -2969,11 +2969,11 @@ using parser_p = std::shared_ptr<parser_t const>;
 namespace impl {
 
 struct or_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
 		for (auto const& parser: parsers_) {
 			if (auto const [ns, rest] = parser->parse(nodes, source); rest) { return {ns, rest}; }
 		}
-		return {nodes_t{}, std::nullopt};
+		return {ast::nodes_t{}, std::nullopt};
 	}
 	explicit or_t(std::vector<parser_p> const& parsers) :
 		parsers_{parsers} {}
@@ -2982,8 +2982,8 @@ private:
 	std::vector<parser_p> parsers_;
 };
 struct seq_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
-		nodes_t		  r = nodes;
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
+		ast::nodes_t  r = nodes;
 		lex::tokens_t t = source;
 		for (auto const& parser: parsers_) {
 			if (auto const [ns, rest] = parser->parse(r, t); rest) {
@@ -3002,9 +3002,9 @@ private:
 	std::vector<parser_p> parsers_;
 };
 struct opt_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
 		if (auto const [ns, rest] = parser_->parse(nodes, source); rest) { return {ns, rest}; }
-		return {nodes_t{}, source};
+		return {ast::nodes_t{}, source};
 	}
 	explicit opt_t(parser_p parser) :
 		parser_{parser} {}
@@ -3013,8 +3013,8 @@ private:
 	parser_p parser_;
 };
 struct zom_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const {
-		nodes_t		  r = nodes;
+	virtual result_t parse(def::ast::nodes_t const& nodes, lex::tokens_t const& source) const {
+		def::ast::nodes_t r = nodes;
 		lex::tokens_t t = source;
 		for (;;) {
 			if (auto const [ns, rest] = parser_->parse(r, t); rest) {
@@ -3033,9 +3033,9 @@ private:
 	parser_p parser_;
 };
 struct oom_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
 		if (auto const [ns, rest] = zom_t(parser_).parse(nodes, source); rest && ! ns.empty()) { return {ns, rest}; }
-		return {nodes_t{}, std::nullopt};
+		return {ast::nodes_t{}, std::nullopt};
 	}
 	explicit oom_t(parser_p parser) :
 		parser_{parser} {}
@@ -3045,14 +3045,14 @@ private:
 };
 
 struct tok_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
 		if (source.empty()) return {nodes, {}};
 		if (auto const& token = source.front(); token.is(lex::pp_type_t::Identifier)) {
-			nodes_t ns = nodes;
+			ast::nodes_t ns = nodes;
 			ns.emplace_back(std::make_shared<ast::node_t>(token));
 			return {ns, lex::tokens_t{++source.begin(), source.end()}};
 		}
-		return {nodes_t{}, std::nullopt};
+		return {ast::nodes_t{}, std::nullopt};
 	}
 	explicit tok_t(lex::pp_type_t type) :
 		type_{type} {
@@ -3063,14 +3063,14 @@ private:
 };
 
 struct str_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
 		if (source.empty()) return {nodes, {}};
 		if (auto const& token = source.front(); token.token() == str_) {
-			nodes_t ns = nodes;
+			ast::nodes_t ns = nodes;
 			ns.emplace_back(std::make_shared<ast::node_t>(token));
 			return {ns, lex::tokens_t{++source.begin(), source.end()}};
 		}
-		return {nodes_t{}, std::nullopt};
+		return {ast::nodes_t{}, std::nullopt};
 	}
 	explicit str_t(std::string const& str) :
 		str_{str} {
@@ -3082,16 +3082,16 @@ private:
 };
 
 struct set_t : parser_t {
-	virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override {
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override {
 		if (source.empty()) return {nodes, {}};
 		for (auto const& str: set_) {
 			if (auto const& token = source.front(); token.token() == str) {
-				nodes_t ns = nodes;
+				ast::nodes_t ns = nodes;
 				ns.emplace_back(std::make_shared<ast::node_t>(token));
 				return {ns, lex::tokens_t{++source.begin(), source.end()}};
 			}
 		}
-		return {nodes_t{}, std::nullopt};
+		return {ast::nodes_t{}, std::nullopt};
 	}
 	explicit set_t(std::vector<std::string> const& set) :
 		set_{set} {
@@ -3120,19 +3120,23 @@ inline parser_p op_set_(std::vector<std::string> const& set) { return std::make_
 inline parser_p punc_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set); }
 
 #define xxx_parser_declare(name)                                                                  \
+	namespace ast {		\
+	struct name##node_t : node_t {                                                            \
+	};                                                            \
+	}					\
 	struct name##parser_t : parser_t {                                                            \
-		virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override; \
+		virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override; \
 	};                                                                                            \
 	auto const name = std::make_shared<name##parser_t>()
 
 #define xxx_parser_define(name, body)                                                                 \
 	struct name##parser_t : parser_t {                                                                \
-		virtual result_t parse(nodes_t const& nodes, lex::tokens_t const& source) const override body \
+		virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override body \
 	};                                                                                                \
 	auto const name = std::make_shared<name##parser_t>()
 
 #define xxx_parser_impl(name, body) \
-	inline parser_t::result_t name##parser_t::parse(nodes_t const& nodes, lex::tokens_t const& source) const body
+	inline parser_t::result_t name##parser_t::parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const body
 
 namespace lit {
 auto const scope_	   = op_("::");
@@ -3570,7 +3574,11 @@ xxx_parser_declare(noexcept_specifier_);
 
 //	A.4 Basics [gram.basic]
 
-xxx_parser_impl(translation_unit_, { return or_({zom_(declaration_), seq_({opt_(global_module_fragment_), module_declaration_, zom_(declaration_), opt_(private_module_fragment_)})})->parse(nodes, source); });
+xxx_parser_impl(translation_unit_, {
+	
+	
+	return or_({zom_(declaration_), seq_({opt_(global_module_fragment_), module_declaration_, zom_(declaration_), opt_(private_module_fragment_)})})->parse(nodes, source);
+});
 
 //	A.5 Expressions
 
@@ -3960,10 +3968,10 @@ xxx_parser_impl(handler_, { return seq_({lit::catch_, lit::lp_, exception_declar
 xxx_parser_impl(exception_declaration_, { return or_({lit::ellipsis_, seq_({zom_(attribute_specifier_), oom_(type_specifier_), or_({declarator_, opt_(abstract_declarator_)})})})->parse(nodes, source); });
 xxx_parser_impl(noexcept_specifier_, { return seq_({lit::noexcept_, opt_(seq_({lit::lp_, constant_expression_, lit::rp_}))})->parse(nodes, source); });
 
-}	 // namespace stx
+}	 // namespace def
 
-std::shared_ptr<ast::node_t> parse(lex::tokens_t const& tokens) {
-	if (auto const [nodes, rest] = stx::translation_unit_->parse(stx::parser_t::nodes_t{}, tokens); ! rest) {
+std::shared_ptr<def::ast::node_t> parse(lex::tokens_t const& tokens) {
+	if (auto const [nodes, rest] = def::translation_unit_->parse(def::ast::nodes_t{}, tokens); ! rest) {
 		return nullptr;
 	} else if (! rest->empty()) {
 		return nullptr;
@@ -4009,7 +4017,7 @@ public:
 	auto const& tokens() const noexcept { return paths_.tokens(); }
 	auto const& pp_tokens() const noexcept { return paths_.preprocessing_tokens(); }
 
-	std::shared_ptr<cxx::ast::node_t> compile() {
+	std::shared_ptr<cxx::def::ast::node_t> compile() {
 		log::tracer_t tr{{paths_.path().string()}};
 		if (! ! paths_.nodes()) return paths_.nodes();
 
