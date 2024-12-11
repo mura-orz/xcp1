@@ -3107,8 +3107,8 @@ private:
 inline parser_p or_(std::vector<parser_p> const& parsers) { return std::make_shared<impl::or_t>(parsers); }
 inline parser_p seq_(std::vector<parser_p> const& parsers) { return std::make_shared<impl::seq_t>(parsers); }
 inline parser_p opt_(parser_p parser) { return std::make_shared<impl::opt_t>(parser); }
-inline parser_p zom_(parser_p parser) { return std::make_shared<impl::oom_t>(parser); }
-inline parser_p oom_(parser_p parser) { return std::make_shared<impl::zom_t>(parser); }
+inline parser_p oom_(parser_p parser) { return std::make_shared<impl::oom_t>(parser); }
+inline parser_p zom_(parser_p parser) { return std::make_shared<impl::zom_t>(parser); }
 inline parser_p tok_(lex::pp_type_t type) { return std::make_shared<impl::tok_t>(type); }
 inline parser_p tok_(std::string const& str) { return std::make_shared<impl::str_t>(str); }
 inline parser_p id_(std::string const& str) { return std::make_shared<impl::str_t>(str); }
