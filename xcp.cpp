@@ -1963,7 +1963,7 @@ lines_t scan(std::filesystem::path const& name) {
 }	 // namespace lex
 namespace cxx::def::ast {
 
-class node_t;
+struct node_t;
 
 }	 // namespace cxx::def::ast
 namespace pp {
@@ -2051,10 +2051,10 @@ private:
 
 private:
 	struct file_t {
-		std::filesystem::path			  path;
-		std::string						  source;
-		lex::tokens_t					  tokens;
-		lex::lines_t					  lines;
+		std::filesystem::path				   path;
+		std::string							   source;
+		lex::tokens_t						   tokens;
+		lex::lines_t						   lines;
 		std::shared_ptr<cxx::def::ast::node_t> node;
 	};
 
@@ -2924,9 +2924,362 @@ lex::tokens_t preprocess(cm::condition_manager_t& conditions, mm::macro_manager_
 }	 // namespace pp
 namespace cxx {
 namespace def {
+
+enum class type_t {
+	Terminated,
+	Failure,
+	Identifier,
+	Number,
+	Raw_string,
+	String,
+	Character,
+	Keyword,
+	Block_comment,
+	Line_comment,
+	Whitespace,
+	Newline,
+	Header,
+
+	alignas_,
+	alignof_,
+	asm_,
+	auto_,
+
+	bool_,
+	break_,
+
+	case_,
+	catch_,
+	char_,
+	char8_t_,
+	char16_t_,
+	char32_t_,
+	class_,
+	concept_,
+	const_,
+	consteval_,
+	constexpr_,
+	constinit_,
+	const_cast_,
+	continue_,
+	co_await_,
+	co_return_,
+	co_yield_,
+
+	decltype_,
+	default_,
+	delete_,
+	delete_array,
+	do_,
+	double_,
+	dynamic_cast_,
+
+	else_,
+	enum_,
+	explicit_,
+	export_,
+	extern_,
+
+	false_,
+	float_,
+	for_,
+	friend_,
+
+	goto_,
+
+	if_,
+	inline_,
+	int_,
+
+	long_,
+
+	mutable_,
+
+	namespace_,
+	new_,
+	new_array,
+	noexcept_,
+	nullptr_,
+
+	operator_,
+
+	private_,
+	protected_,
+	public_,
+
+	register_,
+	reinterpret_cast_,
+	requires_,
+	return_,
+
+	short_,
+	signed_,
+	sizeof_,
+	static_,
+	static_assert_,
+	static_cast_,
+	struct_,
+	switch_,
+
+	template_,
+	this_,
+	thread_local_,
+	throw_,
+	true_,
+	try_,
+	typedef_,
+	typeid_,
+	typename_,
+
+	union_,
+	unsigned_,
+	using_,
+
+	virtual_,
+	void_,
+	volatile_,
+
+	wchar_t_,
+	while_,
+
+	final_,
+	override_,
+
+	apostrophe,	   // '   : single quote
+
+	pp_directive,
+
+	increment,			// ++  : increment
+	add_assign,			// +=  : add assignment
+	plus,				// +	  : add / plus
+	decrement,			// --  : decrement
+	subtract_assign,	// -=  : subtract assignment
+	minus,				// -	  : subtract / minus
+	arrow_star,			// ->* : arrow & asterisk
+	arrow,				// ->  : arrow
+	star,				// *   : multiple / asterisk
+	multiple_assign,	// *=  : multiple assignment
+	spaceship,			// <=> : spaceship
+	divide,				// /   : divide
+	divide_assign,		// /=  : divide assignment
+	surplus,			// %   : surplus
+	surplus_assign,		// %=  : surplus assignment
+	and_,				// &&  : logical and
+	and_eq_,			// &=  : bitwise and assignment
+	bitand_,			// &   : bitwise and
+	or_,				// ||  : logical or
+	or_eq_,				// |=  : bitwise or assignment
+	bitor_,				// |   : bitwise or
+	xor_,				// ^   : bitwise xor
+	xor_eq_,			// ^=  : bitwise xor assignment
+	compl_,				// ~   : bitwise not
+	not_,				// !   : logical not
+	not_eq_,			// !=  : not equal
+	assign,				// =   : equal
+	eq,					// ==  : equal
+	l_shift,			// <<  : shift left
+	lt_eq,				// <=  : less than or equal
+	lt,					// <   : less than
+	l_shift_assign,		// <<= : shift left assignment
+	r_shift,			// >>  : shift right
+	gt_eq,				// >=  : greater than or equal
+	gt,					// >   : greater than
+	r_shift_assign,		// >>= : shift right assignment
+	question,			// ?   : conditional
+	colon,				// :   : colon
+	scope,				// ::  : scope
+	semi,				// ;   : semicolon
+	comma,				// ,   : comma
+	dot,				// .   : dot
+	dot_star,			// .*  : dot & asterisk
+	ellipsis,			// ... : ellipsis
+	l_paren,			// (   : left parenthesis
+	r_paren,			// )   : right parenthesis
+	l_bracket,			// [   : left bracket
+	r_bracket,			// ]   : right bracket
+	l_brace,			// {   : left brace
+	r_brace,			// }   : right brace
+	hash,				// #   : hash
+	hash2,				// ##  : hash & hash
+	dollar,				// $   : dollar
+};
+
+namespace def {
+
+std::unordered_map<type_t, std::string> const type_names{
+	{type_t::Terminated, "Terminated"},
+	{type_t::Failure, "Failure"},
+	{type_t::Identifier, "Identifier"},
+	{type_t::Number, "Number"},
+	{type_t::Raw_string, "Raw_string"},
+	{type_t::String, "String"},
+	{type_t::Character, "Character"},
+	{type_t::Keyword, "Keyword"},
+	{type_t::Block_comment, "Block_comment"},
+	{type_t::Line_comment, "Line_comment"},
+	{type_t::Whitespace, "Whitespace"},
+	{type_t::Newline, "Newline"},
+	{type_t::Header, "Header"},
+
+	{type_t::alignas_, "alignas"},
+	{type_t::alignof_, "alignof"},
+	{type_t::asm_, "asm"},
+	{type_t::auto_, "auto"},
+	{type_t::bool_, "bool"},
+	{type_t::break_, "break"},
+	{type_t::case_, "case"},
+	{type_t::catch_, "catch"},
+	{type_t::char_, "char"},
+	{type_t::char8_t_, "char8_t"},
+	{type_t::char16_t_, "char16_t"},
+	{type_t::char32_t_, "char32_t"},
+	{type_t::class_, "class"},
+	{type_t::concept_, "concept"},
+	{type_t::const_, "const"},
+	{type_t::consteval_, "consteval"},
+	{type_t::constexpr_, "constexpr"},
+	{type_t::constinit_, "constinit"},
+	{type_t::const_cast_, "const_cast"},
+	{type_t::co_await_, "co_await"},
+	{type_t::co_return_, "co_return"},
+	{type_t::co_yield_, "co_yield"},
+	{type_t::continue_, "continue"},
+	{type_t::decltype_, "decltype"},
+	{type_t::default_, "default"},
+	{type_t::delete_, "delete"},
+	{type_t::do_, "do"},
+	{type_t::double_, "double"},
+	{type_t::dynamic_cast_, "dynamic_cast"},
+	{type_t::else_, "else"},
+	{type_t::enum_, "enum"},
+	{type_t::explicit_, "explicit"},
+	{type_t::export_, "export"},
+	{type_t::extern_, "extern"},
+	{type_t::false_, "false"},
+	{type_t::float_, "float"},
+	{type_t::for_, "for"},
+	{type_t::friend_, "friend"},
+	{type_t::goto_, "goto"},
+	{type_t::if_, "if"},
+	{type_t::inline_, "inline"},
+	{type_t::int_, "int"},
+	{type_t::long_, "long"},
+	{type_t::mutable_, "mutable"},
+	{type_t::namespace_, "namespace"},
+	{type_t::new_, "new"},
+	{type_t::noexcept_, "noexcept"},
+	{type_t::nullptr_, "nullptr"},
+	{type_t::operator_, "operator"},
+	{type_t::private_, "private"},
+	{type_t::protected_, "protected"},
+	{type_t::public_, "public"},
+	{type_t::register_, "register"},
+	{type_t::reinterpret_cast_, "reinterpret_cast"},
+	{type_t::requires_, "requires"},
+	{type_t::return_, "return"},
+	{type_t::short_, "short"},
+	{type_t::signed_, "signed"},
+	{type_t::sizeof_, "sizeof"},
+	{type_t::static_, "static"},
+	{type_t::static_assert_, "static_assert"},
+	{type_t::static_cast_, "static_cast"},
+	{type_t::struct_, "struct"},
+	{type_t::switch_, "switch"},
+	{type_t::template_, "template"},
+	{type_t::this_, "this"},
+	{type_t::thread_local_, "thread_local"},
+	{type_t::throw_, "throw"},
+	{type_t::true_, "true"},
+	{type_t::try_, "try"},
+	{type_t::typedef_, "typedef"},
+	{type_t::typeid_, "typeid"},
+	{type_t::typename_, "typename"},
+	{type_t::union_, "union"},
+	{type_t::unsigned_, "unsigned"},
+	{type_t::using_, "using"},
+	{type_t::virtual_, "virtual"},
+	{type_t::void_, "void"},
+	{type_t::volatile_, "volatile"},
+	{type_t::wchar_t_, "wchar_t"},
+	{type_t::while_, "while"},
+
+	{type_t::final_, "final"},
+	{type_t::override_, "override"},
+
+	{type_t::apostrophe, "apostrophe"},	   // '   : single quote
+
+	{type_t::pp_directive, "pp_directive"},
+
+	{type_t::increment, "++"},
+	{type_t::add_assign, "+="},
+	{type_t::plus, "+"},
+	{type_t::decrement, "--"},
+	{type_t::subtract_assign, "-="},
+	{type_t::minus, "-"},
+	{type_t::arrow_star, "->*"},
+	{type_t::arrow, "->"},
+	{type_t::star, "*"},
+	{type_t::multiple_assign, "*="},
+	{type_t::spaceship, "<=>"},
+	{type_t::divide, "/"},
+	{type_t::divide_assign, "/="},
+	{type_t::surplus, "%"},
+	{type_t::surplus_assign, "%="},
+	{type_t::and_, "&&"},
+	{type_t::and_eq_, "&="},
+	{type_t::bitand_, "&"},
+	{type_t::or_, "||"},
+	{type_t::or_eq_, "|="},
+	{type_t::bitor_, "|"},
+	{type_t::xor_, "^"},
+	{type_t::xor_eq_, "^="},
+	{type_t::compl_, "~"},
+	{type_t::not_, "!"},
+	{type_t::not_eq_, "!="},
+	{type_t::assign, "="},
+	{type_t::eq, "=="},
+	{type_t::lt, "<"},
+	{type_t::gt, ">"},
+	{type_t::lt_eq, "<="},
+	{type_t::gt_eq, ">="},
+	{type_t::r_shift, "<<"},
+	{type_t::r_shift_assign, "<<="},
+	{type_t::l_shift, ">>"},
+	{type_t::l_shift_assign, ">>="},
+	{type_t::question, "?"},
+	{type_t::colon, ":"},
+	{type_t::scope, "::"},
+	{type_t::semi, ";"},
+	{type_t::comma, ","},
+	{type_t::dot, "."},
+	{type_t::dot_star, ".*"},
+	{type_t::ellipsis, "..."},
+	{type_t::l_paren, "("},
+	{type_t::r_paren, ")"},
+	{type_t::l_bracket, "["},
+	{type_t::r_bracket, "]"},
+	{type_t::l_brace, "{"},
+	{type_t::r_brace, "}"},
+	{type_t::hash, "#"},
+	{type_t::hash2, "##"},
+	{type_t::dollar, "$"},
+};
+
+}	 // namespace def
+
+inline std::string to_string(type_t t) {
+	using enum type_t;
+
+	return "<{" + def::type_names.find(t)->second + "("s + std::to_string(static_cast<int>(t)) + ")}>"s;
+}
+inline std::ostream& operator<<(std::ostream& os, type_t t) {
+	os << to_string(t);
+	return os;
+}
+
 namespace ast {
 
-class node_t {
+struct node_t {
 public:
 	auto token() const noexcept { return token_; }
 	auto children() const noexcept { return children_; }
@@ -2937,6 +3290,9 @@ public:
 	}
 
 public:
+	node_t() noexcept :
+		token_{}, children_{} {}
+
 	///     @note   implicit
 	explicit node_t(lex::pp_token_t const& token) :
 		token_{std::make_shared<lex::pp_token_t>(token)}, children_{} {}
@@ -2954,6 +3310,1255 @@ private:
 	std::vector<std::shared_ptr<node_t>> children_;
 };
 using nodes_t = std::vector<std::shared_ptr<node_t>>;
+
+template<type_t T>
+struct kw_n_ : node_t {
+};
+template<type_t T>
+using kw_p = std::shared_ptr<kw_n_<T>>;
+
+template<type_t... T>
+struct kws_n_ : node_t {
+	std::unordered_set<type_t> kws_;
+};
+template<type_t... T>
+using kws_p = std::shared_ptr<kws_n_<T...>>;
+
+#define xxx_define_ptr(name) \
+	struct name##n_;         \
+	using name##p_ = std::shared_ptr<name##n_>
+
+//  A.2 Keywords [gram.key]
+xxx_define_ptr(simple_template_id_);
+xxx_define_ptr(identifier_);
+
+//	A.3 Lexical conventions
+xxx_define_ptr(typedef_name_);
+xxx_define_ptr(namespace_alias_);
+xxx_define_ptr(namespace_name_);
+xxx_define_ptr(class_name_);
+xxx_define_ptr(enum_name_);
+xxx_define_ptr(template_name_);
+
+//	A.3 Lexical conventions
+// xxx_define_ptr(token_);
+xxx_define_ptr(header_name_);
+// xxx_define_ptr(keyword_);
+// xxx_define_ptr(import_keyword_);
+// xxx_define_ptr(module_keyword_);
+// xxx_define_ptr(export_keyword_);
+xxx_define_ptr(literal_);
+// xxx_define_ptr(integer_literal_);
+// xxx_define_ptr(binary_literal_);
+// xxx_define_ptr(octal_literal_);
+// xxx_define_ptr(decimal_literal_);
+// xxx_define_ptr(hexadecimal_literal_);
+// xxx_define_ptr(character_literal_);
+// xxx_define_ptr(floating_point_literal_);
+xxx_define_ptr(string_literal_);
+// xxx_define_ptr(boolean_literal_);
+// xxx_define_ptr(pointer_literal_);
+// xxx_define_ptr(user_defined_literal_);
+// xxx_define_ptr(user_defined_integer_literal_);
+// xxx_define_ptr(user_defined_floating_point_literal_);
+xxx_define_ptr(user_defined_string_literal_);
+// xxx_define_ptr(user_defined_character_literal_);
+
+//	A.4 Basics [gram.basic]
+xxx_define_ptr(translation_unit_);
+
+//	A.5 Expressions
+xxx_define_ptr(primary_expression_);
+xxx_define_ptr(id_expression_);
+xxx_define_ptr(unqualified_id_);
+xxx_define_ptr(qualified_id_);
+xxx_define_ptr(nested_name_specifier_);
+xxx_define_ptr(lambda_expression_);
+xxx_define_ptr(lambda_introducer_);
+xxx_define_ptr(lambda_declarator_);
+xxx_define_ptr(lambda_specifier_);
+xxx_define_ptr(lambda_capture_);
+xxx_define_ptr(capture_default_);
+xxx_define_ptr(capture_list_);
+xxx_define_ptr(capture_);
+xxx_define_ptr(simple_capture_);
+xxx_define_ptr(init_capture_);
+xxx_define_ptr(fold_expression_);
+xxx_define_ptr(fold_operator_);
+xxx_define_ptr(requires_expression_);
+xxx_define_ptr(requirement_parameter_list_);
+xxx_define_ptr(requirement_body_);
+xxx_define_ptr(requirement_);
+xxx_define_ptr(simple_requirement_);
+xxx_define_ptr(type_requirement_);
+xxx_define_ptr(compound_requirement_);
+xxx_define_ptr(return_type_requirement_);
+xxx_define_ptr(nested_requirement_);
+xxx_define_ptr(postfix_expression_);
+xxx_define_ptr(expression_list_);
+xxx_define_ptr(unary_expression_);
+xxx_define_ptr(unary_operator_);
+xxx_define_ptr(await_expression_);
+xxx_define_ptr(noexcept_expression_);
+xxx_define_ptr(new_expression_);
+xxx_define_ptr(new_placement_);
+xxx_define_ptr(new_type_id_);
+xxx_define_ptr(new_declarator_);
+xxx_define_ptr(noptr_new_declarator_);
+xxx_define_ptr(new_initializer_);
+xxx_define_ptr(delete_expression_);
+xxx_define_ptr(cast_expression_);
+xxx_define_ptr(pm_expression_);
+xxx_define_ptr(multiplicative_expression_);
+xxx_define_ptr(additive_expression_);
+xxx_define_ptr(shift_expression_);
+xxx_define_ptr(compare_expression_);
+xxx_define_ptr(relational_expression_);
+xxx_define_ptr(equality_expression_);
+xxx_define_ptr(and_expression_);
+xxx_define_ptr(exclusive_or_expression_);
+xxx_define_ptr(inclusive_or_expression_);
+xxx_define_ptr(logical_and_expression_);
+xxx_define_ptr(logical_or_expression_);
+xxx_define_ptr(conditional_expression_);
+xxx_define_ptr(yield_expression_);
+xxx_define_ptr(throw_expression_);
+xxx_define_ptr(assignment_expression_);
+xxx_define_ptr(assignment_operator_);
+xxx_define_ptr(expression_);
+xxx_define_ptr(constant_expression_);
+
+//	A.6 Statements
+xxx_define_ptr(statement_);
+xxx_define_ptr(init_statement_);
+xxx_define_ptr(condition_);
+xxx_define_ptr(label_);
+xxx_define_ptr(labeled_statement_);
+xxx_define_ptr(expression_statement_);
+xxx_define_ptr(compound_statement_);
+xxx_define_ptr(selection_statement_);
+xxx_define_ptr(iteration_statement_);
+xxx_define_ptr(for_range_declaration_);
+xxx_define_ptr(for_range_initializer_);
+xxx_define_ptr(jump_statement_);
+xxx_define_ptr(coroutine_return_statement_);
+xxx_define_ptr(declaration_statement_);
+
+//	A.7 Declarations
+xxx_define_ptr(declaration_);
+xxx_define_ptr(name_declaration_);
+xxx_define_ptr(special_declaration_);
+xxx_define_ptr(block_declaration_);
+xxx_define_ptr(nodeclspec_function_declaration_);
+xxx_define_ptr(alias_declaration_);
+xxx_define_ptr(simple_declaration_);
+xxx_define_ptr(static_assert_declaration_);
+xxx_define_ptr(empty_declaration_);
+xxx_define_ptr(attribute_declaration_);
+xxx_define_ptr(decl_specifier_);
+xxx_define_ptr(decl_specifier_seq_);
+xxx_define_ptr(storage_class_specifier_);
+xxx_define_ptr(function_specifier_);
+xxx_define_ptr(explicit_specifier_);
+xxx_define_ptr(type_specifier_);
+xxx_define_ptr(defining_type_specifier_);
+xxx_define_ptr(simple_type_specifier_);
+xxx_define_ptr(type_name_);
+xxx_define_ptr(elaborated_type_specifier_);
+xxx_define_ptr(decltype_specifier_);
+xxx_define_ptr(placeholder_type_specifier_);
+xxx_define_ptr(init_declarator_list_);
+xxx_define_ptr(init_declarator_);
+xxx_define_ptr(declarator_);
+xxx_define_ptr(ptr_declarator_);
+xxx_define_ptr(noptr_declarator_);
+xxx_define_ptr(parameters_and_qualifiers_);
+xxx_define_ptr(trailing_return_type_);
+xxx_define_ptr(ptr_operator_);
+xxx_define_ptr(cv_qualifier_);
+xxx_define_ptr(ref_qualifier_);
+xxx_define_ptr(declarator_id_);
+xxx_define_ptr(type_id_);
+xxx_define_ptr(defining_type_id_);
+xxx_define_ptr(abstract_declarator_);
+xxx_define_ptr(ptr_abstract_declarator_);
+xxx_define_ptr(noptr_abstract_declarator_);
+xxx_define_ptr(abstract_pack_declarator_);
+xxx_define_ptr(noptr_abstract_pack_declarator_);
+xxx_define_ptr(parameter_declaration_clause_);
+xxx_define_ptr(parameter_declaration_list_);
+xxx_define_ptr(parameter_declaration_);
+xxx_define_ptr(initializer_);
+xxx_define_ptr(brace_or_equal_initializer_);
+xxx_define_ptr(initializer_clause_);
+xxx_define_ptr(braced_init_list_);
+xxx_define_ptr(initializer_list_);
+xxx_define_ptr(designated_initializer_list_);
+xxx_define_ptr(designated_initializer_clause_);
+xxx_define_ptr(designator_);
+xxx_define_ptr(expr_or_braced_init_list_);
+xxx_define_ptr(function_definition_);
+xxx_define_ptr(function_body_);
+xxx_define_ptr(enum_specifier_);
+xxx_define_ptr(enum_head_);
+xxx_define_ptr(enum_head_name_);
+xxx_define_ptr(opaque_enum_declaration_);
+xxx_define_ptr(enum_key_);
+xxx_define_ptr(enum_base_);
+xxx_define_ptr(enumerator_list_);
+xxx_define_ptr(enumerator_definition_);
+xxx_define_ptr(enumerator_);
+xxx_define_ptr(using_enum_declaration_);
+xxx_define_ptr(using_enum_declarator_);
+xxx_define_ptr(namespace_definition_);
+xxx_define_ptr(named_namespace_definition_);
+xxx_define_ptr(unnamed_namespace_definition_);
+xxx_define_ptr(nested_namespace_definition_);
+xxx_define_ptr(enclosing_namespace_specifier_);
+xxx_define_ptr(namespace_body_);
+xxx_define_ptr(namespace_alias_definition_);
+xxx_define_ptr(qualified_namespace_specifier_);
+xxx_define_ptr(using_directive_);
+xxx_define_ptr(using_declaration_);
+xxx_define_ptr(using_declarator_list_);
+xxx_define_ptr(using_declarator_);
+xxx_define_ptr(asm_declaration_);
+xxx_define_ptr(linkage_specification_);
+xxx_define_ptr(attribute_specifier_);
+xxx_define_ptr(alignment_specifier_);
+xxx_define_ptr(attribute_using_prefix_);
+xxx_define_ptr(attribute_list_);
+xxx_define_ptr(attribute_);
+xxx_define_ptr(attribute_token_);
+xxx_define_ptr(attribute_scoped_token_);
+xxx_define_ptr(attribute_namespace_);
+xxx_define_ptr(attribute_argument_clause_);
+xxx_define_ptr(balanced_token_);
+
+//	A.8 Modules
+xxx_define_ptr(module_declaration_);
+xxx_define_ptr(module_name_);
+xxx_define_ptr(module_partition_);
+xxx_define_ptr(module_name_qualifier_);
+xxx_define_ptr(export_declaration_);
+xxx_define_ptr(module_import_declaration_);
+xxx_define_ptr(global_module_fragment_);
+xxx_define_ptr(private_module_fragment_);
+
+//	A.9 Classes
+xxx_define_ptr(class_specifier_);
+xxx_define_ptr(class_head_);
+xxx_define_ptr(class_head_name_);
+xxx_define_ptr(class_virt_specifier_);
+xxx_define_ptr(class_key_);
+xxx_define_ptr(member_specification_);
+xxx_define_ptr(member_declaration_);
+xxx_define_ptr(member_declarator_list_);
+xxx_define_ptr(member_declarator_);
+xxx_define_ptr(virt_specifier_);
+xxx_define_ptr(pure_specifier_);
+xxx_define_ptr(conversion_function_id_);
+xxx_define_ptr(conversion_type_id_);
+xxx_define_ptr(conversion_declarator_);
+xxx_define_ptr(base_clause_);
+xxx_define_ptr(base_specifier_list_);
+xxx_define_ptr(base_specifier_);
+xxx_define_ptr(class_or_decltype_);
+xxx_define_ptr(access_specifier_);
+xxx_define_ptr(ctor_initializer_);
+xxx_define_ptr(mem_initializer_list_);
+xxx_define_ptr(mem_initializer_);
+xxx_define_ptr(mem_initializer_id_);
+
+//	A.10 Overloading
+xxx_define_ptr(operator_function_id_);
+xxx_define_ptr(operator_);
+xxx_define_ptr(literal_operator_id_);
+
+//	A.11 Templates
+xxx_define_ptr(template_declaration_);
+xxx_define_ptr(template_head_);
+xxx_define_ptr(template_parameter_list_);
+xxx_define_ptr(requires_clause_);
+xxx_define_ptr(constraint_logical_or_expression_);
+xxx_define_ptr(constraint_logical_and_expression_);
+xxx_define_ptr(template_parameter_);
+xxx_define_ptr(type_parameter_);
+xxx_define_ptr(type_parameter_key_);
+xxx_define_ptr(type_constraint_);
+xxx_define_ptr(template_id_);
+xxx_define_ptr(template_argument_list_);
+xxx_define_ptr(template_argument_);
+xxx_define_ptr(constraint_expression_);
+xxx_define_ptr(deduction_guide_);
+xxx_define_ptr(concept_definition_);
+xxx_define_ptr(concept_name_);
+xxx_define_ptr(typename_specifier_);
+xxx_define_ptr(explicit_instantiation_);
+xxx_define_ptr(explicit_specialization_);
+
+//	A.12 Exception handling
+xxx_define_ptr(try_block_);
+xxx_define_ptr(function_try_block_);
+xxx_define_ptr(handler_);
+xxx_define_ptr(exception_declaration_);
+xxx_define_ptr(noexcept_specifier_);
+
+#undef xxx_define_ptr
+
+struct simple_template_id_n_ : node_t {
+	std::tuple<template_name_p_, std::optional<template_argument_list_p_>> _;
+};
+struct identifier_n_ : node_t {};
+
+//  A.2 Keywords [gram.key]
+
+struct typedef_name_n_ : node_t {
+	std::variant<simple_template_id_p_, identifier_p_> _;
+};
+struct namespace_alias_n_ : node_t {
+	identifier_p_ _;
+};
+struct namespace_name_n_ : node_t {
+	std::variant<namespace_alias_p_, identifier_p_> _;
+};
+struct class_name_n_ : node_t {
+	std::variant<simple_template_id_p_, identifier_p_> _;
+};
+struct enum_name_n_ : node_t {
+	identifier_p_ _;
+};
+struct template_name_n_ : node_t {
+	identifier_p_ _;
+};
+
+//	A.3 Lexical conventions
+
+// xxx_parser_declare(token_);
+// xxx_parser_declare(header_name_);
+// xxx_parser_declare(keyword_);
+// xxx_parser_define(import_keyword_, { return lit::import_->parse(nodes, source); });
+// xxx_parser_define(module_keyword_, { return lit::module_->parse(nodes, source); });
+// xxx_parser_define(export_keyword_, { return lit::export_->parse(nodes, source); });
+// xxx_parser_declare(literal_);
+// xxx_parser_declare(integer_literal_);
+// xxx_parser_declare(binary_literal_);
+// xxx_parser_declare(octal_literal_);
+// xxx_parser_declare(decimal_literal_);
+// xxx_parser_declare(hexadecimal_literal_);
+// xxx_parser_declare(character_literal_);
+// xxx_parser_declare(floating_point_literal_);
+// xxx_parser_declare(string_literal_);
+// xxx_parser_define(boolean_literal_, { return kw_set_({lex::def::true_s_, lex::def::false_s_})->parse(nodes, source); });
+// xxx_parser_define(pointer_literal_, { return lit::nullptr_->parse(nodes, source); });
+// xxx_parser_declare(user_defined_literal_);
+// xxx_parser_declare(user_defined_integer_literal_);
+// xxx_parser_declare(user_defined_floating_point_literal_);
+// xxx_parser_declare(user_defined_string_literal_);
+// xxx_parser_declare(user_defined_character_literal_);
+
+//	A.4 Basics [gram.basic]
+
+struct translation_unit_n_ : node_t {
+	std::variant<std::vector<declaration_p_>, std::tuple<std::optional<global_module_fragment_p_>, module_declaration_p_, std::vector<declaration_p_>, std::optional<private_module_fragment_p_>>> _;
+};
+
+//	A.5 Expressions
+
+struct primary_expression_n_ : node_t {
+	std::variant<literal_p_, kw_p<type_t::this_>, expression_p_, id_expression_p_, lambda_expression_p_, fold_expression_p_, requires_expression_p_> _;
+};
+struct id_expression_n_ : node_t {
+	std::variant<unqualified_id_p_, qualified_id_p_> _;
+};
+struct unqualified_id_n_ : node_t {
+	std::variant<identifier_p_, operator_function_id_p_, conversion_function_id_p_, literal_operator_id_p_, type_name_p_, decltype_specifier_p_, template_id_p_> _;
+};
+struct qualified_id_n_ : node_t {
+	std::tuple<nested_name_specifier_p_, std::optional<kw_p<type_t::template_>>, unqualified_id_p_> _;
+};
+struct nested_name_specifier_n_ : node_t {
+	std::tuple<std::vector<std::variant<kw_p<type_t::scope>, type_name_p_, namespace_name_p_, decltype_specifier_p_>>, std::variant<identifier_p_, std::tuple<std::optional<kw_p<type_t::template_>>, simple_template_id_p_>>> _;
+};
+struct lambda_expression_n_ : node_t {
+	std::tuple<lambda_introducer_p_, std::optional<std::tuple<template_parameter_list_p_, std::optional<requires_clause_p_>>>, std::vector<attribute_specifier_p_>, lambda_declarator_p_, compound_statement_p_> _;
+};
+struct lambda_introducer_n_ : node_t {
+	std::optional<lambda_capture_p_> _;
+};
+struct lambda_declarator_n_ : node_t {
+	std::variant<
+		std::tuple<std::vector<lambda_specifier_p_>, std::optional<noexcept_specifier_p_>, std::vector<attribute_specifier_p_>, std::optional<trailing_return_type_p_>>,
+		std::tuple<noexcept_specifier_p_, std::vector<attribute_specifier_p_>, std::optional<trailing_return_type_p_>>,
+		std::optional<trailing_return_type_p_>,
+		std::tuple<parameter_declaration_clause_p_, std::vector<lambda_specifier_p_>, std::optional<noexcept_specifier_p_>, std::vector<attribute_specifier_p_>, std::optional<trailing_return_type_p_>, std::optional<requires_clause_p_>>>
+		_;
+};
+struct lambda_specifier_n_ : node_t {
+	kws_p<type_t::consteval_, type_t::constexpr_, type_t::mutable_, type_t::static_> _;
+};
+struct lambda_capture_n_ : node_t {
+	std::variant<
+		capture_default_p_,
+		capture_list_p_,
+		std::tuple<capture_default_p_, capture_list_p_>>
+		_;
+};
+struct capture_default_n_ : node_t {
+	kws_p<type_t::bitand_, type_t::assign> _;
+};
+struct capture_list_n_ : node_t {
+	std::vector<capture_p_> _;
+};
+struct capture_n_ : node_t {
+	std::variant<simple_capture_p_, init_capture_p_> _;
+};
+struct simple_capture_n_ : node_t {
+	std::variant<
+		std::tuple<std::optional<kw_p<type_t::bitand_>>, identifier_p_, std::optional<kw_p<type_t::ellipsis>>>,
+		std::tuple<std::optional<kw_p<type_t::bitand_>>, std::optional<kw_p<type_t::this_>>>>
+		_;
+};
+struct init_capture_n_ : node_t {
+	std::tuple<kws_p<type_t::bitand_, type_t::ellipsis>, identifier_p_, initializer_p_> _;
+};
+struct fold_expression_n_ : node_t {
+	std::variant<
+		std::tuple<cast_expression_p_, fold_operator_p_>,
+		std::tuple<fold_operator_p_, cast_expression_p_>,
+		std::tuple<cast_expression_p_, fold_operator_p_, fold_operator_p_, cast_expression_p_>>
+		_;
+};
+struct fold_operator_n_ : node_t {
+	kws_p<type_t::plus, type_t::minus, type_t::star, type_t::divide, type_t::surplus, type_t::xor_, type_t::and_, type_t::or_, type_t::l_shift, type_t::r_shift, type_t::add_assign, type_t::subtract_assign, type_t::multiple_assign, type_t::divide_assign, type_t::surplus_assign, type_t::xor_eq_, type_t::and_eq_, type_t::or_eq_, type_t::l_shift_assign, type_t::r_shift_assign, type_t::assign, type_t::eq, type_t::not_eq_, type_t::lt, type_t::gt, type_t::lt_eq, type_t::gt_eq, type_t::bitand_, type_t::bitor_, type_t::comma, type_t::dot_star, type_t::arrow_star> _;
+};
+struct requires_expression_n_ : node_t {
+	std::tuple<std::optional<requirement_parameter_list_p_>, requirement_body_p_> _;
+};
+struct requirement_parameter_list_n_ : node_t {
+	parameter_declaration_clause_p_ _;
+};
+struct requirement_body_n_ : node_t {
+	std::vector<requirement_p_> _;
+};
+struct requirement_n_ : node_t {
+	std::variant<simple_requirement_p_, type_requirement_p_, compound_requirement_p_, nested_requirement_p_> _;
+};
+struct simple_requirement_n_ : node_t {
+	expression_p_ _;
+};
+struct type_requirement_n_ : node_t {
+	std::tuple<std::optional<nested_name_specifier_p_>, type_name_p_> _;
+};
+struct compound_requirement_n_ : node_t {
+	std::tuple<expression_p_, std::optional<kw_p<type_t::noexcept_>>, std::optional<return_type_requirement_p_>> _;
+};
+struct return_type_requirement_n_ : node_t {
+	type_constraint_p_ _;
+};
+struct nested_requirement_n_ : node_t {
+	constraint_expression_p_ _;
+};
+struct postfix_expression_n_ : node_t {
+	std::tuple<
+		std::variant<
+			primary_expression_p_,
+			std::tuple<simple_type_specifier_p_, std::optional<expression_list_p_>>,
+			std::tuple<typename_specifier_p_, std::optional<expression_list_p_>>,
+			std::tuple<simple_type_specifier_p_, braced_init_list_p_>,
+			std::tuple<typename_specifier_p_, braced_init_list_p_>,
+			std::tuple<kws_p<type_t::dynamic_cast_, type_t::static_cast_, type_t::reinterpret_cast_, type_t::const_cast_>, type_id_p_, expression_p_>,
+			std::variant<expression_p_, type_id_p_>>,
+		std::vector<std::tuple<
+			kws_p<type_t::increment, type_t::decrement>,
+			std::tuple<kws_p<type_t::dot, type_t::arrow>, std::optional<kw_p<type_t::template_>>, id_expression_p_>,
+			std::tuple<kws_p<type_t::l_bracket, type_t::l_paren>, std::optional<expression_list_p_>>>>>
+		_;
+};
+struct expression_list_n_ : node_t {
+	initializer_list_p_ _;
+};
+struct unary_expression_n_ : node_t {
+	std::variant<
+		postfix_expression_p_,
+		std::tuple<unary_operator_p_, cast_expression_p_>,
+		std::tuple<kws_p<type_t::increment, type_t::decrement>, cast_expression_p_>,
+		await_expression_p_,
+		std::tuple<kw_p<type_t::sizeof_>, std::variant<unary_expression_p_, type_id_p_>>,
+		std::tuple<kw_p<type_t::alignof_>, std::variant<identifier_p_, type_id_p_>>,
+		noexcept_expression_p_,
+		new_expression_p_,
+		delete_expression_p_>
+		_;
+};
+struct unary_operator_n_ : node_t {
+	kws_p<type_t::star, type_t::and_, type_t::plus, type_t::minus, type_t::not_, type_t::compl_> _;
+};
+struct await_expression_n_ : node_t {
+	cast_expression_p_ _;
+};
+struct noexcept_expression_n_ : node_t {
+	expression_p_ _;
+};
+struct new_expression_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::scope>>, std::optional<new_placement_p_>, std::variant<new_type_id_p_, type_id_p_>, std::optional<new_initializer_p_>> _;
+};
+struct new_placement_n_ : node_t {
+	expression_list_p_ _;
+};
+struct new_type_id_n_ : node_t {
+	std::tuple<std::vector<type_specifier_p_>, std::optional<new_declarator_p_>> _;
+};
+struct new_declarator_n_ : node_t {
+	std::tuple<std::vector<ptr_operator_p_>, noptr_new_declarator_p_> _;
+};
+struct noptr_new_declarator_n_ : node_t {
+	std::tuple<std::optional<expression_p_>, std::vector<attribute_specifier_p_>, std::vector<std::tuple<constant_expression_p_, std::vector<attribute_specifier_p_>>>> _;
+};
+struct new_initializer_n_ : node_t {
+	std::variant<std::optional<expression_list_p_>, braced_init_list_p_> _;
+};
+struct delete_expression_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::scope>>, std::optional<kw_p<type_t::l_bracket>>, cast_expression_p_> _;
+};
+struct cast_expression_n_ : node_t {
+	std::variant<unary_expression_p_, std::tuple<type_id_p_, cast_expression_p_>> _;
+};
+struct pm_expression_n_ : node_t {
+	std::tuple<cast_expression_p_, std::vector<std::tuple<kws_p<type_t::dot_star, type_t::arrow_star>, cast_expression_p_>>> _;
+};
+struct multiplicative_expression_n_ : node_t {
+	std::tuple<pm_expression_p_, std::vector<std::tuple<kws_p<type_t::star, type_t::divide, type_t::surplus>, pm_expression_p_>>> _;
+};
+struct additive_expression_n_ : node_t {
+	std::tuple<multiplicative_expression_p_, std::vector<std::tuple<kws_p<type_t::plus, type_t::minus>, multiplicative_expression_p_>>> _;
+};
+struct shift_expression_n_ : node_t {
+	std::tuple<additive_expression_p_, std::vector<std::tuple<kws_p<type_t::l_shift, type_t::r_shift>, additive_expression_p_>>> _;
+};
+struct compare_expression_n_ : node_t {
+	std::vector<shift_expression_p_> _;
+};
+struct relational_expression_n_ : node_t {
+	std::tuple<compare_expression_p_, std::vector<std::tuple<kws_p<type_t::lt, type_t::gt, type_t::lt_eq, type_t::gt_eq>, compare_expression_p_>>> _;
+};
+struct equality_expression_n_ : node_t {
+	std::tuple<relational_expression_p_, std::vector<std::tuple<kws_p<type_t::eq, type_t::not_eq_>, relational_expression_p_>>> _;
+};
+struct and_expression_n_ : node_t {
+	std::vector<equality_expression_p_> _;
+};
+struct exclusive_or_expression_n_ : node_t {
+	std::vector<and_expression_p_> _;
+};
+struct inclusive_or_expression_n_ : node_t {
+	std::vector<exclusive_or_expression_p_> _;
+};
+struct logical_and_expression_n_ : node_t {
+	std::vector<inclusive_or_expression_p_> _;
+};
+struct logical_or_expression_n_ : node_t {
+	std::vector<logical_and_expression_p_> _;
+};
+struct conditional_expression_n_ : node_t {
+	std::variant<logical_or_expression_p_, std::tuple<logical_or_expression_p_, expression_p_, assignment_expression_p_>> _;
+};
+struct yield_expression_n_ : node_t {
+	std::variant<assignment_expression_p_, braced_init_list_p_> _;
+};
+struct throw_expression_n_ : node_t {
+	std::optional<assignment_expression_p_> _;
+};
+struct assignment_expression_n_ : node_t {
+	std::variant<conditional_expression_p_, yield_expression_p_, throw_expression_p_, std::tuple<logical_or_expression_p_, assignment_operator_p_, initializer_clause_p_>> _;
+};
+struct assignment_operator_n_ : node_t {
+	kws_p<type_t::assign, type_t::multiple_assign, type_t::divide_assign, type_t::surplus_assign, type_t::add_assign, type_t::subtract_assign, type_t::l_shift_assign, type_t::r_shift_assign, type_t::and_eq_, type_t::or_eq_, type_t::xor_eq_> _;
+};
+struct expression_n_ : node_t {
+	std::vector<assignment_expression_p_> _;
+};
+struct constant_expression_n_ : node_t {
+	conditional_expression_p_ _;
+};
+
+//	A.6 Statements
+
+struct statement_n_ : node_t {
+	std::variant<
+		labeled_statement_p_,
+		declaration_statement_p_,
+		std::tuple<std::vector<attribute_specifier_p_>, std::variant<expression_statement_p_, compound_statement_p_, selection_statement_p_, iteration_statement_p_, jump_statement_p_, try_block_p_>>>
+		_;
+};
+struct init_statement_n_ : node_t {
+	std::variant<expression_statement_p_, simple_declaration_p_, alias_declaration_p_> _;
+};
+struct condition_n_ : node_t {
+	std::variant<expression_p_, std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, declarator_p_, brace_or_equal_initializer_p_>> _;
+};
+struct label_n_ : node_t {
+	std::tuple<std::vector<attribute_specifier_p_>, std::variant<identifier_p_, constant_expression_p_, kw_p<type_t::default_>>> _;
+};
+struct labeled_statement_n_ : node_t {
+	std::tuple<label_p_, statement_p_> _;
+};
+struct expression_statement_n_ : node_t {
+	std::optional<expression_p_> _;
+};
+struct compound_statement_n_ : node_t {
+	std::tuple<std::vector<statement_p_>, std::vector<label_p_>> _;
+};
+struct selection_statement_n_ : node_t {
+	std::variant<
+		std::tuple<kw_p<type_t::if_>, std::optional<kw_p<type_t::constexpr_>>, std::optional<init_statement_p_>, condition_p_, statement_p_, std::optional<statement_p_>>,
+		std::tuple<kw_p<type_t::if_>, std::optional<kw_p<type_t::not_>>, compound_statement_p_, std::optional<compound_statement_p_>>,
+		std::tuple<kw_p<type_t::switch_>, std::optional<init_statement_p_>, condition_p_, statement_p_>>
+		_;
+};
+struct iteration_statement_n_ : node_t {
+	std::variant<
+		std::tuple<kw_p<type_t::while_>, condition_p_, statement_p_>,
+		std::tuple<kw_p<type_t::do_>, statement_p_, expression_p_>,
+		std::tuple<kw_p<type_t::for_>, init_statement_p_, std::optional<condition_p_>, std::optional<expression_p_>, statement_p_>,
+		std::tuple<kw_p<type_t::for_>, std::optional<init_statement_p_>, for_range_declaration_p_, for_range_initializer_p_, statement_p_>>
+		_;
+};
+struct for_range_declaration_n_ : node_t {
+	std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, std::variant<declarator_p_, std::tuple<std::optional<ref_qualifier_p_>, std::vector<identifier_p_>>>> _;
+};
+struct for_range_initializer_n_ : node_t {
+	expr_or_braced_init_list_p_ _;
+};
+struct jump_statement_n_ : node_t {
+	std::variant<
+		kws_p<type_t::break_, type_t::continue_>,
+		std::optional<expr_or_braced_init_list_p_>,	   // return
+		coroutine_return_statement_p_,
+		identifier_p_>
+		_;	  // goto
+};
+struct coroutine_return_statement_n_ : node_t {
+	std::optional<expr_or_braced_init_list_p_> _;
+};
+struct declaration_statement_n_ : node_t {
+	block_declaration_p_ _;
+};
+
+//	A.7 Declarations
+
+struct declaration_n_ : node_t {
+	std::variant<name_declaration_p_, special_declaration_p_> _;
+};
+struct name_declaration_n_ : node_t {
+	std::variant<
+		block_declaration_p_,
+		nodeclspec_function_declaration_p_,
+		function_definition_p_,
+		template_declaration_p_,
+		deduction_guide_p_,
+		linkage_specification_p_,
+		namespace_definition_p_,
+		empty_declaration_p_,
+		attribute_declaration_p_,
+		module_import_declaration_p_>
+		_;
+};
+struct special_declaration_n_ : node_t {
+	std::variant<explicit_instantiation_p_, explicit_specialization_p_, export_declaration_p_> _;
+};
+struct block_declaration_n_ : node_t {
+	std::variant<
+		simple_declaration_p_,
+		asm_declaration_p_,
+		namespace_alias_definition_p_,
+		using_declaration_p_,
+		using_enum_declaration_p_,
+		using_directive_p_,
+		static_assert_declaration_p_,
+		alias_declaration_p_,
+		opaque_enum_declaration_p_>
+		_;
+};
+struct nodeclspec_function_declaration_n_ : node_t {
+	std::tuple<std::vector<attribute_specifier_p_>, declarator_p_> _;
+};
+struct alias_declaration_n_ : node_t {
+	std::tuple<identifier_p_, std::vector<attribute_specifier_p_>, defining_type_id_p_> _;
+};
+struct simple_declaration_n_ : node_t {
+	std::variant<
+		std::tuple<std::vector<decl_specifier_p_>, std::optional<init_declarator_list_p_>>,
+		std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, init_declarator_list_p_>,
+		std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, std::optional<ref_qualifier_p_>, std::vector<identifier_p_>, initializer_p_>>
+		_;
+};
+struct static_assert_declaration_n_ : node_t {
+	std::tuple<constant_expression_p_, std::optional<string_literal_p_>> _;
+};
+struct empty_declaration_n_ : node_t {};
+struct attribute_declaration_n_ : node_t {
+	std::vector<attribute_specifier_p_> _;
+};
+struct decl_specifier_n_ : node_t {
+	std::variant<storage_class_specifier_p_, defining_type_specifier_p_, function_specifier_p_, kws_p<type_t::friend_, type_t::typedef_, type_t::constexpr_, type_t::consteval_, type_t::constinit_, type_t::inline_>> _;
+};
+struct decl_specifier_seq_n_ : node_t {
+	std::vector<std::tuple<decl_specifier_p_, std::vector<attribute_specifier_p_>>> _;
+};
+struct storage_class_specifier_n_ : node_t {
+	kws_p<type_t::static_, type_t::thread_local_, type_t::extern_, type_t::mutable_> _;
+};
+struct function_specifier_n_ : node_t {
+	std::variant<kw_p<type_t::virtual_>, explicit_specifier_p_> _;
+};
+struct explicit_specifier_n_ : node_t {
+	std::optional<constant_expression_p_> _;
+};
+struct type_specifier_n_ : node_t {
+	std::variant<simple_type_specifier_p_, elaborated_type_specifier_p_, typename_specifier_p_, cv_qualifier_p_> _;
+};
+struct defining_type_specifier_n_ : node_t {
+	std::variant<type_specifier_p_, class_specifier_p_, enum_specifier_p_> _;
+};
+struct simple_type_specifier_n_ : node_t {
+	std::variant<std::tuple<std::optional<nested_name_specifier_p_>, type_name_p_>, std::tuple<nested_name_specifier_p_, simple_template_id_p_>, decltype_specifier_p_, placeholder_type_specifier_p_, std::tuple<std::optional<nested_name_specifier_p_>, template_name_p_>, kws_p<type_t::char_, type_t::char8_t_, type_t::char16_t_, type_t::char32_t_, type_t::wchar_t_, type_t::bool_, type_t::short_, type_t::int_, type_t::long_, type_t::signed_, type_t::unsigned_, type_t::float_, type_t::double_, type_t::void_>> _;
+};
+struct type_name_n_ : node_t {
+	std::variant<class_name_p_, enum_name_p_, typedef_name_p_> _;
+};
+struct elaborated_type_specifier_n_ : node_t {
+	std::variant<
+		std::tuple<class_key_p_, std::vector<attribute_specifier_p_>, std::optional<nested_name_specifier_p_>, identifier_p_>,
+		std::tuple<class_key_p_, simple_template_id_p_>,
+		std::tuple<class_key_p_, nested_name_specifier_p_, std::optional<kw_p<type_t::template_>>, simple_template_id_p_>,
+		std::tuple<std::optional<nested_name_specifier_p_>, identifier_p_>>
+		_;
+};
+struct decltype_specifier_n_ : node_t {
+	expression_p_ _;
+};
+struct placeholder_type_specifier_n_ : nodes_t {
+	std::tuple<std::optional<type_constraint_p_>, kw_p<type_t::decltype_>> _;
+};
+struct init_declarator_list_n_ : node_t {
+	std::vector<init_declarator_p_> _;
+};
+struct init_declarator_n_ : node_t {
+	std::tuple<declarator_p_, std::variant<std::optional<initializer_p_>, std::tuple<declarator_p_, requires_clause_p_>>> _;
+};
+struct declarator_n_ : node_t {
+	std::variant<ptr_declarator_p_, std::tuple<noptr_declarator_p_, parameters_and_qualifiers_p_, trailing_return_type_p_>> _;
+};
+struct ptr_declarator_n_ : node_t {
+	std::tuple<std::vector<ptr_operator_p_>, noptr_declarator_p_> _;
+};
+struct noptr_declarator_n_ : node_t {
+	std::variant<
+		std::tuple<declarator_id_p_, std::vector<attribute_specifier_p_>>,
+		std::tuple<noptr_declarator_p_, parameters_and_qualifiers_p_>,
+		std::tuple<noptr_declarator_p_, std::optional<constant_expression_p_>, std::vector<attribute_specifier_p_>>,
+		ptr_declarator_p_>
+		_;
+};
+struct parameters_and_qualifiers_n_ : node_t {
+	std::tuple<
+		parameter_declaration_clause_p_,
+		std::vector<cv_qualifier_p_>,
+		std::optional<ref_qualifier_p_>,
+		std::optional<noexcept_specifier_p_>,
+		std::vector<attribute_specifier_p_>>
+		_;
+};
+struct trailing_return_type_n_ : node_t {
+	type_id_p_ _;
+};
+struct ptr_operator_n_ : node_t {
+	std::variant<
+		std::tuple<kw_p<type_t::star>, std::vector<attribute_specifier_p_>, std::vector<cv_qualifier_p_>>,
+		std::tuple<kw_p<type_t::bitand_>, std::vector<attribute_specifier_p_>>,
+		std::tuple<kw_p<type_t::and_>, std::vector<attribute_specifier_p_>>,
+		std::tuple<nested_name_specifier_p_, kw_p<type_t::star>, std::vector<attribute_specifier_p_>, std::vector<cv_qualifier_p_>>>
+		_;
+};
+struct cv_qualifier_n_ : node_t {
+	kws_p<type_t::const_, type_t::volatile_> _;
+};
+struct ref_qualifier_n_ : node_t {
+	kws_p<type_t::bitand_, type_t::and_> _;
+};
+struct declarator_id_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::ellipsis>>, id_expression_p_> _;
+};
+struct type_id_n_ : node_t {
+	std::tuple<std::vector<type_specifier_p_>, std::optional<abstract_declarator_p_>> _;
+};
+struct defining_type_id_n_ : node_t {
+	std::tuple<std::vector<defining_type_specifier_p_>, std::optional<abstract_declarator_p_>> _;
+};
+struct abstract_declarator_n_ : node_t {
+	std::variant<
+		ptr_abstract_declarator_p_,
+		std::tuple<std::optional<noptr_abstract_declarator_p_>, parameters_and_qualifiers_p_, trailing_return_type_p_>,
+		abstract_pack_declarator_p_>
+		_;
+};
+struct ptr_abstract_declarator_n_ : node_t {
+	std::vector<ptr_operator_p_> _;
+};
+struct noptr_abstract_declarator_n_ : node_t {
+	std::tuple<
+		std::vector<ptr_abstract_declarator_p_>,
+		std::variant<
+			parameters_and_qualifiers_p_,
+			std::tuple<std::optional<constant_expression_p_>, std::vector<attribute_specifier_p_>>>>
+		_;
+};
+struct abstract_pack_declarator_n_ : node_t {
+	std::tuple<std::vector<ptr_operator_p_>, noptr_abstract_pack_declarator_p_> _;
+};
+struct noptr_abstract_pack_declarator_n_ : node_t {
+	std::tuple<
+		std::vector<kw_p<type_t::ellipsis>>,
+		std::variant<parameters_and_qualifiers_p_, std::tuple<std::optional<constant_expression_p_>, std::vector<attribute_specifier_p_>>>>
+		_;
+};
+struct parameter_declaration_clause_n_ : node_t {
+	std::tuple<std::optional<parameter_declaration_list_p_>, std::optional<kw_p<type_t::ellipsis>>> _;
+};
+struct parameter_declaration_list_n_ : node_t {
+	std::vector<parameter_declaration_p_> _;
+};
+struct parameter_declaration_n_ : node_t {
+	std::variant<
+		std::tuple<std::vector<attribute_specifier_p_>, std::optional<kw_p<type_t::this_>>, std::vector<decl_specifier_p_>, declarator_p_>,
+		std::tuple<std::vector<attribute_specifier_p_>, std::optional<kw_p<type_t::this_>>, std::vector<decl_specifier_p_>, std::optional<abstract_declarator_p_>>,
+		std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, declarator_p_, initializer_clause_p_>,
+		std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, std::optional<abstract_declarator_p_>, initializer_clause_p_>>
+		_;
+};
+struct initializer_n_ : node_t {
+	std::variant<brace_or_equal_initializer_p_, expression_list_p_> _;
+};
+struct brace_or_equal_initializer_n_ : node_t {
+	std::variant<initializer_clause_p_, braced_init_list_p_> _;
+};
+struct initializer_clause_n_ : node_t {
+	std::variant<assignment_expression_p_, braced_init_list_p_> _;
+};
+struct braced_init_list_n_ : node_t {
+	std::optional<std::variant<initializer_list_p_, designated_initializer_list_p_>> _;
+};
+struct initializer_list_n_ : node_t {
+	std::vector<std::tuple<initializer_clause_p_, std::optional<kw_p<type_t::ellipsis>>>> _;
+};
+struct designated_initializer_list_n_ : node_t {
+	std::vector<designated_initializer_clause_p_> _;
+};
+struct designated_initializer_clause_n_ : node_t {
+	std::tuple<designator_p_, brace_or_equal_initializer_p_> _;
+};
+struct designator_n_ : node_t {
+	identifier_p_ _;
+};
+struct expr_or_braced_init_list_n_ : node_t {
+	std::variant<expression_p_, braced_init_list_p_> _;
+};
+struct function_definition_n_ : node_t {
+	std::tuple<
+		std::vector<attribute_specifier_p_>,
+		std::vector<decl_specifier_p_>,
+		declarator_p_,
+		std::variant<std::vector<virt_specifier_p_>, std::tuple<requires_clause_p_, function_body_p_>>,
+		function_body_p_>
+		_;
+};
+struct function_body_n_ : node_t {
+	std::variant<std::tuple<std::optional<ctor_initializer_p_>, compound_statement_p_>, function_try_block_p_, kws_p<type_t::default_, type_t::delete_>> _;
+};
+struct enum_specifier_n_ : node_t {
+	std::tuple<enum_head_p_, std::vector<enumerator_list_p_>> _;
+};
+struct enum_head_n_ : node_t {
+	std::tuple<enum_key_p_, std::vector<attribute_specifier_p_>, std::optional<enum_head_name_p_>, std::optional<enum_base_p_>> _;
+};
+struct enum_head_name_n_ : node_t {
+	std::tuple<std::optional<nested_name_specifier_p_>, identifier_p_> _;
+};
+struct opaque_enum_declaration_n_ : node_t {
+	std::tuple<enum_key_p_, std::vector<attribute_specifier_p_>, enum_head_name_p_, std::optional<enum_base_p_>> _;
+};
+struct enum_key_n_ : node_t {
+	kws_p<type_t::class_, type_t::struct_> _;
+};
+struct enum_base_n_ : node_t {
+	std::vector<type_specifier_p_> _;
+};
+struct enumerator_list_n_ : node_t {
+	std::vector<enumerator_definition_p_> _;
+};
+struct enumerator_definition_n_ : node_t {
+	std::tuple<enumerator_p_, std::optional<constant_expression_p_>> _;
+};
+struct enumerator_n_ : node_t {
+	std::tuple<identifier_p_, std::vector<attribute_specifier_p_>> _;
+};
+struct using_enum_declaration_n_ : node_t {
+	using_enum_declarator_p_ _;
+};
+struct using_enum_declarator_n_ : node_t {
+	std::tuple<std::optional<nested_name_specifier_p_>, std::variant<identifier_p_, simple_template_id_p_>> _;
+};
+struct namespace_definition_n_ : node_t {
+	std::variant<named_namespace_definition_p_, unnamed_namespace_definition_p_, nested_namespace_definition_p_> _;
+};
+struct named_namespace_definition_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::inline_>>, std::vector<attribute_specifier_p_>, identifier_p_, namespace_body_p_> _;
+};
+struct unnamed_namespace_definition_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::inline_>>, std::vector<attribute_specifier_p_>, identifier_p_, namespace_body_p_> _;
+};
+struct nested_namespace_definition_n_ : node_t {
+	std::tuple<enclosing_namespace_specifier_p_, std::optional<kw_p<type_t::inline_>>, identifier_p_, namespace_body_p_> _;
+};
+struct enclosing_namespace_specifier_n_ : node_t {
+	std::variant<identifier_p_, std::vector<std::tuple<std::optional<kw_p<type_t::inline_>>, identifier_p_>>> _;
+};
+struct namespace_body_n_ : node_t {
+	std::vector<declaration_p_> _;
+};
+struct namespace_alias_definition_n_ : node_t {
+	std::tuple<identifier_p_, qualified_namespace_specifier_p_> _;
+};
+struct qualified_namespace_specifier_n_ : node_t {
+	std::tuple<std::optional<nested_name_specifier_p_>, namespace_name_p_> _;
+};
+struct using_directive_n_ : node_t {
+	std::tuple<std::vector<attribute_specifier_p_>, std::optional<nested_name_specifier_p_>, namespace_name_p_> _;
+};
+struct using_declaration_n_ : node_t {
+	using_declarator_list_p_ _;
+};
+struct using_declarator_list_n_ : node_t {
+	std::vector<std::tuple<using_declarator_p_, std::optional<kw_p<type_t::ellipsis>>>> _;
+};
+struct using_declarator_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::typename_>>, nested_name_specifier_p_, unqualified_id_p_> _;
+};
+struct asm_declaration_n_ : node_t {
+	std::tuple<std::vector<attribute_specifier_p_>, string_literal_p_> _;
+};
+struct linkage_specification_n_ : node_t {
+	std::tuple<string_literal_p_, std::vector<declaration_p_>, name_declaration_p_> _;
+};
+struct attribute_specifier_n_ : node_t {
+	std::variant<std::tuple<std::optional<attribute_using_prefix_p_>, std::shared_ptr<attribute_list_p_>>, alignment_specifier_p_> _;
+};
+struct alignment_specifier_n_ : node_t {
+	std::tuple<std::variant<type_id_p_, constant_expression_p_>, std::optional<kw_p<type_t::ellipsis>>> _;
+};
+struct attribute_using_prefix_n_ : node_t {
+	attribute_namespace_p_ _;
+};
+struct attribute_list_n_ : node_t {
+	std::vector<std::variant<std::optional<attribute_p_>, std::tuple<attribute_p_, kw_p<type_t::ellipsis>>>> _;
+};
+struct attribute_n_ : node_t {
+	std::tuple<attribute_token_p_, std::optional<attribute_argument_clause_p_>> _;
+};
+struct attribute_token_n_ : node_t {
+	std::variant<identifier_p_, attribute_scoped_token_p_> _;
+};
+struct attribute_scoped_token_n_ : node_t {
+	std::tuple<attribute_namespace_p_, identifier_p_> _;
+};
+struct attribute_namespace_n_ : node_t {
+	identifier_p_ _;
+};
+struct attribute_argument_clause_n_ : node_t {
+	std::vector<balanced_token_p_> _;
+};
+struct balanced_token_n_ : node_t {
+	std::tuple<kws_p<type_t::l_paren, type_t::l_brace, type_t::l_bracket>, std::vector<balanced_token_p_>> _;
+};
+
+//	A.8 Modules
+
+struct module_declaration_n_ : node_t {
+	std::tuple<bool, module_name_p_, std::optional<module_partition_p_>, std::vector<attribute_specifier_p_>> _;
+};
+struct module_name_n_ : node_t {
+	std::tuple<std::optional<module_name_qualifier_p_>, identifier_p_> _;
+};
+struct module_partition_n_ : node_t {
+	std::tuple<std::optional<module_name_qualifier_p_>, identifier_p_> _;
+};
+struct module_name_qualifier_n_ : node_t {
+	std::tuple<std::optional<module_name_qualifier_p_>, identifier_p_> _;
+};
+struct export_declaration_n_ : node_t {
+	std::variant<name_declaration_p_, std::vector<declaration_p_>, module_import_declaration_p_> _;
+};
+struct module_import_declaration_n_ : node_t {
+	std::tuple<std::variant<module_name_p_, module_partition_p_, header_name_p_>, std::vector<attribute_specifier_p_>> _;
+};
+struct global_module_fragment_n_ : node_t {
+	std::vector<declaration_p_> _;
+};
+struct private_module_fragment_n_ : node_t {
+	std::vector<declaration_p_> _;
+};
+
+//	A.9 Classes
+
+struct class_specifier_n_ : node_t {
+	std::tuple<class_head_p_, std::optional<member_specification_p_>> _;
+};
+struct class_head_n_ : node_t {
+	std::tuple<class_key_p_, std::vector<attribute_specifier_p_>, std::optional<std::tuple<class_head_name_p_, std::optional<class_virt_specifier_p_>>>, std::optional<base_clause_p_>> _;
+};
+struct class_head_name_n_ : node_t {
+	std::tuple<std::optional<nested_name_specifier_p_>, class_name_p_> _;
+};
+struct class_virt_specifier_n_ : node_t {
+	std::optional<kw_p<type_t::final_>> _;	  // final only ... bool?
+};
+struct class_key_n_ : node_t {
+	kws_p<type_t::class_, type_t::struct_, type_t::union_> _;
+};
+struct member_specification_n_ : node_t {
+	std::vector<std::variant<member_declaration_p_, access_specifier_p_>> _;
+};
+struct member_declaration_n_ : node_t {
+	std::variant<
+		std::tuple<std::vector<attribute_specifier_p_>, std::vector<decl_specifier_p_>, std::vector<member_declarator_p_>>,
+		function_definition_p_,
+		using_declaration_p_,
+		using_enum_declaration_p_,
+		static_assert_declaration_p_,
+		template_declaration_p_,
+		explicit_specialization_p_,
+		deduction_guide_p_,
+		alias_declaration_p_,
+		opaque_enum_declaration_p_,
+		empty_declaration_p_>
+		_;
+};
+struct member_declarator_list_n_ : node_t {
+	std::vector<member_declarator_p_> _;
+};
+struct member_declarator_n_ : node_t {
+	std::variant<std::tuple<declarator_p_, std::vector<virt_specifier_p_>, std::optional<pure_specifier_p_>>, std::tuple<declarator_p_, requires_clause_p_>, std::tuple<declarator_p_, std::optional<brace_or_equal_initializer_p_>>, std::tuple<std::optional<identifier_p_>, std::vector<attribute_specifier_p_>, constant_expression_p_, std::optional<brace_or_equal_initializer_p_>>> _;
+};
+struct virt_specifier_n_ : node_t {
+	kws_p<type_t::override_, type_t::final_> _;
+};
+struct pure_specifier_n_ : node_t {};
+struct conversion_function_id_n_ : node_t {
+	conversion_type_id_p_ _;
+};
+struct conversion_type_id_n_ : node_t {
+	std::tuple<std::vector<type_specifier_p_>, std::optional<conversion_declarator_p_>> _;
+};
+struct conversion_declarator_n_ : node_t {
+	std::vector<ptr_operator_p_> _;
+};
+struct base_clause_n_ : node_t {
+	std::vector<std::tuple<base_specifier_p_, std::optional<kw_p<type_t::ellipsis>>>> _;
+};
+struct base_specifier_list_n_ : node_t {};
+struct base_specifier_n_ : node_t {
+	std::tuple<
+		std::vector<attribute_specifier_p_>,
+		std::optional<std::variant<
+			std::tuple<kw_p<type_t::virtual_>, std::optional<access_specifier_p_>>,
+			std::tuple<access_specifier_p_, std::optional<kw_p<type_t::virtual_>>>>>,
+		class_or_decltype_p_>
+		_;
+};
+struct class_or_decltype_n_ : node_t {
+	std::variant<
+		std::tuple<std::optional<nested_name_specifier_p_>, type_name_p_>,
+		std::tuple<nested_name_specifier_p_, simple_template_id_p_>,
+		decltype_specifier_p_>
+		_;
+};
+struct access_specifier_n_ : node_t {
+	kws_p<type_t::private_, type_t::protected_, type_t::public_> _;
+};
+struct ctor_initializer_n_ : node_t {
+	mem_initializer_list_p_ _;
+};
+struct mem_initializer_list_n_ : node_t {
+	std::vector<std::tuple<mem_initializer_p_, std::optional<kw_p<type_t::ellipsis>>>> _;
+};
+struct mem_initializer_n_ : node_t {
+	std::tuple<mem_initializer_id_p_, std::variant<std::optional<expression_list_p_>, braced_init_list_p_>> _;
+};
+struct mem_initializer_id_n_ : node_t {
+	std::tuple<class_or_decltype_p_, identifier_p_> _;
+};
+
+//	A.10 Overloading
+
+struct operator_function_id_n_ : node_t {
+	std::unordered_set<type_t> const kw_{
+		type_t::new_,
+		type_t::delete_,
+		type_t::new_array,
+		type_t::delete_array,
+		type_t::co_await_,
+		type_t::l_paren,
+		type_t::r_paren,
+		type_t::l_bracket,
+		type_t::r_bracket,
+		type_t::arrow,
+		type_t::arrow_star,
+		type_t::dot_star,
+		type_t::compl_,
+		type_t::not_,
+		type_t::plus,
+		type_t::minus,
+		type_t::star,
+		type_t::divide,
+		type_t::surplus,
+		type_t::xor_,
+		type_t::bitand_,
+		type_t::bitor_,
+		type_t::assign,
+		type_t::add_assign,
+		type_t::subtract_assign,
+		type_t::multiple_assign,
+		type_t::divide_assign,
+		type_t::surplus_assign,
+		type_t::xor_eq_,
+		type_t::and_eq_,
+		type_t::or_eq_,
+		type_t::eq,
+		type_t::not_eq_,
+		type_t::lt,
+		type_t::lt_eq,
+		type_t::gt,
+		type_t::gt_eq,
+		type_t::spaceship,
+		type_t::and_,
+		type_t::or_,
+		type_t::l_shift,
+		type_t::r_shift,
+		type_t::l_shift_assign,
+		type_t::r_shift_assign,
+		type_t::increment,
+		type_t::decrement,
+	};
+	explicit operator_function_id_n_(type_t kw) :
+		node_t(), _(kw) { check(kw_.contains(kw), to_string(kw)); }
+	type_t _;
+};
+struct operator_n_ : node_t {};
+struct literal_operator_id_n_ : node_t {
+	std::variant<std::tuple<string_literal_p_, identifier_p_>, user_defined_string_literal_p_> _;
+};
+
+//	A.11 Templates
+
+struct template_declaration_n_ : node_t {
+	std::tuple<template_head_p_, std::variant<declaration_p_, concept_definition_p_>> _;
+};
+struct template_head_n_ : node_t {
+	std::tuple<template_parameter_list_p_, std::optional<requires_clause_p_>> _;
+};
+struct template_parameter_list_n_ : node_t {
+	std::vector<template_parameter_p_> _;
+};
+struct requires_clause_n_ : node_t {
+	constraint_logical_or_expression_p_ _;
+};
+struct constraint_logical_or_expression_n_ : node_t {
+	std::vector<constraint_logical_and_expression_p_> _;
+};
+struct constraint_logical_and_expression_n_ : node_t {
+	std::vector<primary_expression_p_> _;
+};
+struct template_parameter_n_ : node_t {
+	std::variant<type_parameter_p_, parameter_declaration_p_> _;
+};
+struct type_parameter_n_ : node_t {
+	std::variant<
+		std::tuple<
+			type_parameter_key_p_,
+			std::variant<
+				std::tuple<std::optional<kw_p<type_t::ellipsis>>, std::optional<identifier_p_>>,
+				std::tuple<identifier_p_, type_id_p_>>>,
+		std::tuple<
+			type_constraint_p_,
+			std::variant<
+				std::tuple<std::optional<kw_p<type_t::ellipsis>>, std::optional<identifier_p_>>,
+				std::tuple<identifier_p_, type_id_p_>>>,
+		std::tuple<
+			template_head_p_, type_parameter_key_p_,
+			std::variant<
+				std::tuple<std::optional<kw_p<type_t::ellipsis>>, std::optional<identifier_p_>>,
+				std::tuple<identifier_p_, id_expression_p_>>>>
+		_;
+};
+struct type_parameter_key_n_ : node_t {
+	kws_p<type_t::class_, type_t::typename_> _;
+};
+struct type_constraint_n_ : node_t {
+	std::tuple<std::optional<nested_name_specifier_p_>, concept_name_p_, std::optional<template_argument_list_p_>> _;
+};
+struct template_id_n_ : node_t {
+	std::variant<
+		simple_template_id_p_,
+		std::tuple<operator_function_id_p_, std::optional<template_argument_list_p_>>,
+		std::tuple<literal_operator_id_p_, std::optional<template_argument_list_p_>>>
+		_;
+};
+struct template_argument_list_n_ : node_t {
+	std::vector<std::tuple<template_argument_p_, std::optional<kw_p<type_t::ellipsis>>>> _;
+};
+struct template_argument_n_ : node_t {
+	std::variant<constant_expression_p_, type_id_p_, id_expression_p_> _;
+};
+struct constraint_expression_n_ : node_t {
+	logical_or_expression_p_ _;
+};
+struct deduction_guide_n_ : node_t {
+	std::tuple<std::optional<explicit_specifier_p_>, template_name_p_, parameter_declaration_clause_p_, simple_template_id_p_> _;
+};
+struct concept_definition_n_ : node_t {
+	std::tuple<concept_name_p_, std::vector<attribute_specifier_p_>, constraint_expression_p_> _;
+};
+struct concept_name_n_ : node_t {
+	identifier_p_ _;
+};
+struct typename_specifier_n_ : node_t {
+	std::tuple<nested_name_specifier_p_, std::variant<identifier_p_, std::tuple<std::optional<kw_p<type_t::template_>>, simple_template_id_p_>>> _;
+};
+struct explicit_instantiation_n_ : node_t {
+	std::tuple<std::optional<kw_p<type_t::extern_>>, declaration_p_> _;
+};
+struct explicit_specialization_n_ : node_t {
+	declaration_p_ _;
+};
+
+//	A.12 Exception handling
+
+struct try_block_n_ : node_t {
+	std::tuple<compound_statement_p_, std::vector<handler_p_>> _;
+};
+struct function_try_block_n_ : node_t {
+	std::tuple<std::optional<ctor_initializer_p_>, compound_statement_p_, std::vector<handler_p_>> _;
+};
+struct handler_n_ : node_t {
+	std::tuple<exception_declaration_p_, compound_statement_p_> _;
+};
+struct exception_declaration_n_ : node_t {
+	std::optional<std::tuple<std::vector<attribute_specifier_p_>, std::vector<type_specifier_p_>, std::variant<declarator_p_, std::optional<abstract_declarator_p_>>>> _;
+};
+struct noexcept_specifier_n_ : node_t {
+	std::optional<constant_expression_p_> _;
+};
 
 }	 // namespace ast
 
@@ -3013,8 +4618,8 @@ private:
 	parser_p parser_;
 };
 struct zom_t : parser_t {
-	virtual result_t parse(def::ast::nodes_t const& nodes, lex::tokens_t const& source) const {
-		def::ast::nodes_t r = nodes;
+	virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const {
+		ast::nodes_t  r = nodes;
 		lex::tokens_t t = source;
 		for (;;) {
 			if (auto const [ns, rest] = parser_->parse(r, t); rest) {
@@ -3119,20 +4724,16 @@ inline parser_p kw_set_(std::vector<std::string> const& set) { return std::make_
 inline parser_p op_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set); }
 inline parser_p punc_set_(std::vector<std::string> const& set) { return std::make_shared<impl::set_t>(set); }
 
-#define xxx_parser_declare(name)                                                                  \
-	namespace ast {		\
-	struct name##node_t : node_t {                                                            \
-	};                                                            \
-	}					\
-	struct name##parser_t : parser_t {                                                            \
+#define xxx_parser_declare(name)                                                                       \
+	struct name##parser_t : parser_t {                                                                 \
 		virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override; \
-	};                                                                                            \
+	};                                                                                                 \
 	auto const name = std::make_shared<name##parser_t>()
 
-#define xxx_parser_define(name, body)                                                                 \
-	struct name##parser_t : parser_t {                                                                \
+#define xxx_parser_define(name, body)                                                                      \
+	struct name##parser_t : parser_t {                                                                     \
 		virtual result_t parse(ast::nodes_t const& nodes, lex::tokens_t const& source) const override body \
-	};                                                                                                \
+	};                                                                                                     \
 	auto const name = std::make_shared<name##parser_t>()
 
 #define xxx_parser_impl(name, body) \
@@ -3575,8 +5176,6 @@ xxx_parser_declare(noexcept_specifier_);
 //	A.4 Basics [gram.basic]
 
 xxx_parser_impl(translation_unit_, {
-	
-	
 	return or_({zom_(declaration_), seq_({opt_(global_module_fragment_), module_declaration_, zom_(declaration_), opt_(private_module_fragment_)})})->parse(nodes, source);
 });
 
